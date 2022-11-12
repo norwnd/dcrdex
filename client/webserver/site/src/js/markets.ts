@@ -2183,7 +2183,7 @@ export default class MarketsPage extends BasePage {
     const rounded = String(lotsAdj) !== page.lotField.value
     const adjQty = lotsAdj * lotSize / bui.conventional.conversionFactor
 
-    return [false, rounded, lotsAdj, adjQty]
+    return [true, rounded, lotsAdj, adjQty]
   }
 
   qtyFieldKeyupHandler () {
@@ -2268,7 +2268,7 @@ export default class MarketsPage extends BasePage {
     const rounded = adjQtyAtom !== qtyRawAtom
     const adjQty = adjQtyAtom / bui.conventional.conversionFactor
 
-    return [false, rounded, adjLots, adjQty]
+    return [true, rounded, adjLots, adjQty]
   }
 
   /*
