@@ -454,7 +454,7 @@ export class Animation {
       now = new Date().getTime()
     }
     f(1)
-    this.runCompletionFunction()
+    return this.runCompletionFunction()
   }
 
   /* wait returns a promise that will resolve when the animation completes. */
