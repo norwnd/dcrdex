@@ -411,14 +411,14 @@ export default class MarketsPage extends BasePage {
     })
 
     // Event listeners for interactions with the various input fields.
-    bind(page.lotField, 'change', async () => { await this.lotFieldChangeHandler() })
-    bind(page.lotField, 'keyup', async () => { await this.lotFieldKeyupHandler() })
-    bind(page.qtyField, 'change', async () => { await this.qtyFieldChangeHandler() })
-    bind(page.qtyField, 'keyup', async () => { await this.qtyFieldKeyupHandler() })
-    bind(page.mktBuyField, 'change', async () => { await this.marketBuyChangedHandler() })
-    bind(page.mktBuyField, 'keyup', async () => { await this.marketBuyChangedHandler() })
-    bind(page.rateField, 'change', async () => { await this.rateFieldChangeHandler() })
-    bind(page.rateField, 'keyup', async () => { await this.rateFieldKeyupHandler() })
+    bind(page.lotField, 'change', () => { this.lotFieldChangeHandler() })
+    bind(page.lotField, 'keyup', () => { this.lotFieldKeyupHandler() })
+    bind(page.qtyField, 'change', () => { this.qtyFieldChangeHandler() })
+    bind(page.qtyField, 'keyup', () => { this.qtyFieldKeyupHandler() })
+    bind(page.mktBuyField, 'change', () => { this.marketBuyChangedHandler() })
+    bind(page.mktBuyField, 'keyup', () => { this.marketBuyChangedHandler() })
+    bind(page.rateField, 'change', () => { this.rateFieldChangeHandler() })
+    bind(page.rateField, 'keyup', () => { this.rateFieldKeyupHandler() })
 
     // Market search input bindings.
     bind(page.marketSearchV1, 'change', () => { this.filterMarkets() })
@@ -1105,7 +1105,7 @@ export default class MarketsPage extends BasePage {
    * validateOrder performs some basic order sanity checks, returning boolean
    * true if the order appears valid.
    */
-  async validateOrder (order: TradeForm) {
+  validateOrder (order: TradeForm) {
     const page = this.page
 
     const showError = function (err: string) {
@@ -1118,19 +1118,19 @@ export default class MarketsPage extends BasePage {
 
     if (order.isLimit && !order.rate) {
       // Hints to the user what inputs don't pass validation.
-      await this.animateErrors(highlightOutlineRed(page.rateField))
+      this.animateErrors(highlightOutlineRed(page.rateField))
       showError(intl.ID_NO_ZERO_RATE)
       return false
     }
     if (!order.qty) {
       // Hints to the user what inputs don't pass validation.
-      await this.animateErrors(highlightOutlineRed(page.qtyField))
+      this.animateErrors(highlightOutlineRed(page.qtyField))
       showError(intl.ID_NO_ZERO_QUANTITY)
       return false
     }
     if (order.qty > this.calcMaxOrderQtyAtoms()) {
       // Hints to the user what inputs don't pass validation.
-      await this.animateErrors(highlightBackgroundRed(page.maxOrd), highlightBackgroundRed(page.orderTotalPreview))
+      this.animateErrors(highlightBackgroundRed(page.maxOrd), highlightBackgroundRed(page.orderTotalPreview))
       showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
@@ -1879,7 +1879,7 @@ export default class MarketsPage extends BasePage {
     animateClick(page.submitBttn, page.submitBttnLoader)
 
     Doc.hide(page.orderErr)
-    const valid = await this.validateOrder(this.parseOrder())
+    const valid = this.validateOrder(this.parseOrder())
     if (!valid) {
       return
     }
@@ -2106,25 +2106,18 @@ export default class MarketsPage extends BasePage {
     this.balanceWgt.updateAsset(this.openAsset.id)
   }
 
-  async lotFieldKeyupHandler () {
+  lotFieldKeyupHandler () {
     const page = this.page
-
-    // We can't do anything with empty value here, and since it is a default
-    // we don't want to report is to be an issue either. Just make sure to
-    // reset both lots and quantity because both represent the same thing.
-    if (page.lotField.value === '') {
-      page.qtyField.value = ''
-      return
-    }
 
     const [inputValid, adjusted,, adjQty] = this.parseLotInput()
     if (!inputValid || adjusted) {
       // Let the user know that lot value he's entered was rounded down to the
       // nearest integer number.
-      await this.animateErrors(highlightOutlineRed(page.lotField), highlightBackgroundRed(page.lotSizeBox))
+      this.animateErrors(highlightOutlineRed(page.lotField), highlightBackgroundRed(page.lotSizeBox))
     }
     if (!inputValid) {
       page.orderTotalPreview.textContent = ''
+      page.lotField.value = ''
       page.qtyField.value = ''
       return
     }
@@ -2136,16 +2129,8 @@ export default class MarketsPage extends BasePage {
     this.previewTotal()
   }
 
-  async lotFieldChangeHandler () {
+  lotFieldChangeHandler () {
     const page = this.page
-
-    // We can't do anything with empty value here, and since it is a default
-    // we don't want to report is to be an issue either. Just make sure to
-    // reset both lots and quantity because both represent the same thing.
-    if (page.lotField.value === '') {
-      page.qtyField.value = ''
-      return
-    }
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseLotInput()
     if (!inputValid) {
@@ -2157,7 +2142,7 @@ export default class MarketsPage extends BasePage {
     if (!inputValid || adjusted) {
       // Let the user know that lot value he's entered was rounded down to the
       // nearest integer number.
-      await this.animateErrors(highlightOutlineRed(page.lotField), highlightBackgroundRed(page.lotSizeBox))
+      this.animateErrors(highlightOutlineRed(page.lotField), highlightBackgroundRed(page.lotSizeBox))
     }
     page.lotField.value = String(adjLots)
     page.qtyField.value = String(adjQty)
@@ -2177,36 +2162,35 @@ export default class MarketsPage extends BasePage {
   parseLotInput (): [boolean, boolean, number, number] {
     const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSize } } } = this
 
-    const lotsAdj = parseInt(page.lotField.value || '')
+    let value = page.lotField.value
+    if (!value) {
+      value = '0'
+    }
+    const lotsAdj = parseInt(value)
     if (lotsAdj < 1) {
+      console.log('lots bad ' + page.lotField.value)
       return [false, false, 0, 0]
     }
 
+    console.log('lots good ' + page.lotField.value)
     const rounded = String(lotsAdj) !== page.lotField.value
     const adjQty = lotsAdj * lotSize / bui.conventional.conversionFactor
 
     return [true, rounded, lotsAdj, adjQty]
   }
 
-  async qtyFieldKeyupHandler () {
+  qtyFieldKeyupHandler () {
     const page = this.page
-
-    // We can't do anything with empty value here, and since it is a default
-    // we don't want to report is to be an issue either. Just make sure to
-    // reset both lots and quantity because both represent the same thing.
-    if (page.qtyField.value === '') {
-      page.lotField.value = ''
-      return
-    }
 
     const [inputValid, adjusted, adjLots] = this.parseQtyInput()
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      await this.animateErrors(highlightOutlineRed(page.qtyField), highlightBackgroundRed(page.lotSizeBox))
+      this.animateErrors(highlightOutlineRed(page.qtyField), highlightBackgroundRed(page.lotSizeBox))
     }
     if (!inputValid) {
       page.orderTotalPreview.textContent = ''
       page.lotField.value = ''
+      page.qtyField.value = ''
       return
     }
     // Lots and quantity fields are tightly coupled to each other, when one is
@@ -2217,16 +2201,8 @@ export default class MarketsPage extends BasePage {
     this.previewTotal()
   }
 
-  async qtyFieldChangeHandler () {
+  qtyFieldChangeHandler () {
     const page = this.page
-
-    // We can't do anything with empty value here, and since it is a default
-    // we don't want to report is to be an issue either. Just make sure to
-    // reset both lots and quantity because both represent the same thing.
-    if (page.qtyField.value === '') {
-      page.lotField.value = ''
-      return
-    }
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput()
     if (!inputValid) {
@@ -2237,7 +2213,7 @@ export default class MarketsPage extends BasePage {
     }
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      await this.animateErrors(highlightOutlineRed(page.qtyField), highlightBackgroundRed(page.lotSizeBox))
+      this.animateErrors(highlightOutlineRed(page.qtyField), highlightBackgroundRed(page.lotSizeBox))
     }
     page.lotField.value = String(adjLots)
     page.qtyField.value = String(adjQty)
@@ -2258,10 +2234,12 @@ export default class MarketsPage extends BasePage {
     const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSize } } } = this
 
     const qtyRawAtom = convertToAtoms(page.qtyField.value || '', bui.conventional.conversionFactor)
-    if (qtyRawAtom < 1) {
+    if (isNaN(qtyRawAtom) || qtyRawAtom < 1) {
+      console.log('qty bad ' + page.lotField.value)
       return [false, false, 0, 0]
     }
 
+    console.log('qty good ' + page.lotField.value)
     const lotsRaw = qtyRawAtom / lotSize
     const adjLots = Math.floor(lotsRaw)
     const adjQtyAtom = adjLots * lotSize
@@ -2290,13 +2268,13 @@ export default class MarketsPage extends BasePage {
     page.mktBuyScore.textContent = Doc.formatCoinValue(received, this.market.baseUnitInfo)
   }
 
-  async rateFieldKeyupHandler () {
+  rateFieldKeyupHandler () {
     const page = this.page
 
     const [inputValid, adjusted] = this.parseRateInput()
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered was rounded down.
-      await this.animateErrors(highlightOutlineRed(page.rateField), highlightBackgroundRed(page.rateStepBox))
+      this.animateErrors(highlightOutlineRed(page.rateField), highlightBackgroundRed(page.rateStepBox))
     }
     if (!inputValid) {
       page.orderTotalPreview.textContent = ''
@@ -2307,7 +2285,7 @@ export default class MarketsPage extends BasePage {
     this.drawChartLineInputRate()
   }
 
-  async rateFieldChangeHandler () {
+  rateFieldChangeHandler () {
     const page = this.page
 
     const [inputValid, adjusted, adjRate] = this.parseRateInput()
@@ -2319,7 +2297,7 @@ export default class MarketsPage extends BasePage {
     }
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered was rounded down.
-      await this.animateErrors(highlightOutlineRed(page.rateField), highlightBackgroundRed(page.rateStepBox))
+      this.animateErrors(highlightOutlineRed(page.rateField), highlightBackgroundRed(page.rateStepBox))
     }
 
     page.rateField.value = String(adjRate)
@@ -2616,12 +2594,10 @@ export default class MarketsPage extends BasePage {
     clearInterval(this.secondTicker)
   }
 
-  async animateErrors (...animations: { (): Animation }[]) {
+  animateErrors (...animations: { (): Animation }[]) {
     for (const ani of this.runningErrAnimations) {
-      console.log('waiting')
-      // Must wait because until it fully stops it might interfere with new animations.
-      await ani.stopAndWait()
-      // ani.stop()
+      // Note, animation might still continue executing in background for 1 tick.
+      ani.stop()
     }
 
     this.runningErrAnimations = []
@@ -3201,11 +3177,16 @@ function highlightBackgroundRed (element: PageElement): () => Animation {
   const [r, g, b, a] = State.isDark() ? [233, 94, 94, 0.8] : [153, 48, 43, 0.6]
   return (): Animation => {
     return new Animation(animationLength, (progress: number) => {
+      // console.log('tick background ' + element.id)
       element.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
     },
     'easeIn',
     () => {
-      element.style.backgroundColor = 'none'
+      // console.log('done background 1 ' + element.id)
+      // Setting background color to 'none' SOMETIMES results in a no-op for some reason, wat.
+      // Hence, setting to 'transparent' instead.
+      element.style.backgroundColor = 'transparent'
+      // console.log('done background 2 ' + element.id)
     })
   }
 }
@@ -3218,14 +3199,14 @@ function highlightBackgroundRed (element: PageElement): () => Animation {
 function highlightOutlineRed (element: PageElement): () => Animation {
   const [r, g, b, a] = State.isDark() ? [233, 94, 94, 0.8] : [153, 48, 43, 0.8]
   return (): Animation => {
-    element.style.outline = '2px solid'
+    // element.style.outline = '2px solid'
     return new Animation(animationLength, (progress: number) => {
       element.style.outlineColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
     },
     'easeIn',
     () => {
-      element.style.outline = '2px'
-      element.style.outlineColor = 'none'
+      // element.style.outline = '2px'
+      element.style.outlineColor = 'transparent'
     })
   }
 }
