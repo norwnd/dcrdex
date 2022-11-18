@@ -274,6 +274,7 @@ export default class MarketsPage extends BasePage {
 
     // Buttons to set order type and side.
     bind(page.buyBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.sellBttn, page.buyBttn)
       page.submitBttn.classList.remove(sellBtnClass)
       page.submitBttn.classList.add(buyBtnClass)
@@ -284,6 +285,7 @@ export default class MarketsPage extends BasePage {
       this.drawChartLines()
     })
     bind(page.sellBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.buyBttn, page.sellBttn)
       page.submitBttn.classList.add(sellBtnClass)
       page.submitBttn.classList.remove(buyBtnClass)
@@ -294,12 +296,14 @@ export default class MarketsPage extends BasePage {
       this.drawChartLines()
     })
     bind(page.limitBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.marketBttn, page.limitBttn)
       this.setOrderVisibility()
       if (!page.rateField.value) return
       this.drawChartLineInputRate()
     })
     bind(page.marketBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.limitBttn, page.marketBttn)
       this.setOrderVisibility()
       this.setMarketBuyOrderEstimate()
@@ -1111,9 +1115,6 @@ export default class MarketsPage extends BasePage {
     const showError = function (err: string) {
       page.orderErr.textContent = intl.prep(err)
       Doc.show(page.orderErr)
-      setTimeout(function () {
-        Doc.hide(page.orderErr)
-      }, 8000) // 8s should be enough for user to consume error message.
     }
 
     if (order.isLimit && !order.rate) {
@@ -1876,9 +1877,15 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
+    Doc.hide(page.orderErr)
+
+    const showError = function (err: string, args?: Record<string, string>) {
+      page.orderErr.textContent = intl.prep(err, args)
+      Doc.show(page.orderErr)
+    }
+
     animateClick(page.submitBttn, page.submitBttnLoader)
 
-    Doc.hide(page.orderErr)
     const valid = this.validateOrder(this.parseOrder())
     if (!valid) {
       return
@@ -1886,13 +1893,11 @@ export default class MarketsPage extends BasePage {
     const baseWallet = app().walletMap[market.base.id]
     const quoteWallet = app().walletMap[market.quote.id]
     if (!baseWallet) {
-      page.orderErr.textContent = intl.prep(intl.ID_NO_ASSET_WALLET, { asset: market.base.symbol })
-      Doc.show(page.orderErr)
+      showError(intl.ID_NO_ASSET_WALLET, { asset: market.base.symbol })
       return
     }
     if (!quoteWallet) {
-      page.orderErr.textContent = intl.prep(intl.ID_NO_ASSET_WALLET, { asset: market.quote.symbol })
-      Doc.show(page.orderErr)
+      showError(intl.ID_NO_ASSET_WALLET, { asset: market.quote.symbol })
       return
     }
     this.showVerify()
@@ -2057,7 +2062,7 @@ export default class MarketsPage extends BasePage {
    */
   async submitOrder () {
     const page = this.page
-    Doc.hide(page.orderErr, page.vErr)
+    Doc.hide(page.vErr)
     const order = this.currentOrder
     const pw = page.vPass.value
     page.vPass.value = ''
@@ -2132,6 +2137,8 @@ export default class MarketsPage extends BasePage {
   lotFieldChangeHandler () {
     const page = this.page
 
+    Doc.hide(page.orderErr)
+
     const [inputValid, adjusted, adjLots, adjQty] = this.parseLotInput()
     if (!inputValid) {
       // Disable submit button temporarily (that additionally draws his
@@ -2162,17 +2169,13 @@ export default class MarketsPage extends BasePage {
   parseLotInput (): [boolean, boolean, number, number] {
     const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSize } } } = this
 
-    let value = page.lotField.value
-    if (!value) {
-      value = '0'
-    }
-    const lotsAdj = parseInt(value)
-    if (lotsAdj < 1) {
-      console.log('lots bad ' + page.lotField.value)
+    Doc.hide(page.orderErr)
+
+    const lotsAdj = parseInt(page.lotField.value || '')
+    if (isNaN(lotsAdj) || lotsAdj < 1) {
       return [false, false, 0, 0]
     }
 
-    console.log('lots good ' + page.lotField.value)
     const rounded = String(lotsAdj) !== page.lotField.value
     const adjQty = lotsAdj * lotSize / bui.conventional.conversionFactor
 
@@ -2181,6 +2184,8 @@ export default class MarketsPage extends BasePage {
 
   qtyFieldKeyupHandler () {
     const page = this.page
+
+    Doc.hide(page.orderErr)
 
     const [inputValid, adjusted, adjLots] = this.parseQtyInput()
     if (!inputValid || adjusted) {
@@ -2203,6 +2208,8 @@ export default class MarketsPage extends BasePage {
 
   qtyFieldChangeHandler () {
     const page = this.page
+
+    Doc.hide(page.orderErr)
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput()
     if (!inputValid) {
@@ -2235,11 +2242,9 @@ export default class MarketsPage extends BasePage {
 
     const qtyRawAtom = convertToAtoms(page.qtyField.value || '', bui.conventional.conversionFactor)
     if (isNaN(qtyRawAtom) || qtyRawAtom < 1) {
-      console.log('qty bad ' + page.lotField.value)
       return [false, false, 0, 0]
     }
 
-    console.log('qty good ' + page.lotField.value)
     const lotsRaw = qtyRawAtom / lotSize
     const adjLots = Math.floor(lotsRaw)
     const adjQtyAtom = adjLots * lotSize
@@ -2271,6 +2276,8 @@ export default class MarketsPage extends BasePage {
   rateFieldKeyupHandler () {
     const page = this.page
 
+    Doc.hide(page.orderErr)
+
     const [inputValid, adjusted] = this.parseRateInput()
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered was rounded down.
@@ -2287,6 +2294,8 @@ export default class MarketsPage extends BasePage {
 
   rateFieldChangeHandler () {
     const page = this.page
+
+    Doc.hide(page.orderErr)
 
     const [inputValid, adjusted, adjRate] = this.parseRateInput()
     if (!inputValid) {
@@ -3174,19 +3183,16 @@ function hostColor (host: string): string {
 // we return constructor-func here (aka factory), instead of constructing Animation
 // right away.
 function highlightBackgroundRed (element: PageElement): () => Animation {
-  const [r, g, b, a] = State.isDark() ? [233, 94, 94, 0.8] : [153, 48, 43, 0.6]
+  const [r, g, b, a] = State.isDark() ? [203, 94, 94, 0.8] : [153, 48, 43, 0.6]
   return (): Animation => {
     return new Animation(animationLength, (progress: number) => {
-      // console.log('tick background ' + element.id)
       element.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
     },
     'easeIn',
     () => {
-      // console.log('done background 1 ' + element.id)
       // Setting background color to 'none' SOMETIMES results in a no-op for some reason, wat.
       // Hence, setting to 'transparent' instead.
       element.style.backgroundColor = 'transparent'
-      // console.log('done background 2 ' + element.id)
     })
   }
 }
@@ -3197,15 +3203,14 @@ function highlightBackgroundRed (element: PageElement): () => Animation {
 // we return constructor-func here (aka factory), instead of constructing Animation
 // right away.
 function highlightOutlineRed (element: PageElement): () => Animation {
-  const [r, g, b, a] = State.isDark() ? [233, 94, 94, 0.8] : [153, 48, 43, 0.8]
+  const [r, g, b, a] = State.isDark() ? [203, 94, 94, 0.8] : [153, 48, 43, 0.8]
   return (): Animation => {
-    // element.style.outline = '2px solid'
+    element.style.outline = '2px solid'
     return new Animation(animationLength, (progress: number) => {
       element.style.outlineColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
     },
     'easeIn',
     () => {
-      // element.style.outline = '2px'
       element.style.outlineColor = 'transparent'
     })
   }
