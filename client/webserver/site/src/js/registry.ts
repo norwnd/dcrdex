@@ -382,6 +382,8 @@ export interface PageElement extends HTMLElement {
   checked?: boolean
   href?: string
   htmlFor?: string
+  min?: string
+  step?: string
 }
 
 export interface BooleanConfig {
