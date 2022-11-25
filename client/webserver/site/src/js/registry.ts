@@ -567,7 +567,6 @@ export interface Application {
   walletMap: Record<number, WalletState>
   exchanges: Record<string, Exchange>
   fiatRatesMap: Record<number, number>
-  showPopups: boolean
   commitHash: string
   authed(): boolean
   start (): Promise<void>
