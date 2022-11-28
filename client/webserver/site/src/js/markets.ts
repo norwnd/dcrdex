@@ -2242,7 +2242,7 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.mktSellLotField), highlightBackgroundRed(page.mktSellLotSizeBox))
     }
     if (!inputValid) {
-      page.mktSellTotalPreview.value = ''
+      page.mktSellTotalPreview.textContent = ''
       page.mktSellLotField.value = ''
       page.mktSellQtyField.value = ''
       return
@@ -2323,7 +2323,7 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.mktSellQtyField), highlightBackgroundRed(page.mktSellLotSizeBox))
     }
     if (!inputValid) {
-      page.mktSellTotalPreview.value = ''
+      page.mktSellTotalPreview.textContent = ''
       page.mktSellLotField.value = ''
       page.mktSellQtyField.value = ''
       return
