@@ -569,6 +569,17 @@ div[data-handler=markets] {
         font-size: 35px;
       }
     }
+
+    #verifyQty,
+    #verifyTotal {
+      &.debitgreen-font {
+        color: #207a4699;
+      }
+
+      &.creditred-font {
+        color: #99302b99;
+      }
+    }
   }
 
   #vDetailPane {

@@ -86,6 +86,8 @@ check.classList.add('ico-check')
 
 const buyBtnClass = 'buygreen-bg'
 const sellBtnClass = 'sellred-bg'
+const debitAmountClass = 'debitgreen-font'
+const creditAmountClass = 'creditred-font'
 
 const fiveMinBinKey = '5m'
 
@@ -1697,11 +1699,23 @@ export default class MarketsPage extends BasePage {
       page.vHeader.classList.remove(buyBtnClass)
       page.vSubmit.classList.add(sellBtnClass)
       page.vSubmit.classList.remove(buyBtnClass)
+      page.vQty.textContent = '-' + page.vQty.textContent
+      page.verifyQty.classList.add(creditAmountClass)
+      page.verifyQty.classList.remove(debitAmountClass)
+      page.vTotal.textContent = '+' + page.vTotal.textContent
+      page.verifyTotal.classList.add(debitAmountClass)
+      page.verifyTotal.classList.remove(creditAmountClass)
     } else {
       page.vHeader.classList.add(buyBtnClass)
       page.vHeader.classList.remove(sellBtnClass)
       page.vSubmit.classList.add(buyBtnClass)
       page.vSubmit.classList.remove(sellBtnClass)
+      page.vQty.textContent = '+' + page.vQty.textContent
+      page.verifyQty.classList.add(debitAmountClass)
+      page.verifyQty.classList.remove(creditAmountClass)
+      page.vTotal.textContent = '-' + page.vTotal.textContent
+      page.verifyTotal.classList.add(creditAmountClass)
+      page.verifyTotal.classList.remove(debitAmountClass)
     }
     this.showVerifyForm()
     page.vPass.focus()

@@ -147,6 +147,14 @@ body.dark {
       .order-opt.selected {
         background-color: #222e38;
       }
+
+      &.debitgreen-font {
+        color: #29bb7799;
+      }
+
+      &.creditred-font {
+        color: #e95e5e99;
+      }
     }
 
     #leftColumnV1 {
