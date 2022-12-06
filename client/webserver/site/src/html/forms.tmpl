@@ -538,6 +538,15 @@
 
 {{define "orderOptionTemplates"}}
 <div id="orderOptTmpl" class="order-opt d-flex align-items-start">
+  <div class="flex-grow-1" data-tmpl="controls">
+    <div class="d-flex align-items-center">
+      <span data-tmpl="optName" class="flex-grow-1 text-start fs16 ps-2"></span>
+      <span data-tmpl="tooltip" class="ico-info me-2" data-tooltip="[[[prevent_temporary_overlocking]]]"></span>
+      <img data-tmpl="chainIcon" class="micro-icon me-1">
+    </div>
+  </div>
+</div>
+<div id="orderOptSelectableTmpl" class="order-opt d-flex align-items-start">
   <div data-tmpl="toggle" class="opt-check selected"></div>
   <div class="flex-grow-1" data-tmpl="controls">
     <div class="d-flex align-items-center">

@@ -267,7 +267,7 @@ export default class MarketsPage extends BasePage {
 
     // Prepare templates for the buy and sell tables and the user's order table.
     setOptionTemplates(page)
-    Doc.cleanTemplates(page.rowTemplate, page.durBttnTemplate, page.booleanOptTmpl, page.rangeOptTmpl, page.orderOptTmpl, page.userOrderTmpl)
+    Doc.cleanTemplates(page.rowTemplate, page.durBttnTemplate, page.booleanOptTmpl, page.rangeOptTmpl, page.orderOptTmpl, page.orderOptSelectableTmpl, page.userOrderTmpl)
 
     // Store the elements that need their ticker changed when the market
     // changes.

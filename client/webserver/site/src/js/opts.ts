@@ -12,11 +12,11 @@ interface OptionsReporters {
 
 // Having the caller set these vars on load using an exported function makes
 // life easier.
-let orderOptTmpl: HTMLElement, booleanOptTmpl: HTMLElement, rangeOptTmpl: HTMLElement
+let orderOptTmpl: HTMLElement, orderOptSelectableTmpl: HTMLElement, booleanOptTmpl: HTMLElement, rangeOptTmpl: HTMLElement
 
 // setOptionTemplates sets the package vars for the templates and application.
 export function setOptionTemplates (page: Record<string, PageElement>): void {
-  [booleanOptTmpl, rangeOptTmpl, orderOptTmpl] = [page.booleanOptTmpl, page.rangeOptTmpl, page.orderOptTmpl]
+  [booleanOptTmpl, rangeOptTmpl, orderOptTmpl, orderOptSelectableTmpl] = [page.booleanOptTmpl, page.rangeOptTmpl, page.orderOptTmpl, page.orderOptSelectableTmpl]
 }
 
 const threeSigFigs = new Intl.NumberFormat((navigator.languages as string[]), {
@@ -25,11 +25,11 @@ const threeSigFigs = new Intl.NumberFormat((navigator.languages as string[]), {
 })
 
 /*
- * Option is a base class for option elements. Option stores some common
- * parameters and monitors the toggle switch, calling the child class's
+ * OptionSelectable is a base class for selectable option elements. Option stores
+ * some common parameters and monitors the toggle switch, calling the child class's
  * enable/disable methods when the user manually turns the option on or off.
  */
-export class Option {
+export class OptionSelectable {
   opt: OrderOption
   node: HTMLElement
   tmpl: Record<string, PageElement>
@@ -37,7 +37,7 @@ export class Option {
 
   constructor (opt: OrderOption, symbol: string, report: OptionsReporters) {
     this.opt = opt
-    const node = this.node = orderOptTmpl.cloneNode(true) as HTMLElement
+    const node = this.node = orderOptSelectableTmpl.cloneNode(true) as HTMLElement
     const tmpl = this.tmpl = Doc.parseTemplate(node)
 
     tmpl.optName.textContent = opt.displayname
@@ -69,7 +69,7 @@ export class Option {
  * BooleanOption is a simple on/off option with a short summary of it's effects.
  * BooleanOrderOption is the handler for a *BooleanConfig from client/asset.
  */
-export class BooleanOption extends Option {
+export class BooleanOption extends OptionSelectable {
   control: HTMLElement
   changed: () => void
   dict: Record<string, any>
@@ -108,14 +108,70 @@ export class BooleanOption extends Option {
 }
 
 /*
- * XYRangeOption is an order option that contains an XYRangeHandler. The logic
+ * XYRangeOption is an order option that contains an XYRangeHandler. Unlike
+ * with XYRangeOptionSelectable, user can't toggle/un-toggle it. The logic
  * for handling the slider to is defined in XYRangeHandler so that the slider
  * can be used without being contained in an order option.
  */
-export class XYRangeOption extends Option {
+export class XYRangeOption {
+  node: HTMLElement
+  tmpl: Record<string, PageElement>
+  handler: XYRangeHandler
+  changed: () => void
+  /**
+   * dict contains a list of currently specified order options. Note that it can be
+   * modified by external code to affect the behavior of XYRangeOptionSelectable
+   * depending on what the user does in UI.
+   */
+  dict: Record<string, any>
+  // optKey is an identifier for XYRangeOption instance.
+  optKey: string
+
+  constructor (opt: OrderOption, symbol: string, dict: Record<string, any>, changed: () => void) {
+    this.node = orderOptTmpl.cloneNode(true) as HTMLElement
+    this.tmpl = Doc.parseTemplate(this.node)
+
+    this.optKey = opt.key
+    this.dict = dict
+    this.changed = changed
+    if (opt.xyRange === undefined) throw Error('not an xy range opt')
+    const cfg = opt.xyRange
+    let initVal = opt.default
+    const setVal = dict[opt.key]
+    const valAlreadySet = typeof setVal !== 'undefined'
+    if (valAlreadySet) {
+      initVal = setVal
+    }
+    const onChange = () => { this.changed() }
+    const onUpdate = (x: number) => {
+      this.dict[this.optKey] = x
+    }
+    const selected = () => { this.node.classList.add('selected') }
+    this.handler = new XYRangeHandler(cfg, initVal, onUpdate, onChange, selected)
+    this.tmpl.controls.appendChild(this.handler.control)
+    this.tmpl.optName.textContent = opt.displayname
+    this.tmpl.tooltip.dataset.tooltip = opt.description
+    if (symbol) this.tmpl.chainIcon.src = Doc.logoPath(symbol)
+    else Doc.hide(this.tmpl.chainIcon)
+    this.node.classList.add('selected')
+  }
+}
+
+/*
+ * XYRangeOptionSelectable is an order option that contains an XYRangeHandler.
+ * It is selectable, meaning user can toggle/un-toggle it. The logic for handling
+ * the slider to is defined in XYRangeHandler so that the slider can be used
+ * without being contained in an order option.
+ */
+export class XYRangeOptionSelectable extends OptionSelectable {
   handler: XYRangeHandler
   x: number
   changed: () => void
+  /**
+   * dict contains a list of currently specified order options. Note that it can be
+   * modified by external code to affect the behavior of XYRangeOptionSelectable
+   * depending on what the user does in UI.
+   */
   dict: Record<string, any>
 
   constructor (opt: OrderOption, symbol: string, dict: Record<string, any>, changed: () => void) {
@@ -176,20 +232,20 @@ export class XYRangeHandler {
   y: number
   r: number
   roundY: boolean
-  updated: (x:number, y:number) => void
+  xyChanged: (x:number, y:number) => void
+  sliderChanged: () => void
   changed: () => void
-  selected: () => void
   setConfig: (cfg: XYRange) => void
 
-  constructor (cfg: XYRange, initVal: number, updated: (x:number, y:number) => void, changed: () => void, selected: () => void, roundY?: boolean) {
+  constructor (cfg: XYRange, initVal: number, xyChanged: (x:number, y:number) => void, changed: () => void, sliderChanged: () => void, roundY?: boolean) {
     const control = this.control = rangeOptTmpl.cloneNode(true) as HTMLElement
     const tmpl = this.tmpl = Doc.parseTemplate(control)
     this.roundY = Boolean(roundY)
     this.cfg = cfg
 
     this.changed = changed
-    this.selected = selected
-    this.updated = updated
+    this.sliderChanged = sliderChanged
+    this.xyChanged = xyChanged
 
     const { slider, handle } = tmpl
 
@@ -285,7 +341,7 @@ export class XYRangeHandler {
     Doc.bind(handle, 'mousedown', (e: MouseEvent) => {
       if (e.button !== 0) return
       e.preventDefault()
-      this.selected()
+      this.sliderChanged()
       const startX = e.pageX
       const w = slider.clientWidth - handle.offsetWidth
       const startLeft = normalizeX(this.scrollingX) * w
@@ -319,7 +375,7 @@ export class XYRangeHandler {
     tmpl.handle.style.left = `calc(${this.r * 100}% - ${this.r * 14}px)`
     this.x = x
     this.scrollingX = x
-    if (!skipUpdate) this.updated(x, this.y)
+    if (!skipUpdate) this.xyChanged(x, this.y)
   }
 
   setValue (x: number) {

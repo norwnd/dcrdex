@@ -15,7 +15,7 @@ import {
 import Doc from './doc'
 import BasePage from './basepage'
 import { postJSON } from './http'
-import { setOptionTemplates, XYRangeOption } from './opts'
+import { setOptionTemplates, XYRangeOptionSelectable } from './opts'
 import State from './state'
 import { bind as bindForm, NewWalletForm } from './forms'
 import { RateEncodingFactor } from './orderutil'
@@ -181,11 +181,11 @@ export default class MarketMakerPage extends BasePage {
   keyup: (e: KeyboardEvent) => void
   programs: Record<number, LiveProgram>
   editProgram: BotReport | null
-  gapMultiplierOpt: XYRangeOption
-  gapPercentOpt: XYRangeOption
-  driftToleranceOpt: XYRangeOption
-  biasOpt: XYRangeOption
-  weightOpt: XYRangeOption
+  gapMultiplierOpt: XYRangeOptionSelectable
+  gapPercentOpt: XYRangeOptionSelectable
+  driftToleranceOpt: XYRangeOptionSelectable
+  biasOpt: XYRangeOptionSelectable
+  weightOpt: XYRangeOptionSelectable
   pwHandler: ((pw: string) => Promise<void>) | null
   newWalletForm: NewWalletForm
   specifiedPrice: number
@@ -215,7 +215,7 @@ export default class MarketMakerPage extends BasePage {
     setOptionTemplates(page)
 
     Doc.cleanTemplates(page.assetRowTmpl, page.booleanOptTmpl, page.rangeOptTmpl,
-      page.orderOptTmpl, page.runningProgramTmpl, page.oracleTmpl)
+      page.orderOptTmpl, page.orderOptSelectableTmpl, page.runningProgramTmpl, page.oracleTmpl)
 
     const selectClicked = (e: MouseEvent, isBase: boolean): void => {
       e.stopPropagation()
@@ -280,11 +280,11 @@ export default class MarketMakerPage extends BasePage {
       this.setMarketSubchoice(host, name)
     })
 
-    this.gapMultiplierOpt = new XYRangeOption(gapMultiplierOption, '', this.gapRanges, () => this.createOptsUpdated())
-    this.gapPercentOpt = new XYRangeOption(gapPercentOption, '', this.gapRanges, () => this.createOptsUpdated())
-    this.driftToleranceOpt = new XYRangeOption(driftToleranceOption, '', this.createOpts, () => this.createOptsUpdated())
-    this.biasOpt = new XYRangeOption(oracleBiasOption, '', this.createOpts, () => this.createOptsUpdated())
-    this.weightOpt = new XYRangeOption(oracleWeightOption, '', this.createOpts, () => this.createOptsUpdated())
+    this.gapMultiplierOpt = new XYRangeOptionSelectable(gapMultiplierOption, '', this.gapRanges, () => this.createOptsUpdated())
+    this.gapPercentOpt = new XYRangeOptionSelectable(gapPercentOption, '', this.gapRanges, () => this.createOptsUpdated())
+    this.driftToleranceOpt = new XYRangeOptionSelectable(driftToleranceOption, '', this.createOpts, () => this.createOptsUpdated())
+    this.biasOpt = new XYRangeOptionSelectable(oracleBiasOption, '', this.createOpts, () => this.createOptsUpdated())
+    this.weightOpt = new XYRangeOptionSelectable(oracleWeightOption, '', this.createOpts, () => this.createOptsUpdated())
 
     page.options.appendChild(this.gapMultiplierOpt.node)
     Doc.hide(this.gapMultiplierOpt.node) // Default is GapStrategyPercentPlus
