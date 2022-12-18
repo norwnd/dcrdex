@@ -190,6 +190,13 @@ input[type=number] {
   align-items: center;
 }
 
+.flex-center-with-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+}
+
 @mixin fill-abs {
   position: absolute;
   left: 0;
@@ -505,5 +512,19 @@ span.token-aware-symbol sup {
     &:last-child {
       padding-right: 0;
     }
+  }
+}
+
+.form-check-input[type=checkbox] {
+  background-color: #ebebeb;
+
+  &:checked {
+    background-color: #3095db;
+  }
+}
+
+.form-check-label {
+  &:hover {
+    font-weight: bold;
   }
 }
