@@ -19,6 +19,11 @@ const Mainnet = 0
 const Testnet = 1
 // const Regtest = 3
 
+// lockTimeMakerMs must match the value returned from LockTimeMaker func in dexc.
+const lockTimeMakerMs = 20 * 60 * 60 * 1000
+// lockTimeTakerMs must match the value returned from LockTimeTaker func in dexc.
+const lockTimeTakerMs = 8 * 60 * 60 * 1000
+
 const coinIDTakerFoundMakerRedemption = 'TakerFoundMakerRedemption:'
 
 const animationLength = 500
@@ -258,33 +263,86 @@ export default class OrderPage extends BasePage {
     const tmpl = Doc.parseTemplate(matchCard)
     tmpl.status.textContent = OrderUtil.matchStatusString(m)
 
-    const setCoin = (pendingName: string, linkName: string, coin: Coin) => {
-      const formatCoinID = (cid: string) => {
-        if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
-          const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
-          return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
-        }
-        return cid
-      }
+    const tryShowCoin = (showPlaceholder: () => void, showCoin: () => void, linkName: string, coin: Coin) => {
       const coinLink = tmpl[linkName]
-      const pendingSpan = tmpl[pendingName]
       if (!coin) {
-        Doc.show(tmpl[pendingName])
-        Doc.hide(tmpl[linkName])
+        Doc.hide(coinLink)
+        showPlaceholder()
         return
       }
       coinLink.textContent = formatCoinID(coin.stringID)
       coinLink.dataset.explorerCoin = coin.stringID
       setCoinHref(coin.assetID, coinLink)
-      Doc.hide(pendingSpan)
       Doc.show(coinLink)
+      showCoin()
     }
 
-    setCoin('makerSwapPending', 'makerSwapCoin', makerSwapCoin(m))
-    setCoin('takerSwapPending', 'takerSwapCoin', takerSwapCoin(m))
-    setCoin('makerRedeemPending', 'makerRedeemCoin', makerRedeemCoin(m))
-    setCoin('takerRedeemPending', 'takerRedeemCoin', takerRedeemCoin(m))
-    setCoin('refundPending', 'refundCoin', m.refund)
+    tryShowCoin(
+      (): void => {
+        Doc.show(tmpl.makerSwapPending)
+      },
+      (): void => {
+        Doc.hide(tmpl.makerSwapPending)
+      },
+      'makerSwapCoin',
+      makerSwapCoin(m)
+    )
+    tryShowCoin(
+      (): void => {
+        Doc.show(tmpl.takerSwapPending)
+      },
+      (): void => {
+        Doc.hide(tmpl.takerSwapPending)
+      },
+      'takerSwapCoin',
+      takerSwapCoin(m)
+    )
+    tryShowCoin(
+      (): void => {
+        Doc.show(tmpl.makerRedeemPending)
+      },
+      (): void => {
+        Doc.hide(tmpl.makerRedeemPending)
+      },
+      'makerRedeemCoin',
+      makerRedeemCoin(m)
+    )
+    tryShowCoin(
+      (): void => {
+        Doc.show(tmpl.takerRedeemPending)
+      },
+      (): void => {
+        Doc.hide(tmpl.takerRedeemPending)
+      },
+      'takerRedeemCoin',
+      takerRedeemCoin(m)
+    )
+    tryShowCoin(
+      (): void => {
+        let lockTime = lockTimeMakerMs
+        if (m.side === OrderUtil.Taker) {
+          lockTime = lockTimeTakerMs
+        }
+        const refundAfter = new Date(m.stamp + lockTime)
+        if (Date.now() > refundAfter.getTime()) {
+          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_COMING_YOUR_WAY)
+        } else {
+          const refundAfterStr = refundAfter.toLocaleTimeString('en-GB', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_WILL_HAPPEN_AFTER, { refundAfterTime: refundAfterStr })
+        }
+
+        Doc.show(tmpl.refundPending)
+      },
+      (): void => {
+        Doc.hide(tmpl.refundPending)
+      },
+      'refundCoin',
+      m.refund
+    )
 
     if (m.status === OrderUtil.MakerSwapCast && !m.revoked && !m.refund) {
       const c = makerSwapCoin(m)
@@ -449,7 +507,7 @@ export default class OrderPage extends BasePage {
 
 /*
  * confirmationString is a string describing the state of confirmations for a
- * coin
+ * coin.
  * */
 function confirmationString (coin: Coin) {
   if (!coin.confs || coin.confs.required === 0) return ''
@@ -490,6 +548,17 @@ function inConfirmingMakerRedeem (m: Match) {
 */
 function inConfirmingTakerRedeem (m: Match) {
   return m.status < OrderUtil.MatchConfirmed && m.side === OrderUtil.Taker && m.status >= OrderUtil.MatchComplete
+}
+
+/*
+ * formatCoinID parses / converts CoinID into human-readable format.
+ */
+function formatCoinID (cid: string) {
+  if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
+    const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
+    return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
+  }
+  return cid
 }
 
 /*
