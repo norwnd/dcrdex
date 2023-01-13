@@ -325,7 +325,7 @@ export default class OrderPage extends BasePage {
         }
         const refundAfter = new Date(m.stamp + lockTime)
         if (Date.now() > refundAfter.getTime()) {
-          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_COMING_YOUR_WAY)
+          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
         } else {
           const refundAfterStr = refundAfter.toLocaleTimeString('en-GB', {
             year: 'numeric',
