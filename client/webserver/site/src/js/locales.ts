@@ -94,7 +94,7 @@ export const ID_MATCH_STATUS_REFUND_PENDING = 'MATCH_STATUS_REFUND_PENDING'
 export const ID_MATCH_STATUS_REDEEM_PENDING = 'MATCH_STATUS_REDEEM_PENDING'
 export const ID_MATCH_STATUS_COMPLETE = 'MATCH_STATUS_COMPLETE'
 export const ID_TAKER_FOUND_MAKER_REDEMPTION = 'TAKER_FOUND_MAKER_REDEMPTION'
-export const ID_REFUND_COMING_YOUR_WAY = 'REFUND_COMING_YOUR_WAY'
+export const ID_REFUND_IMMINENT = 'REFUND_IMMINENT'
 export const ID_REFUND_WILL_HAPPEN_AFTER = 'REFUND_WILL_HAPPEN_AFTER'
 
 export const enUS: Locale = {
@@ -192,7 +192,7 @@ export const enUS: Locale = {
   [ID_MATCH_STATUS_REDEMPTION_CONFIRMED]: 'Redemption Confirmed',
   [ID_MATCH_STATUS_COMPLETE]: 'Complete',
   [ID_TAKER_FOUND_MAKER_REDEMPTION]: 'redeemed by {{ makerAddr }}',
-  [ID_REFUND_COMING_YOUR_WAY]: 'Coming your way, just a little patience',
+  [ID_REFUND_IMMINENT]: 'Coming your way, just a little patience', // alt: Will happen in the next few blocks
   [ID_REFUND_WILL_HAPPEN_AFTER]: 'Will happen after {{ refundAfterTime }}'
 }
 
