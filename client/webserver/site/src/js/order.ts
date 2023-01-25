@@ -368,10 +368,13 @@ export default class OrderPage extends BasePage {
 
     Doc.setVis(!m.isCancel && (makerSwapCoin(m) || !m.revoked), tmpl.makerSwap)
     Doc.setVis(!m.isCancel && (takerSwapCoin(m) || !m.revoked), tmpl.takerSwap)
-    Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || !m.revoked), tmpl.makerRedeem)
+    // When revoked, there is no need to show maker redeem if we are maker (since
+    // it won't happen), but if we are taker, maker redeem might still show up
+    // if maker "doesn't play by server rules" (so we have to account for that).
+    Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || !m.revoked || (m.revoked && m.side === OrderUtil.Taker)), tmpl.makerRedeem)
     // When revoked, there is uncertainty about the taker redeem coin. The taker
     // redeem may be needed if maker redeems while taker is waiting to refund.
-    Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (!m.revoked && m.active) || ((m.side === OrderUtil.Taker) && m.active && (m.counterRedeem || !m.refund))), tmpl.takerRedeem)
+    Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (!m.revoked && m.active) || (m.side === OrderUtil.Taker && m.active && (m.counterRedeem || !m.refund))), tmpl.takerRedeem)
     // The refund placeholder should not be shown if there is a counter redeem.
     Doc.setVis(!m.isCancel && (m.refund || (m.revoked && m.active && !m.counterRedeem)), tmpl.refund)
   }
