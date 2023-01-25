@@ -191,9 +191,9 @@ export const enUS: Locale = {
   [ID_MATCH_STATUS_REDEEM_PENDING]: 'Redeem PENDING',
   [ID_MATCH_STATUS_REDEMPTION_CONFIRMED]: 'Redemption Confirmed',
   [ID_MATCH_STATUS_COMPLETE]: 'Complete',
-  [ID_TAKER_FOUND_MAKER_REDEMPTION]: 'redeemed by {{ makerAddr }}',
-  [ID_REFUND_IMMINENT]: 'Coming your way, just a little patience', // alt: Will happen in the next few blocks
-  [ID_REFUND_WILL_HAPPEN_AFTER]: 'Will happen after {{ refundAfterTime }}'
+  [ID_TAKER_FOUND_MAKER_REDEMPTION]: 'Redeemed by {{ makerAddr }}',
+  [ID_REFUND_IMMINENT]: 'Will happen in the next few blocks',
+  [ID_REFUND_WILL_HAPPEN_AFTER]: 'Refund will happen after {{ refundAfterTime }}'
 }
 
 export const ptBR: Locale = {
