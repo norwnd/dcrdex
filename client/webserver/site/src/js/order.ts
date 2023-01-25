@@ -368,9 +368,11 @@ export default class OrderPage extends BasePage {
 
     Doc.setVis(!m.isCancel && (makerSwapCoin(m) || !m.revoked), tmpl.makerSwap)
     Doc.setVis(!m.isCancel && (takerSwapCoin(m) || !m.revoked), tmpl.takerSwap)
-    // When revoked, there is no need to show maker redeem if we are maker (since
-    // it won't happen), but if we are taker, maker redeem might still show up
-    // if maker "doesn't play by server rules" (so we have to account for that).
+    // When revoked, maker redeem might still show up:
+    // - for maker, it might have been issued before revocation and got stored
+    //   in DB only after revocation
+    // - for taker, maker redeem can show up any time (because of some delays,
+    //   or maker "not playing by the rules").
     Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || !m.revoked || (m.revoked && m.side === OrderUtil.Taker)), tmpl.makerRedeem)
     // When revoked, there is uncertainty about the taker redeem coin. The taker
     // redeem may be needed if maker redeems while taker is waiting to refund.
