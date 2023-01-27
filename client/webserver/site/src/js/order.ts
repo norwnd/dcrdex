@@ -366,33 +366,47 @@ export default class OrderPage extends BasePage {
       Doc.hide(tmpl.makerSwapMsg, tmpl.takerSwapMsg, tmpl.makerRedeemMsg, tmpl.takerRedeemMsg)
     }
 
-    // After revocation, we don't expect swap coin to appear (it could though, and
-    // we'll show it in that case).
-    Doc.setVis(!m.isCancel && (makerSwapCoin(m) || !m.revoked), tmpl.makerSwap)
-    // After revocation, we don't expect swap coin to appear (it could though, and
-    // we'll show it in that case).
-    Doc.setVis(!m.isCancel && (takerSwapCoin(m) || !m.revoked), tmpl.takerSwap)
-    // When match is revoked and both swaps are present, maker redeem might still show up:
-    // - as maker, we'll try to redeem until it isn't possible due to refund by taker,
-    //   so we'll have to show redeem coin until we either redeem or refund
-    //   because we can't determine here whether taker refunded already
-    // - as taker, we should expect maker redeeming any time, so we'll have to show
-    //   redeem coins until make redeem shows up, or until we refund.
-    Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || (makerSwapCoin(m) && takerSwapCoin(m) && m.active && !m.refund)), tmpl.makerRedeem)
-    Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund)), tmpl.takerRedeem)
-    // We need to show refund placeholder after match has been revoked (to provide
-    // some feedback to the user):
-    // - as maker, until taker refunds we'll be trying to redeem, so start showing
-    //   refund placeholder only after taker is expected to refund (and only if the
-    //   match is still active)
-    // - as taker, we can show refund placeholder right after match revocation (and
-    //   only if the match is still active)
-    // The refund placeholder should not be shown if there is a redeem.
-    const takerRefundsAfter = new Date(m.stamp + lockTimeTakerMs)
-    // Display refund placeholder as maker.
-    Doc.setVis(!m.isCancel && m.side === OrderUtil.Maker && (m.refund || (m.revoked && m.active && !m.redeem && (Date.now() > takerRefundsAfter.getTime()))), tmpl.refund)
-    // Display refund placeholder as taker.
-    Doc.setVis(!m.isCancel && m.side === OrderUtil.Taker && (m.refund || (m.revoked && m.active && !m.counterRedeem)), tmpl.refund)
+    if (!m.revoked) {
+      // Match is still following the usual success-path, it is desirable for the
+      // user to see it (even if to learn how atomic swap is supposed to work).
+      Doc.setVis(!m.isCancel, tmpl.makerSwap)
+      Doc.setVis(!m.isCancel, tmpl.takerSwap)
+      Doc.setVis(!m.isCancel, tmpl.makerRedeem)
+      Doc.setVis(!m.isCancel, tmpl.takerRedeem)
+    } else {
+      // Match diverged from the usual success-path, since this could have happened
+      // at any step it is hard (maybe impossible) to show the full path this match
+      // will undergo (until we are done with it), so show only steps that already
+      // happened plus all the possibilities on the next step ahead.
+
+      // After revocation, we don't expect swap coin to appear (it could though, and
+      // we'll show it in that case).
+      Doc.setVis(!m.isCancel && (makerSwapCoin(m)), tmpl.makerSwap)
+      // After revocation, we don't expect swap coin to appear (it could though, and
+      // we'll show it in that case).
+      Doc.setVis(!m.isCancel && (takerSwapCoin(m)), tmpl.takerSwap)
+      // When match is revoked and both swaps are present, maker redeem might still show up:
+      // - as maker, we'll try to redeem until it isn't possible due to refund by taker,
+      //   so we'll have to show redeem coin until we either redeem or refund
+      //   because we can't determine here whether taker refunded already
+      // - as taker, we should expect maker redeeming any time, so we'll have to show
+      //   redeem coins until make redeem shows up, or until we refund.
+      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || (makerSwapCoin(m) && takerSwapCoin(m) && m.active && !m.refund)), tmpl.makerRedeem)
+      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund)), tmpl.takerRedeem)
+      // We need to show refund placeholder after match has been revoked (to provide
+      // some feedback to the user):
+      // - as maker, until taker refunds we'll be trying to redeem, so start showing
+      //   refund placeholder only after taker is expected to refund (and only if the
+      //   match is still active)
+      // - as taker, we can show refund placeholder right after match revocation (and
+      //   only if the match is still active)
+      // The refund placeholder should not be shown if there is a redeem.
+      const takerRefundsAfter = new Date(m.stamp + lockTimeTakerMs)
+      // Display refund placeholder as maker.
+      Doc.setVis(!m.isCancel && m.side === OrderUtil.Maker && (m.refund || (m.revoked && m.active && !m.redeem && (Date.now() > takerRefundsAfter.getTime()))), tmpl.refund)
+      // Display refund placeholder as taker.
+      Doc.setVis(!m.isCancel && m.side === OrderUtil.Taker && (m.refund || (m.revoked && m.active && !m.counterRedeem)), tmpl.refund)
+    }
   }
 
   /*
