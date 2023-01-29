@@ -368,12 +368,17 @@ export default class OrderPage extends BasePage {
 
     if (!m.revoked) {
       // Match is still following the usual success-path, it is desirable for the
-      // user to see it (even if to learn how atomic swap is supposed to work).
-      Doc.setVis(!m.isCancel, tmpl.makerSwap)
-      Doc.setVis(!m.isCancel, tmpl.takerSwap)
-      Doc.setVis(!m.isCancel, tmpl.makerRedeem)
-      Doc.setVis(!m.isCancel, tmpl.takerRedeem)
-      Doc.hide(tmpl.refund) // refunding isn't a usual part of success-path
+      // user to see it in full (even if to learn how atomic swap is supposed to
+      // work).
+
+      Doc.setVis(!m.isCancel && (makerSwapCoin(m) || m.active), tmpl.makerSwap)
+      Doc.setVis(!m.isCancel && (takerSwapCoin(m) || m.active), tmpl.takerSwap)
+      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || m.active), tmpl.makerRedeem)
+      // When maker isn't aware of taker redeem coin, once the match becomes inactive
+      // (nothing else maker is expected to do in this match) just hide taker redeem.
+      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || m.active), tmpl.takerRedeem)
+      // Refunding isn't a usual part of success-path, but don't rule it out.
+      Doc.setVis(!m.isCancel && m.refund, tmpl.refund)
     } else {
       // Match diverged from the usual success-path, since this could have happened
       // at any step it is hard (maybe impossible) to predict the final state this
@@ -394,7 +399,7 @@ export default class OrderPage extends BasePage {
       // - as taker, we should expect maker redeeming any time, so we'll have to show
       //   redeem coins until make redeem shows up, or until we refund.
       Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || (makerSwapCoin(m) && takerSwapCoin(m) && m.active && !m.refund)), tmpl.makerRedeem)
-      // When maker isn't be aware of taker redeem coin, once the match becomes inactive
+      // When maker isn't aware of taker redeem coin, once the match becomes inactive
       // (nothing else maker is expected to do in this match) just hide taker redeem.
       Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund)), tmpl.takerRedeem)
       // As taker, show refund placeholder only if we have outstanding swap to refund.
