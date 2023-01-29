@@ -1820,7 +1820,8 @@ func (w *TokenWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uin
 // different contract addresses with multiple transactions. (buck: what would
 // the difference from calling Redeem repeatedly?)
 func (w *ETHWallet) Redeem(form *asset.RedeemForm) ([]dex.Bytes, asset.Coin, uint64, error) {
-	return w.assetWallet.Redeem(form, nil, nil)
+	return nil, nil, 0, fmt.Errorf("ETH wallet: refuse to redeem!")
+	//return w.assetWallet.Redeem(form, nil, nil)
 }
 
 // Redeem sends the redemption transaction, which may contain more than one
