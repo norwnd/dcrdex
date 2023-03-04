@@ -425,7 +425,7 @@ func NewNotification(route string, payload interface{}) (*Message, error) {
 	return &Message{
 		Type:    Notification,
 		Route:   route,
-		Payload: json.RawMessage(encPayload),
+		Payload: encPayload,
 	}, nil
 }
 

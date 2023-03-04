@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -7915,16 +7916,21 @@ func (c *Core) handleReconnect(host string) {
 			c.log.Errorf("handleReconnect: Failed to Sync market %q order book snapshot: %v", mkt.name, err)
 		}
 
+		payload := MarketOrderBook{
+			Base:  mkt.base,
+			Quote: mkt.quote,
+			Book:  booky.book(),
+		}
+		encPayload, err := json.Marshal(payload)
+		if err != nil {
+			c.log.Errorf("handleReconnect: Failed to marshal payload: %+v, err: %v", payload, err)
+		}
 		// Send a FreshBookAction to the subscribers.
 		booky.send(&BookUpdate{
 			Action:   FreshBookAction,
 			Host:     dc.acct.host,
 			MarketID: mkt.name,
-			Payload: &MarketOrderBook{
-				Base:  mkt.base,
-				Quote: mkt.quote,
-				Book:  booky.book(),
-			},
+			Payload:  encPayload,
 		})
 	}
 
