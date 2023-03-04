@@ -424,6 +424,8 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	// must relay those updates through his feed to the interested consumers,
 	// we lock dc.booksMtx here to prevent those updates from being applied
 	// until bookie is ready, see more on that below.
+	// And we need to serialize map entry usage by concurrent actors here so
+	// that we won't be trying to create 2 bookies when we really need 2 feeds.
 	dc.booksMtx.Lock()
 	defer dc.booksMtx.Unlock()
 
@@ -464,13 +466,12 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 		Payload:  encPayload,
 	})
 
-	// bookie is not considered initialized until it has at least 1 feed (note,
-	// we only ever use 1 feed per bookie right now), if we release dc.booksMtx
-	// before that we will receive and apply those order book updates mentioned
-	// above on top of the order book state we got during initial bookie sync,
-	// but we won't be able to relay them as feed to the consumer who initiated
-	// this function in the first place.
-	// So, now it is initialized, it's safe to release this mutex (done with defer).
+	// bookie is not considered initialized until it has at least 1 feed, if we
+	// release dc.booksMtx before that we will receive and apply those order book
+	// updates mentioned above on top of the order book state we got during initial
+	// bookie sync, but we won't be able to relay them as feed to the consumer who
+	// initiated this function in the first place. So, now the feed is initialized,
+	// it's safe to release this mutex (done with defer).
 
 	return booky.OrderBook, feed, nil
 }

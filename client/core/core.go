@@ -135,12 +135,12 @@ type dexConnection struct {
 	cfgMtx sync.RWMutex
 	cfg    *msgjson.ConfigResult
 
-	// booksMtx is used for both, protecting access to books map and to
-	// synchronize certain actions performed on a particular bookie in
-	// that map (such as preventing applying any order book updates until
-	// order book snapshot is taken by another go-routine, so that it
-	// can get a feed on those changes to keep the original snapshot in
-	// sync).
+	// booksMtx is used for both, protecting access to books map so that
+	// concurrent modifications are serialized and to synchronize certain
+	// actions performed on a particular bookie in that map (such as
+	// preventing applying any order book updates until order book snapshot
+	// is taken by another go-routine, so that it can get a feed on those
+	// changes to keep the original snapshot in sync).
 	booksMtx sync.RWMutex
 	books    map[string]*bookie
 
