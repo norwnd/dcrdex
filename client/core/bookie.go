@@ -425,6 +425,7 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	// we lock dc.booksMtx here to prevent those updates from being applied
 	// until bookie is ready, see more on that below.
 	dc.booksMtx.Lock()
+	defer dc.booksMtx.Unlock()
 
 	mktID := marketName(base, quote)
 	booky, found := dc.books[mktID]
@@ -469,8 +470,7 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	// above on top of the order book state we got during initial bookie sync,
 	// but we won't be able to relay them as feed to the consumer who initiated
 	// this function in the first place.
-	// So, now it is initialized, it's safe to release this mutex.
-	dc.booksMtx.Unlock()
+	// So, now it is initialized, it's safe to release this mutex (done with defer).
 
 	return booky.OrderBook, feed, nil
 }
