@@ -225,6 +225,8 @@ func (b *bookie) logEpochReport(note *msgjson.EpochReportNote) error {
 
 // newFeed gets a new *bookFeed and cancels the close timer. The feed is primed
 // with the provided *BookUpdate.
+// newFeed must be called with dexConnection.booksMtx locked, see its description
+// for details on why.
 func (b *bookie) newFeed(u *BookUpdate) *bookFeed {
 	b.timerMtx.Lock()
 	if b.closeTimer != nil {
