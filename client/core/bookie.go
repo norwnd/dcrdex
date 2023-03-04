@@ -223,8 +223,8 @@ func (b *bookie) logEpochReport(note *msgjson.EpochReportNote) error {
 	return nil
 }
 
-// newFeed gets a new *bookFeed and cancels the close timer. newFeed must be called
-// with the bookie.feedsMtx locked. The feed is primed with the provided *BookUpdate.
+// newFeed gets a new *bookFeed and cancels the close timer. The feed is primed
+// with the provided *BookUpdate.
 func (b *bookie) newFeed(u *BookUpdate) *bookFeed {
 	b.timerMtx.Lock()
 	if b.closeTimer != nil {
@@ -416,6 +416,9 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	cfg := dc.cfg
 	dc.cfgMtx.RUnlock()
 
+	// Initialize the feed and expose the book to other actors (who can access
+	// it via dc.books) under single dc.booksMtx lock to make sure the first
+	// message is the "book".
 	dc.booksMtx.Lock()
 	defer dc.booksMtx.Unlock()
 
@@ -456,8 +459,6 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 		Payload:  encPayload,
 	})
 
-	// Get the feed and the book under a single lock (acquired above) to make sure
-	// the first message is the book.
 	return booky.OrderBook, feed, nil
 }
 
