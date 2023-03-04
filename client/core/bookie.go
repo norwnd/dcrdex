@@ -416,11 +416,15 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	cfg := dc.cfg
 	dc.cfgMtx.RUnlock()
 
-	// Initialize the feed and expose the book to other actors (who can access
-	// it via dc.books) under single dc.booksMtx lock to make sure the first
-	// message is the "book".
+	// bookie is reflecting client's point of view on the state of server order
+	// book. First bookie syncs order book, then it keeps order book state
+	// consistent with server's by applying sequential updates on top of the
+	// data it got during sync. bookie can't apply these order book updates
+	// while sync is in progress, and applying updates isn't enough - bookie
+	// must relay those updates through his feed to the interested consumers,
+	// we lock dc.booksMtx here to prevent those updates from being applied
+	// until bookie is ready, see more on that below.
 	dc.booksMtx.Lock()
-	defer dc.booksMtx.Unlock()
 
 	mktID := marketName(base, quote)
 	booky, found := dc.books[mktID]
@@ -458,6 +462,15 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 		MarketID: mktID,
 		Payload:  encPayload,
 	})
+
+	// bookie is not considered initialized until it has at least 1 feed (note,
+	// we only ever use 1 feed per bookie right now), if we release dc.booksMtx
+	// before that we will receive and apply those order book updates mentioned
+	// above on top of the order book state we got during initial bookie sync,
+	// but we won't be able to relay them as feed to the consumer who initiated
+	// this function in the first place.
+	// So, now it is initialized, it's safe to release this mutex.
+	dc.booksMtx.Unlock()
 
 	return booky.OrderBook, feed, nil
 }
