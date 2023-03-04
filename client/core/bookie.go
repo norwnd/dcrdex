@@ -472,6 +472,8 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 	// bookie sync, but we won't be able to relay them as feed to the consumer who
 	// initiated this function in the first place. So, now the feed is initialized,
 	// it's safe to release this mutex (done with defer).
+	// Same reasoning applies when we are extending existing bookie with 2nd, 3rd ...
+	// feed.
 
 	return booky.OrderBook, feed, nil
 }
