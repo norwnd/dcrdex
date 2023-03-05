@@ -7916,6 +7916,10 @@ func (c *Core) handleReconnect(host string) {
 			return
 		}
 
+		// TODO
+		// And lets see what happens when we have a delay here, just in case.
+		//time.Sleep(30 * time.Second)
+
 		// Create a fresh OrderBook for the bookie.
 		err = booky.Reset(snap)
 		if err != nil {
@@ -7942,7 +7946,11 @@ func (c *Core) handleReconnect(host string) {
 
 	// For each market, resubscribe to any market books.
 	for _, mkt := range mkts {
+		// TODO
+		fmt.Println("resubMkt ... " + mkt.name)
 		resubMkt(mkt)
+		// TODO
+		fmt.Println("resubMkt ... " + mkt.name + "done!")
 	}
 }
 

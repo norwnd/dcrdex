@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"decred.org/dcrdex/dex"
 	"decred.org/dcrdex/dex/msgjson"
@@ -250,6 +251,10 @@ func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	err := func() error { // Using a function for mutex management with defer.
 		ob.ordersMtx.Lock()
 		defer ob.ordersMtx.Unlock()
+
+		// TODO
+		// Lets say Reset takes a while to execute.
+		time.Sleep(30 * time.Second)
 
 		ob.orders = make(map[order.OrderID]rateSell, len(snapshot.Orders))
 		ob.buys.reset()
