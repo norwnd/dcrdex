@@ -127,7 +127,6 @@ func (ob *OrderBook) QuoteFeeRate() uint64 {
 }
 
 // setSynced sets the synced state of the order book.
-// TODO - make public ?
 func (ob *OrderBook) setSynced(value bool) {
 	ob.syncedMtx.Lock()
 	ob.synced = value
@@ -269,7 +268,8 @@ func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	ob.seq = snapshot.Seq
 	ob.seqMtx.Unlock()
 
-	// Epoch tracking needs to be reset since it can become outdated during TODO.
+	// Epoch tracking needs to be reset too, so we can drop epoch-related notifications
+	// that keep coming from previous server subscription feed.
 	ob.epochMtx.Lock()
 	delete(ob.epochQueues, ob.proofedEpoch)
 	delete(ob.epochQueues, ob.currentEpoch)
