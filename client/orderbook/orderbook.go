@@ -127,6 +127,7 @@ func (ob *OrderBook) QuoteFeeRate() uint64 {
 }
 
 // setSynced sets the synced state of the order book.
+// TODO - make public ?
 func (ob *OrderBook) setSynced(value bool) {
 	ob.syncedMtx.Lock()
 	ob.synced = value
@@ -146,7 +147,7 @@ func (ob *OrderBook) setSeq(seq uint64) {
 	ob.seqMtx.Lock()
 	defer ob.seqMtx.Unlock()
 	if seq != ob.seq+1 {
-		ob.log.Errorf("notification received out of sync. %d != %d - 1", ob.seq, seq)
+		ob.log.Errorf("notification received out of sync, want: %d + 1 != got: %d", ob.seq+1, seq)
 	}
 	if seq > ob.seq {
 		ob.seq = seq
@@ -224,7 +225,9 @@ func (ob *OrderBook) processCachedNotes() error {
 }
 
 // Sync updates a client tracked order book with an order book snapshot. It is
-// an error if the OrderBook is already synced.
+// an error if the OrderBook is already synced because this method is meant to
+// be used for initial sync only, for resetting order book (e.g. when connection
+// to server got lost) see OrderBook.Reset.
 func (ob *OrderBook) Sync(snapshot *msgjson.OrderBook) error {
 	if ob.isSynced() {
 		return fmt.Errorf("order book is already synced")
@@ -232,8 +235,26 @@ func (ob *OrderBook) Sync(snapshot *msgjson.OrderBook) error {
 	return ob.Reset(snapshot)
 }
 
+// ResetBeforeSubscribe helps us to make sure we don't miss any order book update
+// notifications after/during order book snapshot is taken. Once we send "subscribe"
+// request ("orderbook" route) to the server we start receiving those update
+// notifications immediately, thus in order to not miss any of those we must set
+// OrderBook synched status to false, so that when update notification comes it is
+// cached to be retried after order book sync/reset process is done. Note, doing it
+// this way we might receive update notifications related to previous subscription
+// (unless we somehow informed the server and got a confirmation back that we aren't
+// interested in those notifications, before sending this new subscribe request - which
+// we currently don't do), this isn't an issue though because we'll just drop them
+// since they'll contain seq value <= seq value from order book snapshot (which means
+// they are already present in order book snapshot).
+func (ob *OrderBook) ResetBeforeSubscribe() {
+	ob.setSynced(false)
+}
+
 // Reset forcibly updates a client tracked order book with an order book
 // snapshot. This resets the sequence.
+// See ResetBeforeSubscribe if you are using Reset when re-subscribing to
+// server order book feed.
 // TODO: eliminate this and half of the mutexes!
 func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	// Don't use setSeq here, since this message is the seed and is not expected
@@ -525,7 +546,8 @@ func (ob *OrderBook) ValidateMatchProof(note msgjson.MatchProofNote) error {
 		firstProof = ob.proofedEpoch == 0
 		ob.proofedEpoch = idx
 		if eq := ob.epochQueues[idx]; eq != nil {
-			delete(ob.epochQueues, idx) // there will be no more additions to this epoch
+			// There will be no more additions to this epoch after match_proof msg came.
+			delete(ob.epochQueues, idx)
 			return eq, nil
 		}
 		// This is expected for an empty match proof or if we started mid-epoch.

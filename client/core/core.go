@@ -7908,6 +7908,10 @@ func (c *Core) handleReconnect(host string) {
 			return
 		}
 
+		// Make sure we don't miss order book updates once subscription request
+		// below goes through, but before booky.Reset is finished.
+		booky.ResetBeforeSubscribe()
+
 		// Resubscribe since our old subscription was probably lost by the
 		// server when the connection dropped.
 		snap, err := dc.subscribe(mkt.base, mkt.quote)
