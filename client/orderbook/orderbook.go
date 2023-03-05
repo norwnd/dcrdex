@@ -251,7 +251,7 @@ func (ob *OrderBook) ResetBeforeSubscribe() {
 }
 
 // ResetAfterSubscribe must be used instead of Reset when subscribing to server feed
-// with ("orderbook" route). It must be preceded by ResetBeforeSubscribe, see more
+// with "orderbook" route. It must be preceded by ResetBeforeSubscribe, see more
 // details outlined in the comments there.
 func (ob *OrderBook) ResetAfterSubscribe(snapshot *msgjson.OrderBook) error {
 	return ob.Reset(snapshot)
@@ -259,8 +259,8 @@ func (ob *OrderBook) ResetAfterSubscribe(snapshot *msgjson.OrderBook) error {
 
 // Reset forcibly updates a client tracked order book with an order book
 // snapshot. This resets the sequence.
-// See ResetAfterSubscribe if you are using Reset while re-subscribing to
-// server order book feed.
+// See ResetAfterSubscribe if you want to use Reset while re-subscribing to
+// server order book feed with "orderbook" route.
 // TODO: eliminate this and half of the mutexes!
 func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	// Don't use setSeq here, since this message is the seed and is not expected
@@ -269,7 +269,7 @@ func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	ob.seq = snapshot.Seq
 	ob.seqMtx.Unlock()
 
-	// Epoch tracking needs to be reset since it will become outdated.
+	// Epoch tracking needs to be reset since it can become outdated during TODO.
 	ob.epochMtx.Lock()
 	delete(ob.epochQueues, ob.proofedEpoch)
 	delete(ob.epochQueues, ob.currentEpoch)
