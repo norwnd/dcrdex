@@ -7914,6 +7914,10 @@ func (c *Core) handleReconnect(host string) {
 			return
 		}
 
+		// Ensuring we don't lose any updates notifications that server might
+		// send while we are in the process of resetting order book via booky.ResetAfterSubscribe.
+		booky.ResetBeforeSubscribe()
+
 		// Resubscribe since our old subscription was probably lost by the
 		// server when the connection dropped.
 		snap, err := dc.subscribe(mkt.base, mkt.quote)
@@ -7923,7 +7927,7 @@ func (c *Core) handleReconnect(host string) {
 		}
 
 		// Create a fresh OrderBook for the bookie.
-		err = booky.Reset(snap)
+		err = booky.ResetAfterSubscribe(snap)
 		if err != nil {
 			c.log.Errorf("handleReconnect: Failed to Sync market %q order book snapshot: %v", mkt.name, err)
 		}
