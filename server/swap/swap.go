@@ -1567,11 +1567,18 @@ func (s *Swapper) processInit(msg *msgjson.Message, params *msgjson.Init, stepIn
 			fmt.Sprintf("contract error. expected contract value to be %d, got %d", stepInfo.checkVal, contract.Value()))
 		return wait.DontTryAgain
 	}
-	if !actor.isMaker && !bytes.Equal(contract.SecretHash, counterParty.status.swap.SecretHash) {
-		s.respondError(msg.ID, actor.user, msgjson.ContractError,
-			fmt.Sprintf("incorrect secret hash. expected %x. got %x",
-				contract.SecretHash, counterParty.status.swap.SecretHash))
-		return wait.DontTryAgain
+	if !actor.isMaker {
+		// TODO - clarify whether we as Taker can read mutex-free here, or whether
+		//  counterParty.status.swap.SecretHash can be modified from under us
+		counterParty.status.mtx.RLock()
+		if !bytes.Equal(contract.SecretHash, counterParty.status.swap.SecretHash) {
+			s.respondError(msg.ID, actor.user, msgjson.ContractError,
+				fmt.Sprintf("incorrect secret hash. expected %x. got %x",
+					contract.SecretHash, counterParty.status.swap.SecretHash))
+			counterParty.status.mtx.RUnlock()
+			return wait.DontTryAgain
+		}
+		counterParty.status.mtx.RUnlock()
 	}
 
 	reqLockTime := encode.DropMilliseconds(stepInfo.match.matchTime.Add(s.lockTimeTaker))

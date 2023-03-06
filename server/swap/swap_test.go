@@ -2007,6 +2007,14 @@ func TestMalformedSwap(t *testing.T) {
 	tValSpoofer = 2
 	ensureErr("bad maker contract")
 	ensureNilErr(rig.checkServerResponseFail(matchInfo.maker, msgjson.ContractError))
+
+	// Could send 2nd request before 1st one is done
+	// TODO - could maybe retry "send -> wait for error -> check tag" for 10 seconds
+	//  and timeout if fails;
+	//  and do it for every case where waitChans is used!
+	//  Also, might need to get rid of sendSwap_maker parameter to implement this
+	//  retry mech
+
 	tValSpoofer = 1
 	// Bad contract recipient
 	tRecipientSpoofer = "2"
