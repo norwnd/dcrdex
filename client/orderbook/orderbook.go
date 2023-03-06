@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"decred.org/dcrdex/dex"
 	"decred.org/dcrdex/dex/msgjson"
@@ -251,6 +252,10 @@ func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 		ob.ordersMtx.Lock()
 		defer ob.ordersMtx.Unlock()
 
+		// TODO
+		// Lets say Reset takes a while to execute.
+		time.Sleep(15 * time.Second)
+
 		ob.orders = make(map[order.OrderID]rateSell, len(snapshot.Orders))
 		ob.buys.reset()
 		ob.sells.reset()
@@ -314,6 +319,8 @@ func (ob *OrderBook) book(note *msgjson.BookOrderNote, cached bool) error {
 		}
 	}
 
+	// TODO
+	fmt.Println(fmt.Sprintf("%v ====>> book, seq: %d, orderId: %x", cached, note.Seq, string(note.OrderID)))
 	ob.setSeq(note.Seq)
 
 	if len(note.OrderID) != order.OrderIDSize {
@@ -370,6 +377,8 @@ func (ob *OrderBook) updateRemaining(note *msgjson.UpdateRemainingNote, cached b
 		}
 	}
 
+	// TODO
+	fmt.Println(fmt.Sprintf("%v ====>> updateRemaining, seq: %d, orderId: %x", cached, note.Seq, string(note.OrderID)))
 	ob.setSeq(note.Seq)
 
 	if len(note.OrderID) != order.OrderIDSize {
@@ -422,6 +431,9 @@ func (ob *OrderBook) unbook(note *msgjson.UnbookOrderNote, cached bool) error {
 			return ob.cacheOrderNote(msgjson.UnbookOrderRoute, note)
 		}
 	}
+
+	// TODO
+	fmt.Println(fmt.Sprintf("%v ====>> unbook, seq: %d, orderId: %x", cached, note.Seq, string(note.OrderID)))
 
 	ob.setSeq(note.Seq)
 
@@ -493,6 +505,8 @@ func (ob *OrderBook) Orders() ([]*Order, []*Order, []*Order) {
 
 // Enqueue appends the provided order note to the corresponding epoch's queue.
 func (ob *OrderBook) Enqueue(note *msgjson.EpochOrderNote) error {
+	// TODO
+	fmt.Println(fmt.Sprintf("====>> epoch order Enqueue, seq: %d, orderId: %x", note.Seq, string(note.OrderID)))
 	ob.setSeq(note.Seq)
 	idx := note.Epoch
 	ob.epochMtx.Lock()

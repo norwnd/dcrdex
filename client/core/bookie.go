@@ -411,11 +411,20 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 			return nil, nil, err
 		}
 
+		// TODO
+		// And lets see what happens when we have a delay here, just in case.
+		time.Sleep(15 * time.Second)
+
 		booky = newBookie(dc, base, quote, cfg.BinSizes, dc.log.SubLogger(mktID))
 		err = booky.Sync(obRes)
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// TODO
+		// And lets see what happens when we have a delay here, just in case.
+		time.Sleep(15 * time.Second)
+
 		dc.books[mktID] = booky
 	}
 
