@@ -1976,6 +1976,16 @@ func (s *Swapper) handleInit(user account.AccountID, msg *msgjson.Message) *msgj
 		Expiration: expireTime,
 		TryFunc: func() wait.TryDirective {
 			res := s.processInit(msg, params, stepInfo)
+
+			// TODO - introduce delays during testing,
+			//  note, this might interfere (prevent typical test execution) when
+			//  this sleep is so long that test wasn't written with such expectations
+			//  in mind (e.g. server would revoke Match after ~200ms); This might
+			//  mean 1) we need to bump those expectations up
+			//  2) or just use lower delay / maybe also temporarily bumping those
+			//  expected timeouts
+			time.Sleep(time.Second)
+
 			if res == wait.DontTryAgain {
 				stepInfo.actor.status.endSwapSearch() // contract now recorded
 			}
