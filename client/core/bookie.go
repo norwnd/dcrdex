@@ -445,7 +445,7 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 		}
 
 		booky = newBookie(dc, base, quote, cfg.BinSizes, dc.log.SubLogger(mktID))
-		err = booky.Sync(obRes)
+		err = booky.Sync(obRes) // initial sync for this bookie, done just once
 		if err != nil {
 			return nil, nil, err
 		}
@@ -808,6 +808,9 @@ func handleTradeSuspensionMsg(c *Core, dc *dexConnection, msg *msgjson.Message) 
 			return
 		}
 
+		// Since we don't subscribe to server feed here it's okay to use book.Reset,
+		// otherwise we'd have to use ResetBeforeSubscribe/ResetAfterSubscribe pair
+		// instead.
 		err = book.Reset(&msgjson.OrderBook{
 			MarketID: sp.MarketID,
 			Seq:      sp.Seq,        // forces seq reset, but should be in seq with previous
