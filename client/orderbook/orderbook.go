@@ -146,6 +146,11 @@ func (ob *OrderBook) setSeq(seq uint64) {
 	ob.seqMtx.Lock()
 	defer ob.seqMtx.Unlock()
 	if seq != ob.seq+1 {
+		// Logging as error to make it visible for debugging purposes, but it's
+		// not error actually because we might receive notification from previous
+		// subscription, previous - meaning it will have seq number less than
+		// seq in order book snapshot we got when resubscribing, and it's OK
+		// that we'll drop there outdated notifications.
 		ob.log.Errorf("notification received out of sync. %d != %d - 1", ob.seq, seq)
 	}
 	if seq > ob.seq {

@@ -7901,8 +7901,15 @@ func (c *Core) handleReconnect(host string) {
 	}
 
 	resubMkt := func(mkt *market) {
-		// Locate any bookie for this market.
-		booky := dc.bookie(mkt.name)
+		// Locking on dc.booksMtx is currently the only way to ensure the "book"
+		// notification gets sent first, before we start applying any update
+		// notifications coming from server (that can potentially happen once
+		// booky.Reset func returns). Additionally, concurrent Reset calls can
+		// result in discrepancy between order book contents and seq number.
+		dc.booksMtx.Lock()
+		defer dc.booksMtx.Unlock()
+
+		booky := dc.books[mkt.name]
 		if booky == nil {
 			// Was not previously subscribed with the server for this market.
 			return
@@ -7998,8 +8005,7 @@ func handleMatchProofMsg(c *Core, dc *dexConnection, msg *msgjson.Message) error
 
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id %q",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 
 	err = book.ValidateMatchProof(note)
