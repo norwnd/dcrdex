@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"decred.org/dcrdex/dex"
 	"decred.org/dcrdex/dex/msgjson"
@@ -173,6 +174,7 @@ func (s *subscribers) remove(id uint64) bool {
 // msgBook is a local copy of the order book information. The orders are saved
 // as msgjson.BookOrderNote structures.
 type msgBook struct {
+	running atomic.Bool // whether msgBook is initialized
 	name    string
 	subs    *subscribers
 	source  BookSource
@@ -181,8 +183,7 @@ type msgBook struct {
 
 	// mtx ensures orders, epochIdx and seq are changed atomically with respect
 	// to each other.
-	mtx     sync.RWMutex
-	running bool
+	mtx sync.RWMutex
 	// seq is tracking current(latest) order book version. See nextSeq for info
 	// on what version change actually means.
 	seq      uint64
@@ -332,19 +333,16 @@ func (r *BookRouter) runBook(ctx context.Context, book *msgBook) {
 	// Get the initial book.
 	feed := book.source.OrderFeed()
 	book.addBulkOrders(book.source.Book())
+	book.running.Store(true) // can serve order book to clients now
 	subs := book.subs
 
 	defer func() {
+		book.running.Store(false) // can stop serving order book to clients now
 		book.mtx.Lock()
-		book.running = false
 		book.orders = make(map[order.OrderID]*msgjson.BookOrderNote)
 		book.mtx.Unlock()
 		log.Infof("Book router terminating for market %q", book.name)
 	}()
-
-	book.mtx.Lock()
-	book.running = true
-	book.mtx.Unlock()
 
 out:
 	for {
@@ -559,12 +557,15 @@ func (r *BookRouter) sendBook(conn comms.Link, book *msgBook, msgID uint64) {
 
 // msgOrderBook returns current (latest) order book snapshot.
 func (r *BookRouter) msgOrderBook(book *msgBook) *msgjson.OrderBook {
-	book.mtx.RLock()
-	defer book.mtx.RUnlock()
-
-	if !book.running {
+	// Don't want to block client requests for too long, so return fast if order book
+	// isn't initialized yet instead of proceeding to wait on mutex below for who
+	// knows how long.
+	if !book.running.Load() {
 		return nil
 	}
+
+	book.mtx.RLock()
+	defer book.mtx.RUnlock()
 
 	ords := make([]*msgjson.BookOrderNote, 0, len(book.orders))
 	for _, o := range book.orders {
