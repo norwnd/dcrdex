@@ -8379,7 +8379,7 @@ out:
 				c.log.Errorf("A response was received in the message queue: %s", msg)
 				continue
 			default:
-				c.log.Errorf("Invalid message type %d from MessageSource", msg.Type)
+				c.log.Errorf("Invalid message type %s from MessageSource", msg.Type)
 				continue
 			}
 			// Until all the routes have handlers, check for nil too.
