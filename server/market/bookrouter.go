@@ -150,7 +150,8 @@ type BookSource interface {
 type subscribers struct {
 	mtx   sync.RWMutex
 	conns map[uint64]comms.Link
-	seq   uint64
+
+	seq uint64
 }
 
 // add adds a new subscriber.
