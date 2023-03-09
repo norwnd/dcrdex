@@ -220,20 +220,53 @@ func (ob *OrderBook) processCachedNotes() error {
 		}
 	}
 
+	// Must be done with ob.noteQueueMtx locked, otherwise some notes might be sent
+	// to ob.noteQueue after we are done processing it. Such notes won't be processed
+	// until next processCachedNotes call when they'll be irrelevant and more
+	// importantly it means we won't apply them on top of server snapshot they were
+	// meant to be applied to.
+	ob.setSynced(true)
+
 	return nil
 }
 
 // Sync updates a client tracked order book with an order book snapshot. It is
-// an error if the OrderBook is already synced.
+// an error if the OrderBook is already synced because this method is meant to
+// be used for initial sync (that includes server subscription request too) only.
 func (ob *OrderBook) Sync(snapshot *msgjson.OrderBook) error {
 	if ob.isSynced() {
 		return fmt.Errorf("order book is already synced")
 	}
+	return ob.Reset(snapshot) // OK to use instead of ResetAfterSubscribe on initial sync.
+}
+
+// ResetBeforeSubscribe helps us to make sure we don't miss any order book update
+// notifications after/during order book snapshot is taken. Once we send "subscribe"
+// request ("orderbook" route) to the server we start receiving those update
+// notifications immediately, thus in order to not miss any of those we must set
+// OrderBook synched status to false, so that when update notification comes it is
+// cached to be retried after order book sync/reset process is done. Note, doing it
+// this way we might receive update notifications related to previous subscription
+// (unless we somehow informed the server and got a confirmation back that we aren't
+// interested in those notifications, before sending this new subscribe request - which
+// we currently don't do), this isn't an issue though because we'll just drop them
+// since they'll contain seq value <= seq value from order book snapshot (which means
+// they are already present in order book snapshot).
+func (ob *OrderBook) ResetBeforeSubscribe() {
+	ob.setSynced(false)
+}
+
+// ResetAfterSubscribe must be used instead of Reset when subscribing to server feed
+// with "orderbook" route. It must be preceded by ResetBeforeSubscribe, see more
+// details outlined in the comments there.
+func (ob *OrderBook) ResetAfterSubscribe(snapshot *msgjson.OrderBook) error {
 	return ob.Reset(snapshot)
 }
 
 // Reset forcibly updates a client tracked order book with an order book
 // snapshot. This resets the sequence.
+// See ResetAfterSubscribe if you want to use Reset while re-subscribing to
+// server order book feed with "orderbook" route.
 // TODO: eliminate this and half of the mutexes!
 func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	// Don't use setSeq here, since this message is the seed and is not expected
@@ -294,8 +327,6 @@ func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
 	if err != nil {
 		return err
 	}
-
-	ob.setSynced(true)
 
 	return nil
 }

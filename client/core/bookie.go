@@ -808,6 +808,9 @@ func handleTradeSuspensionMsg(c *Core, dc *dexConnection, msg *msgjson.Message) 
 			return
 		}
 
+		// Since we don't subscribe to server feed here it's okay to use book.Reset,
+		// otherwise we'd have to use ResetBeforeSubscribe/ResetAfterSubscribe pair
+		// instead.
 		err = book.Reset(&msgjson.OrderBook{
 			MarketID: sp.MarketID,
 			Seq:      sp.Seq,        // forces seq reset, but should be in seq with previous
