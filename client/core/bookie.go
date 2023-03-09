@@ -445,7 +445,7 @@ func (dc *dexConnection) syncBook(base, quote uint32) (*orderbook.OrderBook, Boo
 		}
 
 		booky = newBookie(dc, base, quote, cfg.BinSizes, dc.log.SubLogger(mktID))
-		err = booky.Sync(obRes)
+		err = booky.Sync(obRes) // initial sync for this bookie, done just once
 		if err != nil {
 			return nil, nil, err
 		}
@@ -651,10 +651,18 @@ func handleBookOrderMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) error 
 		return fmt.Errorf("book order note unmarshal error: %w", err)
 	}
 
+	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
+	// come after we sent new subscription request (e.i. notes that need to be applied
+	// on top of snapshot we get from new subscription request will wait on that mutex
+	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
+	// duration; that leaves some room for notifications from previous subscription to
+	// come and apply concurrently with us applying snapshot we just got from new
+	// subscription request. It's Ok because those old notifications will be dropped
+	// (filtered out by outdated seq value) this way, we don't need them if we are
+	// resubscribing.
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id '%v'",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 	err = book.Book(note)
 	if err != nil {
@@ -762,21 +770,6 @@ func handleTradeSuspensionMsg(c *Core, dc *dexConnection, msg *msgjson.Message) 
 	}
 
 	// Clear the book and unbook/revoke own orders.
-	book := dc.bookie(sp.MarketID)
-	if book == nil {
-		return fmt.Errorf("no order book found with market id '%s'", sp.MarketID)
-	}
-
-	err = book.Reset(&msgjson.OrderBook{
-		MarketID: sp.MarketID,
-		Seq:      sp.Seq,        // forces seq reset, but should be in seq with previous
-		Epoch:    sp.FinalEpoch, // unused?
-		// Orders is nil
-		// BaseFeeRate = QuoteFeeRate = 0 effectively disables the book's fee
-		// cache until an update is received, since bestBookFeeSuggestion
-		// ignores zeros.
-	})
-	// Return any non-nil error, but still revoke purged orders.
 
 	// Revoke all active orders of the suspended market for the dex.
 	c.log.Warnf("Revoking all active orders for market %s at %s.", sp.MarketID, dc.acct.host)
@@ -794,22 +787,58 @@ func handleTradeSuspensionMsg(c *Core, dc *dexConnection, msg *msgjson.Message) 
 	}
 	dc.tradeMtx.RUnlock()
 
-	payload := MarketOrderBook{
-		Base:  mkt.Base,
-		Quote: mkt.Quote,
-		Book:  book.book(), // empty
-	}
-	encPayload, encErr := json.Marshal(payload)
-	if encErr != nil {
-		return fmt.Errorf("handleTradeSuspensionMsg: Failed to marshal payload: %+v, err: %v", payload, err)
-	}
-	// Clear the book.
-	book.send(&BookUpdate{
-		Action:   FreshBookAction,
-		Host:     dc.acct.host,
-		MarketID: sp.MarketID,
-		Payload:  encPayload,
-	})
+	func() { // for clean mutex scoping
+		// Locking on dc.booksMtx is currently the only way to ensure the "book"
+		// notification gets sent first, before we start applying any update
+		// notifications coming from server (that can potentially happen once
+		// booky.Reset func returns). For this particular "trade suspension" case
+		// we shouldn't receive any update notifications with seq number greater
+		// than seq in new order book snapshot, and those older will be dropped
+		// anyway (because their seq number is out of date).
+		// But, concurrent Reset calls can result in discrepancy between order
+		// book contents and seq number - so, have to lock dc.booksMtx to avoid
+		// at least that.
+		dc.booksMtx.Lock()
+		defer dc.booksMtx.Unlock()
+
+		book := dc.books[sp.MarketID]
+		if book == nil {
+			err = fmt.Errorf("no order book found with market id %q", sp.MarketID)
+			return
+		}
+
+		err = book.Reset(&msgjson.OrderBook{
+			MarketID: sp.MarketID,
+			Seq:      sp.Seq,        // forces seq reset, but should be in seq with previous
+			Epoch:    sp.FinalEpoch, // unused?
+			// Orders is nil
+			// BaseFeeRate = QuoteFeeRate = 0 effectively disables the book's fee
+			// cache until an update is received, since bestBookFeeSuggestion
+			// ignores zeros.
+		})
+		// Return any non-nil error, but still revoke purged orders (done already at
+		// this point) and clear the book.
+
+		payload := MarketOrderBook{
+			Base:  mkt.Base,
+			Quote: mkt.Quote,
+			Book:  book.book(), // empty
+		}
+		encPayload, encErr := json.Marshal(payload)
+		if encErr != nil {
+			if err == nil {
+				// book.Reset error takes precedence.
+				c.log.Errorf("handleTradeSuspensionMsg: Failed to marshal payload: %+v, err: %v", payload, err)
+			}
+			return
+		}
+		book.send(&BookUpdate{
+			Action:   FreshBookAction, // clear the book
+			Host:     dc.acct.host,
+			MarketID: sp.MarketID,
+			Payload:  encPayload,
+		})
+	}()
 
 	if len(updatedAssets) > 0 {
 		c.updateBalances(updatedAssets)
@@ -1054,10 +1083,18 @@ func handleUnbookOrderMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) erro
 		return fmt.Errorf("unbook order note unmarshal error: %w", err)
 	}
 
+	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
+	// come after we sent new subscription request (e.i. notes that need to be applied
+	// on top of snapshot we get from new subscription request will wait on that mutex
+	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
+	// duration; that leaves some room for notifications from previous subscription to
+	// come and apply concurrently with us applying snapshot we just got from new
+	// subscription request. It's Ok because those old notifications will be dropped
+	// (filtered out by outdated seq value) this way, we don't need them if we are
+	// resubscribing.
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id %q",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 	err = book.Unbook(note)
 	if err != nil {
@@ -1088,10 +1125,18 @@ func handleUpdateRemainingMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) 
 		return fmt.Errorf("book order note unmarshal error: %w", err)
 	}
 
+	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
+	// come after we sent new subscription request (e.i. notes that need to be applied
+	// on top of snapshot we get from new subscription request will wait on that mutex
+	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
+	// duration; that leaves some room for notifications from previous subscription to
+	// come and apply concurrently with us applying snapshot we just got from new
+	// subscription request. It's Ok because those old notifications will be dropped
+	// (filtered out by outdated seq value) this way, we don't need them if we are
+	// resubscribing.
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id '%v'",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 	err = book.UpdateRemaining(note)
 	if err != nil {
@@ -1123,10 +1168,19 @@ func handleEpochReportMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) erro
 	if err != nil {
 		return fmt.Errorf("epoch report note unmarshal error: %w", err)
 	}
+	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
+	// come after we sent new subscription request (e.i. notes that need to be applied
+	// on top of snapshot we get from new subscription request will wait on that mutex
+	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
+	// duration; that leaves some room for notifications from previous subscription to
+	// come and apply concurrently with us applying snapshot we just got from new
+	// subscription request.
+	// TODO: I'm not sure at the moment whether is OK to execute this notification from
+	//  old subscription while Resetting order book concurrently. Could this result into
+	//  mixed OrderBook state (for orders, candles cache, or something else) ?
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id '%v'",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 	err = book.logEpochReport(note)
 	if err != nil {
@@ -1144,10 +1198,19 @@ func handleEpochOrderMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) error
 		return fmt.Errorf("epoch order note unmarshal error: %w", err)
 	}
 
+	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
+	// come after we sent new subscription request (e.i. notes that need to be applied
+	// on top of snapshot we get from new subscription request will wait on that mutex
+	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
+	// duration; that leaves some room for notifications from previous subscription to
+	// come and apply concurrently with us applying snapshot we just got from new
+	// subscription request.
+	// TODO: I'm not sure at the moment whether is OK to execute this notification from
+	//  old subscription while Resetting order book concurrently. Could this result into
+	//  mixed OrderBook state (for orders, candles cache, or something else) ?
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id %q",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 
 	err = book.Enqueue(note)

@@ -173,8 +173,8 @@ func (s *subscribers) remove(id uint64) bool {
 
 // nextSeq gets the next sequence number by incrementing the counter. This
 // should be used when the book and orders are modified. Currently this applies
-// to the routes: book_order, unbook_order, update_remaining, and epoch_order,
-// plus suspend if the book is also being purged (persist=false).
+// to the routes: "book_order", "unbook_order", "update_remaining", "epoch_order",
+// and "suspension" if the book is also being purged (persist=false).
 func (s *subscribers) nextSeq() uint64 {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
