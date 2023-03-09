@@ -3,6 +3,7 @@ package orderbook
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"decred.org/dcrdex/dex/msgjson"
@@ -497,30 +498,32 @@ func TestOrderBookUpdateRemaining(t *testing.T) {
 	if err == nil {
 		t.Fatalf("no error updating remaining qty for unknown order")
 	}
-
-	// Bad order Seq (from past)
-	urNote.OrderID = []byte{0x03}
-	err = book.UpdateRemaining(urNote)
-	if err != nil {
-		t.Fatalf("shoudln't error about note from recent past") // we just log error
-	}
-
-	// Bad order Seq (from future)
-	urNote.OrderID = []byte{0x03}
-	urNote.Seq += 2
-	err = book.UpdateRemaining(urNote)
-	if err != nil {
-		t.Fatalf("shoudln't error about note from future") // we just log error
-	}
-	urNote.Seq -= 2
+	urNote.OrderID = oid[:] // cleanup
 
 	// Bad order ID
 	urNote.OrderID = []byte{0x03}
 	urNote.Seq++
 	err = book.UpdateRemaining(urNote)
 	if err == nil {
+		fmt.Println(err)
 		t.Fatalf("no error updating remaining qty for invalid order ID")
 	}
+	urNote.OrderID = oid[:] // cleanup
+
+	// Bad order Seq (from past)
+	// Skipping increment urNote.Seq here.
+	err = book.UpdateRemaining(urNote)
+	if err != nil {
+		t.Fatalf("shoudln't error about note from recent past") // we just log error
+	}
+
+	// Bad order Seq (from future)
+	urNote.Seq += 2
+	err = book.UpdateRemaining(urNote)
+	if err != nil {
+		t.Fatalf("shoudln't error about note from future") // we just log error
+	}
+	urNote.Seq -= 2 // cleanup
 }
 
 func TestOrderBookUnbook(t *testing.T) {
@@ -567,7 +570,7 @@ func TestOrderBookUnbook(t *testing.T) {
 				make([]*cachedOrderNote, 0),
 				true,
 			),
-			note: makeUnbookOrderNote(0, "ob", [32]byte{'a'}),
+			note: makeUnbookOrderNote(0, "ob", [32]byte{'c'}),
 			expected: makeOrderBook(
 				2,
 				"ob",
@@ -592,7 +595,7 @@ func TestOrderBookUnbook(t *testing.T) {
 				make([]*cachedOrderNote, 0),
 				false,
 			),
-			note: makeUnbookOrderNote(3, "ob", [32]byte{'a'}),
+			note: makeUnbookOrderNote(3, "ob", [32]byte{'c'}),
 			expected: makeOrderBook(
 				2,
 				"ob",
@@ -620,7 +623,7 @@ func TestOrderBookUnbook(t *testing.T) {
 				make([]*cachedOrderNote, 0),
 				true,
 			),
-			note:     makeUnbookOrderNote(3, "oc", [32]byte{'a'}),
+			note:     makeUnbookOrderNote(3, "oc", [32]byte{'c'}),
 			expected: nil,
 			wantErr:  true,
 		},
@@ -636,7 +639,7 @@ func TestOrderBookUnbook(t *testing.T) {
 				make([]*cachedOrderNote, 0),
 				true,
 			),
-			note: makeUnbookOrderNote(2, "ob", [32]byte{'b'}),
+			note: makeUnbookOrderNote(2, "ob", [32]byte{'c'}),
 			expected: makeOrderBook(
 				2,
 				"ob",
@@ -661,7 +664,7 @@ func TestOrderBookUnbook(t *testing.T) {
 				make([]*cachedOrderNote, 0),
 				true,
 			),
-			note: makeUnbookOrderNote(5, "ob", [32]byte{'b'}),
+			note: makeUnbookOrderNote(5, "ob", [32]byte{'c'}),
 			expected: makeOrderBook(
 				2,
 				"ob",
