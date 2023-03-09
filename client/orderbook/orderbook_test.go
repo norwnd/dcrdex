@@ -1030,20 +1030,21 @@ func TestValidateMatchProof(t *testing.T) {
 		t.Fatalf("[Enqueue]: unexpected error: %v", err)
 	}
 
-	matchProofNote = msgjson.MatchProofNote{
-		MarketID:  mid,
-		Epoch:     epoch,
-		Preimages: []msgjson.Bytes{n1Pimg[:], n2Pimg[:]},
-		Misses:    []msgjson.Bytes{},
-		CSum:      expectedCSum,
-		Seed:      expectedSeed,
-	}
-
+	// We currently don't support this type of validation, see comments in ValidateMatchProof.
+	//matchProofNote = msgjson.MatchProofNote{
+	//	MarketID:  mid,
+	//	Epoch:     epoch,
+	//	Preimages: []msgjson.Bytes{n1Pimg[:], n2Pimg[:]},
+	//	Misses:    []msgjson.Bytes{},
+	//	CSum:      expectedCSum,
+	//	Seed:      expectedSeed,
+	//}
+	//
 	// Ensure a invalid match proof message (missing a preimage) gets
 	// detected as expected.
-	if err := ob.ValidateMatchProof(matchProofNote); err == nil {
-		t.Fatalf("[ValidateMatchProof (missing a preimage)]: unexpected an error")
-	}
+	//if err := ob.ValidateMatchProof(matchProofNote); err == nil {
+	//	t.Fatalf("[ValidateMatchProof (missing a preimage)]: unexpected an error")
+	//}
 
 	ob = NewOrderBook(tLogger)
 

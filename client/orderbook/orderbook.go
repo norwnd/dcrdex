@@ -504,6 +504,7 @@ func (ob *OrderBook) Enqueue(note *msgjson.EpochOrderNote) error {
 		if idx > ob.currentEpoch {
 			ob.currentEpoch = idx
 		} else {
+			// This should never happen.
 			ob.log.Errorf("epoch order note received for epoch %d but current epoch is %d", idx, ob.currentEpoch)
 		}
 	}
@@ -532,8 +533,15 @@ func (ob *OrderBook) ValidateMatchProof(note msgjson.MatchProofNote) error {
 		if noteSize == 0 || firstProof {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("epoch %d match proof note references %d orders, but local epoch queue is empty",
-			idx, noteSize)
+		// Due to asynchronous nature of client-server communication, the way it's
+		// currently implemented (epochQueues, proofedEpoch and currentEpoch can fall
+		// out of sync because these are changed in non-atomic manner with respect to
+		// each other) we can't differentiate between server sending invalid match
+		// proof note and client's view on epoch orders being out of sync (non-atomic).
+		// Hopefully we can change it in the future, for now we don't want to treat
+		// it as error, logging in case it's useful for debugging and moving on.
+		ob.log.Tracef("epoch %d match proof note references %d orders, but local epoch queue is empty", idx, noteSize)
+		return nil, nil
 	}
 	eq, err := extractEpochQueue()
 	if eq == nil /* includes err != nil */ {
@@ -548,10 +556,18 @@ func (ob *OrderBook) ValidateMatchProof(note msgjson.MatchProofNote) error {
 		if firstProof && localSize < noteSize {
 			return nil // we only saw part of the epoch
 		}
-		// Since match_proof lags epoch close by up to preimage request timeout,
-		// this can still happen for multiple proofs after (re)connect.
-		return fmt.Errorf("epoch %d match proof note references %d orders, but local epoch queue has %d",
-			idx, noteSize, localSize)
+		// Due to asynchronous nature of client-server communication, the way it's
+		// currently implemented (epochQueues, proofedEpoch and currentEpoch can fall
+		// out of sync because these are changed in non-atomic manner with respect to
+		// each other) we can't differentiate between server sending invalid match
+		// proof note and client's view on epoch orders being out of sync (non-atomic).
+		// Hopefully we can change it in the future, for now we don't want to treat
+		// it as error, logging in case it's useful for debugging and moving on.
+		ob.log.Tracef(
+			"epoch %d match proof note references %d orders, but local epoch queue has %d",
+			idx, noteSize, localSize,
+		)
+		return nil
 	}
 	if len(note.Preimages) == 0 {
 		return nil

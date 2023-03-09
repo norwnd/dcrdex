@@ -1168,16 +1168,7 @@ func handleEpochReportMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) erro
 	if err != nil {
 		return fmt.Errorf("epoch report note unmarshal error: %w", err)
 	}
-	// Acquiring dc.booksMtx here in dc.bookie serves as a barrier for notifications that
-	// come after we sent new subscription request (e.i. notes that need to be applied
-	// on top of snapshot we get from new subscription request will wait on that mutex
-	// here). Note, we don't acquire dc.booksMtx for the whole handleBookOrderMsg
-	// duration; that leaves some room for notifications from previous subscription to
-	// come and apply concurrently with us applying snapshot we just got from new
-	// subscription request.
-	// TODO: I'm not sure at the moment whether is OK to execute this notification from
-	//  old subscription while Resetting order book concurrently. Could this result into
-	//  mixed OrderBook state (for orders, candles cache, or something else) ?
+	// Locking dc.booksMtx to just get the bookie, nothing more.
 	book := dc.bookie(note.MarketID)
 	if book == nil {
 		return fmt.Errorf("no order book found with market id %q", note.MarketID)
@@ -1205,9 +1196,10 @@ func handleEpochOrderMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) error
 	// duration; that leaves some room for notifications from previous subscription to
 	// come and apply concurrently with us applying snapshot we just got from new
 	// subscription request.
-	// TODO: I'm not sure at the moment whether is OK to execute this notification from
-	//  old subscription while Resetting order book concurrently. Could this result into
-	//  mixed OrderBook state (for orders, candles cache, or something else) ?
+	// TODO: for epoch_order notification this ^ is only necessary because we currently
+	//  update bookie.OrderBook.seq here below (if we don't wait on this barrier then
+	//  bookie.OrderBook.seq monotonicity might get corrupted. There is no reason to do
+	//  it and we can stop it with https://github.com/norwnd/dcrdex/issues/8.
 	book := dc.bookie(note.MarketID)
 	if book == nil {
 		return fmt.Errorf("no order book found with market id %q", note.MarketID)
