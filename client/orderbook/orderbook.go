@@ -140,17 +140,35 @@ func (ob *OrderBook) isSynced() bool {
 	return ob.synced
 }
 
-// setSeq should be called whenever a sequenced message is received. If seq is
-// out of sequence, an error is logged.
-func (ob *OrderBook) setSeq(seq uint64) {
+// tryApplySeq should be called whenever a sequenced message is received, to
+// verify it's seq number is in valid range and apply it if it is. It returns:
+//   - warn = "" and error = nil when seq number is good and state notification can
+//     be applied
+//   - warn != "" and error = nil when seq number is in expected range, but we shouldn't
+//     be applying corresponding notification state on top of current OrderBook
+//   - warn = "" and error != nil error when seq number is obviously bad, and we shouldn't
+//     be applying corresponding notification state on top of current OrderBook
+func (ob *OrderBook) tryApplySeq(seq uint64) (warn string, err error) {
 	ob.seqMtx.Lock()
 	defer ob.seqMtx.Unlock()
+	if seq <= ob.seq {
+		// Due to asynchronous nature of client-server order book we might receive
+		// notification from previous subscription, previous
+		// meaning it will have seq number less than or equal to OrderBook.seq
+		// (which is seq in order book snapshot we got when resubscribing),
+		// and it's Ok to drop these outdated transactions. Still, log this
+		// event just in case we observe something unexpected.
+		return fmt.Sprintf("got sequence number from the past %d, want exactly "+
+			"%d + 1", seq, ob.seq), nil
+	}
 	if seq != ob.seq+1 {
-		ob.log.Errorf("notification received out of sync. %d != %d - 1", ob.seq, seq)
+		// This is an error (could be a bug), it's gotta be strictly +1. So just
+		// log it and move on.
+		return "", fmt.Errorf("got sequence number from the future %d, want "+
+			"exactly %d + 1", seq, ob.seq)
 	}
-	if seq > ob.seq {
-		ob.seq = seq
-	}
+	ob.seq = seq
+	return "", nil
 }
 
 // cacheOrderNote caches an order note.
@@ -224,7 +242,7 @@ func (ob *OrderBook) processCachedNotes() error {
 }
 
 // Sync updates a client tracked order book with an order book snapshot. It is
-// an error if the the OrderBook is already synced.
+// an error if the OrderBook is already synced.
 func (ob *OrderBook) Sync(snapshot *msgjson.OrderBook) error {
 	if ob.isSynced() {
 		return fmt.Errorf("order book is already synced")
@@ -236,7 +254,9 @@ func (ob *OrderBook) Sync(snapshot *msgjson.OrderBook) error {
 // snapshot. This resets the sequence.
 // TODO: eliminate this and half of the mutexes!
 func (ob *OrderBook) Reset(snapshot *msgjson.OrderBook) error {
-	// Don't use setSeq here, since this message is the seed and is not expected
+	ob.log.Tracef("Resetting order book from server snapshot seq: %d", snapshot.Seq)
+
+	// Don't use tryApplySeq here, since this message is the seed and is not expected
 	// to be 1 more than the current seq value.
 	ob.seqMtx.Lock()
 	ob.seq = snapshot.Seq
@@ -314,7 +334,16 @@ func (ob *OrderBook) book(note *msgjson.BookOrderNote, cached bool) error {
 		}
 	}
 
-	ob.setSeq(note.Seq)
+	warn, err := ob.tryApplySeq(note.Seq)
+	if err != nil {
+		ob.log.Errorf("Unexpected book_order notification encountered: %+v, err: %v", note, err)
+		return nil // log for investigation and skip
+	}
+	if warn != "" {
+		ob.log.Tracef("Undesirable book_order notification encountered: %+v, reason: %s", note, warn)
+		return nil // log for debugging and skip
+	}
+	// Otherwise, safe to apply.
 
 	if len(note.OrderID) != order.OrderIDSize {
 		return fmt.Errorf("expected order id length of %d, got %d",
@@ -370,7 +399,16 @@ func (ob *OrderBook) updateRemaining(note *msgjson.UpdateRemainingNote, cached b
 		}
 	}
 
-	ob.setSeq(note.Seq)
+	warn, err := ob.tryApplySeq(note.Seq)
+	if err != nil {
+		ob.log.Errorf("Unexpected update_remaining notification encountered: %+v, err: %v", note, err)
+		return nil // log for investigation and skip
+	}
+	if warn != "" {
+		ob.log.Tracef("Undesirable update_remaining notification encountered: %+v, reason: %s", note, warn)
+		return nil // log for debugging and skip
+	}
+	// Otherwise, safe to apply.
 
 	if len(note.OrderID) != order.OrderIDSize {
 		return fmt.Errorf("expected order id length of %d, got %d",
@@ -423,7 +461,16 @@ func (ob *OrderBook) unbook(note *msgjson.UnbookOrderNote, cached bool) error {
 		}
 	}
 
-	ob.setSeq(note.Seq)
+	warn, err := ob.tryApplySeq(note.Seq)
+	if err != nil {
+		ob.log.Errorf("Unexpected unbook_order notification encountered: %+v, err: %v", note, err)
+		return nil // log for investigation and skip
+	}
+	if warn != "" {
+		ob.log.Tracef("Undesirable unbook_order notification encountered: %+v, reason: %s", note, warn)
+		return nil // log for debugging and skip
+	}
+	// Otherwise, safe to apply.
 
 	if len(note.OrderID) != order.OrderIDSize {
 		return fmt.Errorf("expected order id length of %d, got %d",
@@ -493,7 +540,17 @@ func (ob *OrderBook) Orders() ([]*Order, []*Order, []*Order) {
 
 // Enqueue appends the provided order note to the corresponding epoch's queue.
 func (ob *OrderBook) Enqueue(note *msgjson.EpochOrderNote) error {
-	ob.setSeq(note.Seq)
+	warn, err := ob.tryApplySeq(note.Seq)
+	if err != nil {
+		ob.log.Errorf("Unexpected epoch_order notification encountered: %+v, err: %v", note, err)
+		return nil // log for investigation and skip
+	}
+	if warn != "" {
+		ob.log.Tracef("Undesirable epoch_order notification encountered: %+v, reason: %s", note, warn)
+		return nil // log for debugging and skip
+	}
+	// Otherwise, safe to apply.
+
 	idx := note.Epoch
 	ob.epochMtx.Lock()
 	defer ob.epochMtx.Unlock()
