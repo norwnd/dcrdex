@@ -359,6 +359,31 @@ func TestOrderBookBook(t *testing.T) {
 			wantErr:  true,
 		},
 		{
+			label: "Book sell order to synced order book with past sequence value",
+			orderBook: makeOrderBook(
+				2,
+				"ob",
+				[]*Order{
+					makeOrder([32]byte{'b'}, msgjson.SellOrderNum, 10, 1, 2),
+					makeOrder([32]byte{'c'}, msgjson.SellOrderNum, 10, 2, 5),
+				},
+				make([]*cachedOrderNote, 0),
+				true,
+			),
+			note: makeBookOrderNote(2, "ob", [32]byte{'d'}, msgjson.SellOrderNum, 5, 3, 10),
+			expected: makeOrderBook(
+				2,
+				"ob",
+				[]*Order{
+					makeOrder([32]byte{'b'}, msgjson.SellOrderNum, 10, 1, 2),
+					makeOrder([32]byte{'c'}, msgjson.SellOrderNum, 10, 2, 5),
+				},
+				make([]*cachedOrderNote, 0),
+				true,
+			),
+			wantErr: false,
+		},
+		{
 			label: "Book sell order to synced order book with future sequence value",
 			orderBook: makeOrderBook(
 				2,
@@ -598,6 +623,31 @@ func TestOrderBookUnbook(t *testing.T) {
 			note:     makeUnbookOrderNote(3, "oc", [32]byte{'a'}),
 			expected: nil,
 			wantErr:  true,
+		},
+		{
+			label: "Unbook sell order with past sequence value",
+			orderBook: makeOrderBook(
+				2,
+				"ob",
+				[]*Order{
+					makeOrder([32]byte{'b'}, msgjson.SellOrderNum, 10, 1, 2),
+					makeOrder([32]byte{'c'}, msgjson.SellOrderNum, 10, 2, 5),
+				},
+				make([]*cachedOrderNote, 0),
+				true,
+			),
+			note: makeUnbookOrderNote(2, "ob", [32]byte{'b'}),
+			expected: makeOrderBook(
+				2,
+				"ob",
+				[]*Order{
+					makeOrder([32]byte{'b'}, msgjson.SellOrderNum, 10, 1, 2),
+					makeOrder([32]byte{'c'}, msgjson.SellOrderNum, 10, 2, 5),
+				},
+				make([]*cachedOrderNote, 0),
+				true,
+			),
+			wantErr: false,
 		},
 		{
 			label: "Unbook sell order with future sequence value",
