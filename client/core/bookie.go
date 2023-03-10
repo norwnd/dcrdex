@@ -231,11 +231,11 @@ func (b *bookie) newFeed(u *BookUpdate) *bookFeed {
 	b.timerMtx.Lock()
 	if b.closeTimer != nil {
 		// If Stop returns true, the timer did not fire. If false, the timer
-		// already fired and the close func was called. The caller of feed()
+		// already fired and the close func was called. The caller of b.newFeed()
 		// must be OK with that, or the close func must be able to detect when
-		// new feeds exist and abort. To solve the race, the caller of feed()
-		// must synchronize with the close func. e.g. Sync locks bookMtx before
-		// creating new feeds, and StopBook locks bookMtx to check for feeds
+		// new feeds exist and abort. To solve the race, the caller of b.newFeed()
+		// must synchronize with the close func. e.g. sync locks dc.booksMtx before
+		// creating new feeds, and stopBook locks dc.booksMtx to check for feeds
 		// before unsubscribing.
 		b.closeTimer.Stop()
 		b.closeTimer = nil
@@ -346,15 +346,15 @@ func (b *bookie) closeFeed(feedID uint32) {
 		b.closeTimer = time.AfterFunc(bookFeedTimeout, func() {
 			b.feedsMtx.RLock()
 			numFeeds := len(b.feeds)
-			b.feedsMtx.RUnlock() // cannot be locked for b.close
-			// Note that it is possible that the timer fired as b.feed() was
-			// about to stop it before inserting a new BookFeed. If feed() got
-			// the mutex first, there will be a feed to prevent b.close below.
-			// If closeFeed() got the mutex first, feed() will fail to stop the
-			// timer but still register a new BookFeed. The caller of feed()
-			// must synchronize with the close func to prevent this.
+			b.feedsMtx.RUnlock() // cannot be locked for b.dc.stopBook, will deadlock
+			// Note that it is possible that the timer fired as b.newFeed() was
+			// about to stop it before inserting a new BookFeed. If b.newFeed() got
+			// the mutex first, there will be a feed to prevent b.dc.stopBook below.
+			// If b.closeFeed() got the mutex first, b.newFeed() will fail to stop the
+			// timer but still register a new BookFeed. The caller of b.newFeed()
+			// must synchronize with b.dc.stopBook func to prevent this.
 
-			// Call the close func if there are no more feeds.
+			// Can stop order book if there are no more feeds.
 			if numFeeds == 0 {
 				b.dc.stopBook(b.base, b.quote)
 			}

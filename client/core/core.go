@@ -140,7 +140,9 @@ type dexConnection struct {
 	// actions performed on a particular bookie in that map (such as
 	// preventing applying any order book updates until order book snapshot
 	// is taken by another go-routine, so that it can get a feed on those
-	// changes to keep the original snapshot in sync).
+	// changes to keep the original snapshot in sync; another use case is to
+	// prevent terminating bookie with bookie.closeTimer while it's in the
+	// process of issuing new feed via bookie.newFeed()).
 	booksMtx sync.RWMutex
 	books    map[string]*bookie
 
