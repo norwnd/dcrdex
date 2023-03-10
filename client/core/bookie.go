@@ -62,13 +62,21 @@ func (f *bookFeed) Candles(durStr string) error {
 }
 
 // candleCache adds synchronization and an on/off switch to *candles.Cache.
+// NOTE: Occasionally we are missing candle updates (epoch_report notification)
+// when downloading/applying server snapshot. For candle cache such atomicity property
+// isn't supported at the moment, that's both neither on client nor on server side
+// (so it's 2 different places to adjust, if atomicity is desirable). It isn't as
+// noticeable for candles as it is for orders (where lack of similar atomicity property
+// would result in ghost orders), still without this candle chart doesn't reflect what
+// actually happened on dex server with 100% accuracy in real time (when cache resets,
+// e.g. on dexc restart, this discrepancy is resolved).
 type candleCache struct {
 	*candles.Cache
 	// candleMtx protects the integrity of candles.Cache (e.g. we can't update
 	// it while making copy at the same time), so it represents a consistent
 	// data snapshot.
 	candleMtx sync.RWMutex
-	on        uint32
+	on        uint32 // whether cache has been initialized
 }
 
 // init resets the candles with the supplied set.
@@ -79,6 +87,14 @@ func (c *candleCache) init(in []*msgjson.Candle) {
 	for _, candle := range in {
 		c.Add(candle)
 	}
+}
+
+// snapshot takes snapshot of candle cache (preventing concurrent cache updates).
+func (c *candleCache) snapshot() []msgjson.Candle {
+	c.candleMtx.RLock()
+	defer c.candleMtx.RUnlock()
+
+	return c.CandlesCopy()
 }
 
 // addCandle adds the candle using candles.Cache.Add. It returns most recent candle
@@ -100,7 +116,8 @@ func (c *candleCache) addCandle(msgCandle *msgjson.Candle) (recent msgjson.Candl
 // supplied close() callback.
 type bookie struct {
 	*orderbook.OrderBook
-	dc           *dexConnection
+	dc *dexConnection
+	// candleCaches is indexing candle caches by durations [5m,1h,24h].
 	candleCaches map[string]*candleCache
 	log          dex.Logger
 
@@ -178,7 +195,7 @@ func (b *bookie) logEpochReport(note *msgjson.EpochReportNote) error {
 	if err != nil {
 		return err
 	}
-	if note.Candle.EndStamp == 0 {
+	if note.Candle.EndStamp == 0 { // should never happen
 		return fmt.Errorf("epoch report has zero-valued candle end stamp")
 	}
 
@@ -272,9 +289,6 @@ func (b *bookie) candles(durStr string, feedID uint32) error {
 			return
 		}
 		dur, _ := time.ParseDuration(durStr)
-		cache.candleMtx.RLock()
-		cdls := cache.CandlesCopy()
-		cache.candleMtx.RUnlock()
 		f.c <- &BookUpdate{
 			Action:   FreshCandlesAction,
 			Host:     b.dc.acct.host,
@@ -282,7 +296,7 @@ func (b *bookie) candles(durStr string, feedID uint32) error {
 			Payload: &CandlesPayload{
 				Dur:          durStr,
 				DurMilliSecs: uint64(dur.Milliseconds()),
-				Candles:      cdls,
+				Candles:      cache.snapshot(),
 			},
 		}
 	}()
