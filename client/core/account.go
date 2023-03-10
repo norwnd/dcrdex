@@ -19,6 +19,8 @@ func (c *Core) disconnectDEX(dc *dexConnection) {
 	dc.cfgMtx.RLock()
 	if dc.cfg != nil {
 		for _, m := range dc.cfg.Markets {
+			fmt.Println(fmt.Sprintf("disconnectDEX ..., market = %s", marketName(m.Base, m.Quote)))
+
 			// Empty bookie's feeds map, close feeds' channels & stop close timers.
 			dc.booksMtx.Lock()
 			if b, found := dc.books[m.Name]; found {
@@ -29,6 +31,8 @@ func (c *Core) disconnectDEX(dc *dexConnection) {
 			}
 			dc.booksMtx.Unlock()
 			dc.stopBook(m.Base, m.Quote)
+
+			fmt.Println(fmt.Sprintf("disconnectDEX done, market = %s", marketName(m.Base, m.Quote)))
 		}
 	}
 	dc.cfgMtx.RUnlock()

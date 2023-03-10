@@ -243,13 +243,14 @@ func (b *bookie) newFeed(u *BookUpdate) *bookFeed {
 
 // closeFeeds closes the bookie's book feeds and resets the feeds map.
 func (b *bookie) closeFeeds() {
+	fmt.Println(fmt.Sprintf("bookie.closeFeeds ..., market = %s", marketName(b.base, b.quote)))
 	b.feedsMtx.Lock()
 	defer b.feedsMtx.Unlock()
 	for _, f := range b.feeds {
 		close(f.c)
 	}
 	b.feeds = make(map[uint32]*bookFeed, 1)
-
+	fmt.Println(fmt.Sprintf("bookie.closeFeeds done, market = %s", marketName(b.base, b.quote)))
 }
 
 // candles fetches the candle set from the server and activates the candle
@@ -321,6 +322,8 @@ func (b *bookie) closeFeed(feedID uint32) {
 			b.closeTimer.Stop()
 		}
 		b.closeTimer = time.AfterFunc(bookFeedTimeout, func() {
+			fmt.Println(fmt.Sprintf("bookie.closeTimer fired ..., market = %s", marketName(b.base, b.quote)))
+
 			b.feedsMtx.RLock()
 			numFeeds := len(b.feeds)
 			b.feedsMtx.RUnlock() // cannot be locked for b.close
@@ -470,6 +473,8 @@ func (dc *dexConnection) subscribe(base, quote uint32) (*msgjson.OrderBook, erro
 // stopBook is the close callback passed to the bookie, and will be called when
 // there are no more subscribers and the close delay period has expired.
 func (dc *dexConnection) stopBook(base, quote uint32) {
+	fmt.Println(fmt.Sprintf("bookie.stopBook ..., market = %s", marketName(base, quote)))
+
 	mkt := marketName(base, quote)
 	dc.booksMtx.Lock()
 	defer dc.booksMtx.Unlock() // hold it locked until unsubscribe request is completed
@@ -481,16 +486,22 @@ func (dc *dexConnection) stopBook(base, quote uint32) {
 		numFeeds := len(booky.feeds)
 		booky.feedsMtx.Unlock()
 		if numFeeds > 0 {
+			fmt.Println(fmt.Sprintf("bookie.stopBook leave bookie be, market = %s", marketName(base, quote)))
 			dc.log.Warnf("Aborting booky %p unsubscribe for market %s with active feeds", booky, mkt)
 			return
 		}
+		fmt.Println(fmt.Sprintf("bookie.stopBook deleting bookie, market = %s", marketName(base, quote)))
 		// No BookFeeds, delete the bookie.
 		delete(dc.books, mkt)
 	}
 
+	fmt.Println(fmt.Sprintf("bookie.stopBook unsubscribe, market = %s", marketName(base, quote)))
+
 	if err := dc.unsubscribe(base, quote); err != nil {
 		dc.log.Error(err)
 	}
+
+	fmt.Println(fmt.Sprintf("bookie.stopBook done, market = %s", marketName(base, quote)))
 }
 
 // unsubscribe unsubscribes from to the given market's order book.
