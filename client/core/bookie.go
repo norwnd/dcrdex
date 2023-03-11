@@ -147,7 +147,7 @@ func newBookie(dc *dexConnection, base, quote uint32, binSizes []string, logger 
 		} else {
 			dexAsset := dc.assets[assetID]
 			if dexAsset == nil {
-				dc.log.Errorf("DEX market has no %d asset. Is this even possible?", base)
+				dc.log.Errorf("DEX market has no %d asset. Is this even possible?", assetID)
 				return defaultUnitInfo("XYZ")
 			} else {
 				unitInfo := dexAsset.UnitInfo

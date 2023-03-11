@@ -220,6 +220,8 @@ func (ob *OrderBook) processCachedNotes() error {
 		}
 	}
 
+	// TODO: this doesn't help actually, because we still might add another note
+	//  to cache after we exit processCachedNotes func and will never handle it (it drops).
 	// Must be done with ob.noteQueueMtx locked, otherwise some notes might be sent
 	// to ob.noteQueue after we are done processing it. Such notes won't be processed
 	// until next processCachedNotes call when they'll be irrelevant and more
