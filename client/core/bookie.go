@@ -69,7 +69,8 @@ func (f *bookFeed) Candles(durStr string) error {
 // noticeable for candles as it is for orders (where lack of similar atomicity property
 // would result in ghost orders), still without this candle chart doesn't reflect what
 // actually happened on dex server with 100% accuracy in real time (when cache resets,
-// e.g. on dexc restart, this discrepancy is resolved).
+// e.g. on dexc restart, this discrepancy is resolved for older candles, it affects
+// only recent ones).
 type candleCache struct {
 	*candles.Cache
 	// candleMtx protects the integrity of candles.Cache (e.g. we can't update
@@ -300,6 +301,10 @@ func (b *bookie) candles(durStr string, feedID uint32) error {
 			},
 		}
 	}()
+	// Two or more concurrent calls might fall through here, resulting in cache
+	// being initialized with cache.init multiple times. It's OK though because
+	// candleCache is not 100% consistent with server's anyway, see comments on
+	// candleCache struct for details, and probably doesn't need to be.
 	if atomic.LoadUint32(&cache.on) == 1 {
 		return nil
 	}
