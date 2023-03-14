@@ -423,6 +423,10 @@ var _ asset.DynamicSwapOrRedemptionFeeChecker = (*TokenWallet)(nil)
 var _ asset.BotWallet = (*assetWallet)(nil)
 
 type baseWallet struct {
+	// 64-bit atomic variables first. See
+	// https://golang.org/pkg/sync/atomic/#pkg-note-BUG
+	gasFeeLimitV uint64 // atomic
+
 	// The asset subsystem starts with Connect(ctx). This ctx will be initialized
 	// in parent ETHWallet once and re-used in child TokenWallet instances.
 	ctx        context.Context
@@ -435,8 +439,6 @@ type baseWallet struct {
 
 	settingsMtx sync.RWMutex
 	settings    map[string]string
-
-	gasFeeLimitV uint64 // atomic
 
 	walletsMtx sync.RWMutex
 	wallets    map[uint32]*assetWallet
