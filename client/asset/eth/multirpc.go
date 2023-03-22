@@ -50,7 +50,6 @@ const (
 	receiptCacheExpiration       = time.Hour
 	unconfirmedReceiptExpiration = time.Minute
 	tipCapSuggestionExpiration   = time.Hour
-	brickedFailCount             = 100
 	providerDelimiter            = " "
 	defaultRequestTimeout        = time.Second * 10
 )
@@ -151,7 +150,7 @@ func (p *provider) setFailed() {
 func (p *provider) failed() bool {
 	p.tip.Lock()
 	defer p.tip.Unlock()
-	return p.tip.failCount > brickedFailCount || time.Since(p.tip.failStamp) < failQuarantine
+	return time.Since(p.tip.failStamp) < failQuarantine
 }
 
 // bestHeader get the best known header from the provider, cached if available,
