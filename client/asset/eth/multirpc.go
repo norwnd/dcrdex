@@ -295,6 +295,11 @@ func (p *provider) subscribeHeaders(ctx context.Context, sub ethereum.Subscripti
 	log.Tracef("handling websocket subscriptions for %q", p.host)
 
 	for {
+		fmt.Println("sub")
+		fmt.Println(fmt.Sprintf("%+v", sub))
+		fmt.Println("Err")
+		fmt.Println(fmt.Sprintf("%+v", sub.Err()))
+
 		select {
 		case hdr := <-h:
 			log.Tracef("%q reported new tip at height %s (%s)", p.host, hdr.Number, hdr.Hash())
