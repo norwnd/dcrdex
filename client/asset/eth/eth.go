@@ -67,7 +67,7 @@ const (
 	BipID               = 60
 	defaultGasFee       = 82  // gwei
 	defaultGasFeeLimit  = 200 // gwei
-	defaultSendGasLimit = 21_000
+	defaultSendGasLimit = 210_000
 
 	walletTypeGeth = "geth"
 	walletTypeRPC  = "rpc"
@@ -158,9 +158,8 @@ var (
 
 	chainIDs = map[dex.Network]int64{
 		dex.Mainnet: 1,
-		//dex.Testnet: 421613, // Görli
-		dex.Testnet: 42161, // Görli
-		dex.Simnet:  42,    // see dex/testing/eth/harness.sh
+		dex.Testnet: 421613, // Görli
+		dex.Simnet:  42,     // see dex/testing/eth/harness.sh
 	}
 
 	// unlimitedAllowance is the maximum supported allowance for an erc20
