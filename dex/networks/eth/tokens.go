@@ -179,7 +179,7 @@ var Tokens = map[uint32]*Token{
 				},
 			},
 			dex.Testnet: {
-				Address: common.HexToAddress("0x07865c6e87b9f70255377e024ace6630c1eaa37f"),
+				Address: common.HexToAddress("0x8fb1e3fc51f3b789ded7557e680551d93ea9d892"),
 				SwapContracts: map[uint32]*SwapContract{
 					0: {
 						Address: common.HexToAddress("0xA7Af47DB3296206eA543A82ffBF7Fc312698E6C9"),

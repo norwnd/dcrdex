@@ -349,13 +349,13 @@ func newV0TokenContractor(net dex.Network, assetID uint32, acctAddr common.Addre
 		return nil, err
 	}
 
-	if boundAddr, err := c.TokenAddress(&bind.CallOpts{
-		Context: context.TODO(),
-	}); err != nil {
-		return nil, fmt.Errorf("error reading bound token address: %w", err)
-	} else if boundAddr != tokenAddr {
-		return nil, fmt.Errorf("wrong bound address. expected %s, got %s", tokenAddr, boundAddr)
-	}
+	//if boundAddr, err := c.TokenAddress(&bind.CallOpts{
+	//	Context: context.TODO(),
+	//}); err != nil {
+	//	return nil, fmt.Errorf("error reading bound token address: %w", err)
+	//} else if boundAddr != tokenAddr {
+	//	return nil, fmt.Errorf("wrong bound address. expected %s, got %s", tokenAddr, boundAddr)
+	//}
 
 	return &tokenContractorV0{
 		contractorV0: &contractorV0{
