@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/csv"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -142,6 +143,14 @@ type dexConnection struct {
 	cfgMtx sync.RWMutex
 	cfg    *msgjson.ConfigResult
 
+	// booksMtx is used for both, protecting access to books map so that
+	// concurrent modifications are serialized and to synchronize certain
+	// actions performed on a particular bookie in that map (such as
+	// preventing applying any order book updates until order book snapshot
+	// is taken by another go-routine, so that it can get a feed on those
+	// changes to keep the original snapshot in sync; another use case is to
+	// prevent terminating bookie with bookie.closeTimer while it's in the
+	// process of issuing new feed via bookie.newFeed()).
 	booksMtx sync.RWMutex
 	books    map[string]*bookie
 
@@ -7923,8 +7932,15 @@ func (c *Core) handleReconnect(host string) {
 	}
 
 	resubMkt := func(mkt *market) {
-		// Locate any bookie for this market.
-		booky := dc.bookie(mkt.name)
+		// Locking on dc.booksMtx is currently the only way to ensure the "book"
+		// notification gets sent first, before we start applying any update
+		// notifications coming from server (that can potentially happen once
+		// booky.Reset func returns). Additionally, concurrent Reset calls can
+		// result in discrepancy between order book contents and seq number.
+		dc.booksMtx.Lock()
+		defer dc.booksMtx.Unlock()
+
+		booky := dc.books[mkt.name]
 		if booky == nil {
 			// Was not previously subscribed with the server for this market.
 			return
@@ -7944,16 +7960,21 @@ func (c *Core) handleReconnect(host string) {
 			c.log.Errorf("handleReconnect: Failed to Sync market %q order book snapshot: %v", mkt.name, err)
 		}
 
+		payload := MarketOrderBook{
+			Base:  mkt.base,
+			Quote: mkt.quote,
+			Book:  booky.book(),
+		}
+		encPayload, err := json.Marshal(payload)
+		if err != nil {
+			c.log.Errorf("handleReconnect: Failed to marshal payload: %+v, err: %v", payload, err)
+		}
 		// Send a FreshBookAction to the subscribers.
 		booky.send(&BookUpdate{
 			Action:   FreshBookAction,
 			Host:     dc.acct.host,
 			MarketID: mkt.name,
-			Payload: &MarketOrderBook{
-				Base:  mkt.base,
-				Quote: mkt.quote,
-				Book:  booky.book(),
-			},
+			Payload:  encPayload,
 		})
 	}
 
@@ -8033,8 +8054,7 @@ func handleMatchProofMsg(c *Core, dc *dexConnection, msg *msgjson.Message) error
 
 	book := dc.bookie(note.MarketID)
 	if book == nil {
-		return fmt.Errorf("no order book found with market id %q",
-			note.MarketID)
+		return fmt.Errorf("no order book found with market id %q", note.MarketID)
 	}
 
 	err = book.ValidateMatchProof(note)

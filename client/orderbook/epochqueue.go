@@ -52,7 +52,7 @@ func (eq *EpochQueue) Enqueue(note *msgjson.EpochOrderNote) error {
 	// Ensure the provided epoch order is not already queued.
 	_, ok := eq.orders[oid]
 	if ok {
-		return fmt.Errorf("%s is already queued", oid)
+		return fmt.Errorf("%s is already queued", oid) // should never happen
 	}
 
 	var commitment order.Commitment
