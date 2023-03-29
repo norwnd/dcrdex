@@ -88,7 +88,7 @@ class MessageSocket {
     if (this.connection) this.connection.close()
   }
 
-  connect (uri: string, reloadPage: () => void) {
+  connect (uri: string, reloadApp: () => void) {
     this.uri = uri
     let retrys = 0
     const go = () => {
@@ -114,11 +114,11 @@ class MessageSocket {
         forward('close', null, this.handlers)
 
         // Certain browsers have degrading performance bug when retries are issued
-        // perpetually (e.g. browser tab is still trying to reconnect WS to dexc after
-        // user shut it down but left his tab open). Refreshing page here is a patch
-        // for this behavior, it breaks this browser tab retry cycle.
+        // perpetually (browser tab is still trying to reconnect WS to dexc after
+        // user shut it down but left his tab open). Reloading page here breaks
+        // browser tab retry cycle.
         if (retrys > 10) {
-          reloadPage()
+          window.location.reload()
           return
         }
 
@@ -138,9 +138,7 @@ class MessageSocket {
           retrys = 0
           // Once dexc is back online we have to reload book/candles (and maybe other
           // stuff) otherwise we'll be missing a bunch of data for display in UI.
-          // Note, reloading page like this will result in ditching this WS connection
-          // and reestablishing new one.
-          reloadPage()
+          reloadApp()
           return
         }
         forward('open', null, this.handlers)

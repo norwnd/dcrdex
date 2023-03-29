@@ -40,7 +40,8 @@ import {
   APIResponse,
   RateNote,
   BotReport,
-  InFlightOrder
+  InFlightOrder,
+  app
 } from './registry'
 
 const idel = Doc.idel // = element by id
@@ -188,18 +189,21 @@ export default class Application {
     const notes = State.fetchLocal(State.notificationsLK)
     this.setNotes(notes || [])
     // Connect the websocket and register the notification route.
-    ws.connect(getSocketURI(), this.reloadPage)
+    ws.connect(getSocketURI(), this.reloadApp)
     ws.registerRoute(notificationRoute, (note: CoreNote) => {
       this.notify(note)
     })
   }
 
   /*
-   * reloadPage is called by the websocket client when a reconnection is made.
+   * reloadApp is called by the websocket client when a reconnection is made.
    */
-  reloadPage () {
-    window.location.reload() // This triggers another websocket disconnect/connect (!)
-    // a fetchUser() and loadPage(window.history.state.page) might work
+  reloadApp () {
+    if (window.history.state) {
+      app().loadPage(window.history.state.page) // recover without breaking ws connection
+    } else { // fall back in case history isn't available
+      window.location.reload() // this triggers another websocket disconnect/connect (!)
+    }
   }
 
   /*
