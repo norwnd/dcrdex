@@ -198,8 +198,9 @@ export default class Application {
   /*
    * reloadApp is called by the websocket client when a reconnection is made.
    */
-  reloadApp () {
+  async reloadApp () {
     if (window.history.state) {
+      await app().fetchUser()
       app().loadPage(window.history.state.page) // recover without breaking ws connection
     } else { // fall back in case history isn't available
       window.location.reload() // this triggers another websocket disconnect/connect (!)
