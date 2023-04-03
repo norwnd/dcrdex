@@ -217,12 +217,12 @@ var Tokens = map[uint32]*Token{
 							//   [65500 48400 48400 48400 48400]
 							//
 							// Then buffered by about 30%...
-							Swap:      10_000_000, // actual ~TODO --TODO
+							Swap:      8_500_000,  // actual ~5,941,395 -- https://goerli.arbiscan.io/tx/0xc9a37e9c9cf2931f0afc6851fdbb5b45a2d12a1e60ece7c832990586a882133a
 							SwapAdd:   10_000_000, // actual ~112,639 (300,519 for 2) -- https://goerli.etherscan.io/tx/0x97f9a1ed69883a6e701f37883ef74d79a709e0edfc4a45987fa659700663f40e
-							Redeem:    10_000_000, // actual ~TODO --TODO
+							Redeem:    6_000_000,  // actual ~4,643,285 -- https://goerli.arbiscan.io/tx/0xe2718ff2bd05352bd585f15c5d8428bf93bfc522c067d54791c51b54205d3eca
 							RedeemAdd: 10_000_000, // actual ~31,641 (110,653 for 2) -- https://goerli.etherscan.io/tx/0xcf717512796868273ed93c37fa139973c9b8305a736c4a3b50ac9f35ae747f99
 							Refund:    10_000_000, // actual ~59,152 -- https://goerli.etherscan.io/tx/0xc5692ad0e6d86b721af75ff3b4b7c2e17d939918db030ebf5444ccf840c7a90b
-							Approve:   10_000_000, // actual ~60,190 (initial) -- https://goerli.etherscan.io/tx/0xd695fd174dede7bb798488ead7fed5ef33bcd79932b0fa35db0d17c84c97a8a1, verified on mainnet at 60,311
+							Approve:   5_000_000,  // actual ~3,455,202 (initial) -- https://goerli.arbiscan.io/tx/0xeb0c8204c3ebe6fa9301018b49e8b52dc4b18da6cde4ebd3d09083101206bf6c
 							Transfer:  10_000_000, // actual ~65,524 (initial receive, subsequent 48,424)
 						},
 					},

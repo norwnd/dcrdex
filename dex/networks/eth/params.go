@@ -53,9 +53,9 @@ var (
 )
 
 var v0Gases = &Gases{
-	Swap:      4_500_000,  // 3_320_448 actual --https://goerli.arbiscan.io/tx/0xed854a676b3e29aee4fdfbdcfcb80a46d97a665b9d8a03822bd34e00f8351e32
+	Swap:      4_500_000,  // 3_320_448 actual -- https://goerli.arbiscan.io/tx/0xed854a676b3e29aee4fdfbdcfcb80a46d97a665b9d8a03822bd34e00f8351e32
 	SwapAdd:   10_000_000, // 112,600 actual (247,100 for 2) -- https://goerli.etherscan.io/tx/0xa4fc65b8001bf8c44f1079b3d97adf42eb1097658e360b9033596253b0cbbd04, verified on mainnet
-	Redeem:    10_000_000, // 60,456 actual -- https://goerli.etherscan.io/tx/0x5b22c48052df4a8ecd03a31b62e5015e6afe18c9ffb05e6cdd77396dfc3ca917, verified on mainnet
+	Redeem:    4_500_000,  // 3,159,648 actual -- https://goerli.arbiscan.io/tx/0x04920452f12468ac398028b61502def2d2c173a504c9001a101b38da94d05ab5
 	RedeemAdd: 10_000_000, // 31,672 actual (92,083 for 2, 123,724 for 3) -- https://goerli.etherscan.io/tx/0xae424cc9b0d43bf934112245cb74ab9eca9c2611eabcd6257b6ec258b071c1e6, https://goerli.etherscan.io/tx/0x7ba7cb945da108d39a5a0ac580d4841c4017a32cd0e244f26845c6ed501d2475, verified on mainnet
 	Refund:    10_000_000, // 43,014 actual -- https://goerli.etherscan.io/tx/0x586ed4cb7dab043f98d4cc08930d9eb291b0052d140d949b20232ceb6ad15f25
 }
