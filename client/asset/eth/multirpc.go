@@ -7,6 +7,8 @@ package eth
 
 import (
 	"context"
+	erc20v0 "decred.org/dcrdex/dex/networks/erc20/contracts/v0"
+	//swapv0 "decred.org/dcrdex/dex/networks/eth/contracts/v0"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1192,22 +1194,33 @@ func (m *multiRPCClient) sendSignedTransaction(ctx context.Context, tx *types.Tr
 }
 
 func (m *multiRPCClient) sendTransaction(ctx context.Context, txOpts *bind.TransactOpts, to common.Address, data []byte) (*types.Transaction, error) {
-	tx, err := m.creds.ks.SignTx(*m.creds.acct, types.NewTx(&types.DynamicFeeTx{
-		To:        &to,
-		ChainID:   m.chainID,
-		Nonce:     txOpts.Nonce.Uint64(),
-		Gas:       txOpts.GasLimit,
-		GasFeeCap: txOpts.GasFeeCap,
-		GasTipCap: txOpts.GasTipCap,
-		Value:     txOpts.Value,
-		Data:      data,
-	}), m.chainID)
+	// To deploy ETH Swap contract.
+	//addr, _, _, err := swapv0.DeployETHSwap(&bind.TransactOpts{
+	//	From:   txOpts.From,
+	//	Nonce:  txOpts.Nonce,
+	//	Signer: txOpts.Signer,
+	//  GasFeeCap: big.NewInt(int64(1000000000)),
+	//	GasTipCap: big.NewInt(int64(100000000)),
+	//}, m.contractBackend())
+	//if err != nil {
+	//	return nil, fmt.Errorf("DeployETHSwap: %v", err)
+	//}
 
+	// To deploy USDC Swap contract.
+	addr, _, _, err := erc20v0.DeployERC20Swap(&bind.TransactOpts{
+		From:      txOpts.From,
+		Nonce:     txOpts.Nonce,
+		Signer:    txOpts.Signer,
+		GasFeeCap: big.NewInt(int64(1000000000)),
+		GasTipCap: big.NewInt(int64(100000000)),
+	}, m.contractBackend(), common.HexToAddress("0x8FB1E3fC51F3b789dED7557E680551d93Ea9d892"))
 	if err != nil {
-		return nil, fmt.Errorf("signing error: %v", err)
+		return nil, fmt.Errorf("DeployERC20Swap: %v", err)
 	}
 
-	return tx, m.sendSignedTransaction(ctx, tx)
+	fmt.Println("deployed contract at addr: " + addr.String())
+
+	return nil, fmt.Errorf("abort due to contract creating txn successful send")
 }
 
 func (m *multiRPCClient) signData(data []byte) (sig, pubKey []byte, err error) {
