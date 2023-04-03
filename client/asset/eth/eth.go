@@ -39,7 +39,6 @@ import (
 	ethmath "github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -65,8 +64,8 @@ func init() {
 const (
 	// BipID is the BIP-0044 asset ID.
 	BipID               = 60
-	defaultGasFee       = 82  // gwei
-	defaultGasFeeLimit  = 200 // gwei
+	defaultGasFee       = 82 // gwei
+	defaultGasFeeLimit  = 2  // gwei
 	defaultSendGasLimit = 210_000
 
 	walletTypeGeth = "geth"
@@ -182,17 +181,20 @@ var (
 	// perTxGasLimit is the most gas we can use on a transaction. It is the
 	// lower of either the per tx or per block gas limit.
 	perTxGasLimit = func() uint64 {
+		// Current value as reported by https://goerli.arbiscan.io/blocks.
+		const arbBlockLimit uint64 = 1_125_899_906_842_624
 		// blockGasLimit is the amount of gas we can use in one transaction
 		// according to the block gas limit.
-		blockGasLimit := ethconfig.Defaults.Miner.GasCeil / maxProportionOfBlockGasLimitToUse
+		blockGasLimit := arbBlockLimit / maxProportionOfBlockGasLimitToUse
 
-		// txGasLimit is the amount of gas we can use in one transaction
-		// according to the default transaction gas fee limit.
-		txGasLimit := uint64(maxTxFeeGwei / defaultGasFeeLimit)
-
-		if blockGasLimit > txGasLimit {
-			return txGasLimit
-		}
+		// TODO: check, not sure whether there is a per-txn limit
+		//// txGasLimit is the amount of gas we can use in one transaction
+		//// according to the default transaction gas fee limit.
+		//txGasLimit := uint64(maxTxFeeGwei / defaultGasFeeLimit)
+		//
+		//if blockGasLimit > txGasLimit {
+		//	return txGasLimit
+		//}
 		return blockGasLimit
 	}()
 )
@@ -707,8 +709,11 @@ func NewWallet(assetCFG *asset.WalletConfig, logger dex.Logger, net dex.Network)
 	if maxSwapGas == 0 || perTxGasLimit < maxSwapGas {
 		return nil, errors.New("max swaps cannot be zero or undefined")
 	}
-	if maxRedeemGas == 0 || perTxGasLimit < maxRedeemGas {
-		return nil, errors.New("max redeems cannot be zero or undefined")
+	if maxRedeemGas == 0 {
+		return nil, errors.New("max redeems cannot be zero")
+	}
+	if perTxGasLimit < maxRedeemGas {
+		return nil, errors.New("max redeems cannot be undefined")
 	}
 
 	aw := &assetWallet{

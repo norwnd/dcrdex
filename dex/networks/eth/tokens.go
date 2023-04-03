@@ -179,10 +179,12 @@ var Tokens = map[uint32]*Token{
 				},
 			},
 			dex.Testnet: {
-				Address: common.HexToAddress("0x8fb1e3fc51f3b789ded7557e680551d93ea9d892"),
+				//Address: common.HexToAddress("0x07865c6e87b9f70255377e024ace6630c1eaa37f"),
+				Address: common.HexToAddress("0x8fb1e3fc51f3b789ded7557e680551d93ea9d892"), // Arbitrum
 				SwapContracts: map[uint32]*SwapContract{
 					0: {
-						Address: common.HexToAddress("0xA7Af47DB3296206eA543A82ffBF7Fc312698E6C9"),
+						//Address: common.HexToAddress("0xA7Af47DB3296206eA543A82ffBF7Fc312698E6C9"),
+						Address: common.HexToAddress("0xdea876D65945ea9D7Cf4213be307EED2e469e27F"), // Arbitrum
 						Gas: Gases{
 							// Results from client's GetGasEstimates.
 							//
@@ -215,13 +217,13 @@ var Tokens = map[uint32]*Token{
 							//   [65500 48400 48400 48400 48400]
 							//
 							// Then buffered by about 30%...
-							Swap:      242_000, // actual ~187,880 -- https://goerli.etherscan.io/tx/0x352baccafa96bb09d5c118f8dcce26e34267beb8bcda9c026f8d5353abea50fd, verified on mainnet at 188,013 gas
-							SwapAdd:   146_400, // actual ~112,639 (300,519 for 2) -- https://goerli.etherscan.io/tx/0x97f9a1ed69883a6e701f37883ef74d79a709e0edfc4a45987fa659700663f40e
-							Redeem:    109_000, // actual ~83,850 (initial receive, subsequent ~79,012) -- https://goerli.etherscan.io/tx/0x96f007036b01eb2e44615dc67d3e99748bc133496187348b2af26834f46bfdc8, verified on mainnet at 79,113 gas for subsequent
-							RedeemAdd: 31_600,  // actual ~31,641 (110,653 for 2) -- https://goerli.etherscan.io/tx/0xcf717512796868273ed93c37fa139973c9b8305a736c4a3b50ac9f35ae747f99
-							Refund:    77_000,  // actual ~59,152 -- https://goerli.etherscan.io/tx/0xc5692ad0e6d86b721af75ff3b4b7c2e17d939918db030ebf5444ccf840c7a90b
-							Approve:   78_400,  // actual ~60,190 (initial) -- https://goerli.etherscan.io/tx/0xd695fd174dede7bb798488ead7fed5ef33bcd79932b0fa35db0d17c84c97a8a1, verified on mainnet at 60,311
-							Transfer:  85_100,  // actual ~65,524 (initial receive, subsequent 48,424)
+							Swap:      10_000_000, // actual ~TODO --TODO
+							SwapAdd:   10_000_000, // actual ~112,639 (300,519 for 2) -- https://goerli.etherscan.io/tx/0x97f9a1ed69883a6e701f37883ef74d79a709e0edfc4a45987fa659700663f40e
+							Redeem:    10_000_000, // actual ~TODO --TODO
+							RedeemAdd: 10_000_000, // actual ~31,641 (110,653 for 2) -- https://goerli.etherscan.io/tx/0xcf717512796868273ed93c37fa139973c9b8305a736c4a3b50ac9f35ae747f99
+							Refund:    10_000_000, // actual ~59,152 -- https://goerli.etherscan.io/tx/0xc5692ad0e6d86b721af75ff3b4b7c2e17d939918db030ebf5444ccf840c7a90b
+							Approve:   10_000_000, // actual ~60,190 (initial) -- https://goerli.etherscan.io/tx/0xd695fd174dede7bb798488ead7fed5ef33bcd79932b0fa35db0d17c84c97a8a1, verified on mainnet at 60,311
+							Transfer:  10_000_000, // actual ~65,524 (initial receive, subsequent 48,424)
 						},
 					},
 				},
