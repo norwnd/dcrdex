@@ -7,6 +7,8 @@ package eth
 
 import (
 	"context"
+	erc20v0 "decred.org/dcrdex/dex/networks/erc20/contracts/v0"
+	//swapv0 "decred.org/dcrdex/dex/networks/eth/contracts/v0"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1192,22 +1194,33 @@ func (m *multiRPCClient) sendSignedTransaction(ctx context.Context, tx *types.Tr
 }
 
 func (m *multiRPCClient) sendTransaction(ctx context.Context, txOpts *bind.TransactOpts, to common.Address, data []byte) (*types.Transaction, error) {
-	tx, err := m.creds.ks.SignTx(*m.creds.acct, types.NewTx(&types.DynamicFeeTx{
-		To:        &to,
-		ChainID:   m.chainID,
-		Nonce:     txOpts.Nonce.Uint64(),
-		Gas:       txOpts.GasLimit,
-		GasFeeCap: txOpts.GasFeeCap,
-		GasTipCap: txOpts.GasTipCap,
-		Value:     txOpts.Value,
-		Data:      data,
-	}), m.chainID)
+	// To deploy ETH Swap contract.
+	//addr, _, _, err := swapv0.DeployETHSwap(&bind.TransactOpts{
+	//	From:   txOpts.From,
+	//	Nonce:  txOpts.Nonce,
+	//	Signer: txOpts.Signer,
+	//  GasFeeCap: big.NewInt(int64(1000000000)),
+	//	GasTipCap: big.NewInt(int64(100000000)),
+	//}, m.contractBackend())
+	//if err != nil {
+	//	return nil, fmt.Errorf("DeployETHSwap: %v", err)
+	//}
 
+	// To deploy USDC Swap contract.
+	addr, _, _, err := erc20v0.DeployERC20Swap(&bind.TransactOpts{
+		From:      txOpts.From,
+		Nonce:     txOpts.Nonce,
+		Signer:    txOpts.Signer,
+		GasFeeCap: big.NewInt(int64(1000000000)),
+		GasTipCap: big.NewInt(int64(100000000)),
+	}, m.contractBackend(), common.HexToAddress("0x8FB1E3fC51F3b789dED7557E680551d93Ea9d892"))
 	if err != nil {
-		return nil, fmt.Errorf("signing error: %v", err)
+		return nil, fmt.Errorf("DeployERC20Swap: %v", err)
 	}
 
-	return tx, m.sendSignedTransaction(ctx, tx)
+	fmt.Println("deployed contract at addr: " + addr.String())
+
+	return nil, fmt.Errorf("abort due to contract creating txn successful send")
 }
 
 func (m *multiRPCClient) signData(data []byte) (sig, pubKey []byte, err error) {
@@ -1444,8 +1457,9 @@ func newCompatibilityTests(cb bind.ContractBackend, net dex.Network, log dex.Log
 		mainnetTxHash    = common.HexToHash("0xea1a717af9fad5702f189d6f760bb9a5d6861b4ee915976fe7732c0c95cd8a0e")
 		mainnetBlockHash = common.HexToHash("0x44ebd6f66b4fd546bccdd700869f6a433ef9a47e296a594fa474228f86eeb353")
 
-		testnetAddr      = common.HexToAddress("0x8879F72728C5eaf5fB3C55e6C3245e97601FBa32")
-		testnetUSDC      = common.HexToAddress("0x07865c6E87B9F70255377e024ace6630C1Eaa37F")
+		testnetAddr = common.HexToAddress("0x8879F72728C5eaf5fB3C55e6C3245e97601FBa32")
+		//testnetUSDC      = common.HexToAddress("0x07865c6E87B9F70255377e024ace6630C1Eaa37F")
+		testnetUSDC      = common.HexToAddress("0x8fb1e3fc51f3b789ded7557e680551d93ea9d892")
 		testnetTxHash    = common.HexToHash("0x4e1d455f7eac7e3a5f7c1e0989b637002755eaee3a262f90b0f3aef1f1c4dcf0")
 		testnetBlockHash = common.HexToHash("0x8896021c2666303a85b7e4a6a6f2b075bc705d4e793bf374cd44b83bca23ef9a")
 
