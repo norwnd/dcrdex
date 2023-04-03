@@ -1444,8 +1444,9 @@ func newCompatibilityTests(cb bind.ContractBackend, net dex.Network, log dex.Log
 		mainnetTxHash    = common.HexToHash("0xea1a717af9fad5702f189d6f760bb9a5d6861b4ee915976fe7732c0c95cd8a0e")
 		mainnetBlockHash = common.HexToHash("0x44ebd6f66b4fd546bccdd700869f6a433ef9a47e296a594fa474228f86eeb353")
 
-		testnetAddr      = common.HexToAddress("0x8879F72728C5eaf5fB3C55e6C3245e97601FBa32")
-		testnetUSDC      = common.HexToAddress("0x07865c6E87B9F70255377e024ace6630C1Eaa37F")
+		testnetAddr = common.HexToAddress("0x8879F72728C5eaf5fB3C55e6C3245e97601FBa32")
+		//testnetUSDC      = common.HexToAddress("0x07865c6E87B9F70255377e024ace6630C1Eaa37F")
+		testnetUSDC      = common.HexToAddress("0x8fb1e3fc51f3b789ded7557e680551d93ea9d892")
 		testnetTxHash    = common.HexToHash("0x4e1d455f7eac7e3a5f7c1e0989b637002755eaee3a262f90b0f3aef1f1c4dcf0")
 		testnetBlockHash = common.HexToHash("0x8896021c2666303a85b7e4a6a6f2b075bc705d4e793bf374cd44b83bca23ef9a")
 
