@@ -332,6 +332,7 @@ export default class OrderPage extends BasePage {
       Doc.show(tmpl.takerRedeemMsg)
     } else {
       Doc.hide(tmpl.makerSwapMsg, tmpl.takerSwapMsg, tmpl.makerRedeemMsg, tmpl.takerRedeemMsg)
+      if (m.isCancel) return
     }
 
     if (!m.revoked) {
@@ -339,14 +340,14 @@ export default class OrderPage extends BasePage {
       // user to see it in full (even if to learn how atomic swap is supposed to
       // work).
 
-      Doc.setVis(!m.isCancel && (makerSwapCoin(m) || m.active), tmpl.makerSwap)
-      Doc.setVis(!m.isCancel && (takerSwapCoin(m) || m.active), tmpl.takerSwap)
-      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || m.active), tmpl.makerRedeem)
+      Doc.setVis(makerSwapCoin(m) || m.active, tmpl.makerSwap)
+      Doc.setVis(takerSwapCoin(m) || m.active, tmpl.takerSwap)
+      Doc.setVis(makerRedeemCoin(m) || m.active, tmpl.makerRedeem)
       // When maker isn't aware of taker redeem coin, once the match becomes inactive
       // (nothing else maker is expected to do in this match) just hide taker redeem.
-      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || m.active), tmpl.takerRedeem)
+      Doc.setVis(takerRedeemCoin(m) || m.active, tmpl.takerRedeem)
       // Refunding isn't a usual part of success-path, but don't rule it out.
-      Doc.setVis(!m.isCancel && m.refund, tmpl.refund)
+      Doc.setVis(m.refund, tmpl.refund)
     } else {
       // Match diverged from the usual success-path, since this could have happened
       // at any step it is hard (maybe impossible) to predict the final state this
@@ -354,8 +355,8 @@ export default class OrderPage extends BasePage {
       // the possibilities on the next step ahead.
 
       // If we don't have swap coins after revocation, we won't show the pending message.
-      Doc.setVis(!m.isCancel && (makerSwapCoin(m)), tmpl.makerSwap)
-      Doc.setVis(!m.isCancel && (takerSwapCoin(m)), tmpl.takerSwap)
+      Doc.setVis(makerSwapCoin(m), tmpl.makerSwap)
+      Doc.setVis(takerSwapCoin(m), tmpl.takerSwap)
       // When match is revoked and both swaps are present, maker redeem might still show up:
       // - as maker, we'll try to redeem until it isn't possible due to refund by taker,
       //   so we'll have to show redeem row until we either redeem or refund
@@ -363,10 +364,10 @@ export default class OrderPage extends BasePage {
       //   refunded already
       // - as taker, we should expect maker redeeming any time, so we'll have to show
       //   redeem pending element until maker redeem shows up, or until we refund.
-      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || (takerSwapCoin(m) && m.active && !m.refund)), tmpl.makerRedeem)
+      Doc.setVis(makerRedeemCoin(m) || (takerSwapCoin(m) && m.active && !m.refund), tmpl.makerRedeem)
       // When maker isn't aware of taker redeem coin, once the match becomes inactive
       // (nothing else maker is expected to do in this match) just hide taker redeem.
-      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund)), tmpl.takerRedeem)
+      Doc.setVis(takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund), tmpl.takerRedeem)
       // As taker, show refund placeholder only if we have outstanding swap to refund.
       // There is no need to wait for anything else, we can show refund placeholder
       // (to inform the user that it is likely to happen) right after match revocation.
@@ -386,7 +387,7 @@ export default class OrderPage extends BasePage {
           expectingRefund = expectingRefund && Date.now() > takerRefundsAfter.getTime()
         }
       }
-      Doc.setVis(!m.isCancel && (m.refund || (m.active && !m.redeem && !m.counterRedeem && expectingRefund)), tmpl.refund)
+      Doc.setVis(m.refund || (m.active && !m.redeem && !m.counterRedeem && expectingRefund), tmpl.refund)
     }
   }
 
