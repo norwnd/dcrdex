@@ -272,6 +272,14 @@ export default class OrderPage extends BasePage {
     const tmpl = Doc.parseTemplate(matchCard)
     tmpl.status.textContent = OrderUtil.matchStatusString(m)
 
+    const formatCoinID = (cid: string) => {
+      if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
+        const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
+        return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
+      }
+      return cid
+    }
+
     const tryShowCoin = (pendingEl: PageElement, coinLink: PageElement, coin: Coin) => {
       if (!coin) {
         Doc.hide(coinLink)
@@ -284,37 +292,34 @@ export default class OrderPage extends BasePage {
       Doc.show(coinLink)
       Doc.hide(pendingEl)
     }
-    const tryShowRefundCoin = () => {
-      if (!m.refund) {
-        // Special messaging for pending refunds.
-        let lockTime = lockTimeMakerMs
-        if (m.side === OrderUtil.Taker) lockTime = lockTimeTakerMs
-        const refundAfter = new Date(m.stamp + lockTime)
-        if (Date.now() > refundAfter.getTime()) tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
-        else {
-          const refundAfterStr = refundAfter.toLocaleTimeString('en-GB', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-          })
-          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_WILL_HAPPEN_AFTER, { refundAfterTime: refundAfterStr })
-        }
-        Doc.hide(tmpl.refundCoin)
-        Doc.show(tmpl.refundPending)
-        return
-      }
-      tmpl.refundCoin.textContent = formatCoinID(m.refund.stringID)
-      tmpl.refundCoin.dataset.explorerCoin = m.refund.stringID
-      setCoinHref(m.refund.assetID, tmpl.refundCoin)
-      Doc.show(tmpl.refundCoin)
-      Doc.hide(tmpl.refundPending)
-    }
 
     tryShowCoin(tmpl.makerSwapPending, tmpl.makerSwapCoin, makerSwapCoin(m))
     tryShowCoin(tmpl.takerSwapPending, tmpl.takerSwapCoin, takerSwapCoin(m))
     tryShowCoin(tmpl.makerRedeemPending, tmpl.makerRedeemCoin, makerRedeemCoin(m))
     tryShowCoin(tmpl.takerRedeemPending, tmpl.takerRedeemCoin, takerRedeemCoin(m))
-    tryShowRefundCoin()
+    if (!m.refund) {
+      // Special messaging for pending refunds.
+      let lockTime = lockTimeMakerMs
+      if (m.side === OrderUtil.Taker) lockTime = lockTimeTakerMs
+      const refundAfter = new Date(m.stamp + lockTime)
+      if (Date.now() > refundAfter.getTime()) tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
+      else {
+        const refundAfterStr = refundAfter.toLocaleTimeString('en-GB', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+        tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_WILL_HAPPEN_AFTER, { refundAfterTime: refundAfterStr })
+      }
+      Doc.hide(tmpl.refundCoin)
+      Doc.show(tmpl.refundPending)
+      return
+    }
+    tmpl.refundCoin.textContent = formatCoinID(m.refund.stringID)
+    tmpl.refundCoin.dataset.explorerCoin = m.refund.stringID
+    setCoinHref(m.refund.assetID, tmpl.refundCoin)
+    Doc.show(tmpl.refundCoin)
+    Doc.hide(tmpl.refundPending)
 
     if (m.status === OrderUtil.MakerSwapCast && !m.revoked && !m.refund) {
       const c = makerSwapCoin(m)
@@ -566,17 +571,6 @@ function inConfirmingMakerRedeem (m: Match) {
 */
 function inConfirmingTakerRedeem (m: Match) {
   return m.status < OrderUtil.MatchConfirmed && m.side === OrderUtil.Taker && m.status >= OrderUtil.MatchComplete
-}
-
-/*
- * formatCoinID parses / converts CoinID into human-readable format.
- */
-function formatCoinID (cid: string) {
-  if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
-    const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
-    return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
-  }
-  return cid
 }
 
 /*
