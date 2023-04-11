@@ -59,10 +59,9 @@ func init() {
 	}
 }
 
-// LockTimeTaker returns the taker locktime value (i.e. how long funds are locked
-// for in swap contract before they can be refunded) that client and server will
-// use for the specified network. Mainnet uses a constant value while test networks
-// support setting a custom value during build.
+// LockTimeTaker returns the taker locktime value that should be used by both
+// client and server for the specified network. Mainnet uses a constant value
+// while test networks support setting a custom value during build.
 func LockTimeTaker(network Network) time.Duration {
 	if network == Mainnet {
 		return defaultLockTimeTaker
@@ -70,10 +69,9 @@ func LockTimeTaker(network Network) time.Duration {
 	return testLockTime.taker
 }
 
-// LockTimeMaker returns the maker locktime value (i.e. how long funds are locked
-// for in swap contract before they can be refunded) that client and server will
-// use for the specified network. Mainnet uses a constant value while test networks
-// support setting a custom value during build.
+// LockTimeMaker returns the maker locktime value that should be used by both
+// client and server for the specified network. Mainnet uses a constant value
+// while test networks support setting a custom value during build.
 func LockTimeMaker(network Network) time.Duration {
 	if network == Mainnet {
 		return defaultlockTimeMaker
