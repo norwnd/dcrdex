@@ -19,6 +19,11 @@ const Mainnet = 0
 const Testnet = 1
 // const Regtest = 3
 
+// lockTimeMakerMs must match the value returned from LockTimeMaker func in dexc.
+const lockTimeMakerMs = 20 * 60 * 60 * 1000
+// lockTimeTakerMs must match the value returned from LockTimeTaker func in dexc.
+const lockTimeTakerMs = 8 * 60 * 60 * 1000
+
 const coinIDTakerFoundMakerRedemption = 'TakerFoundMakerRedemption:'
 
 const animationLength = 500
@@ -258,33 +263,49 @@ export default class OrderPage extends BasePage {
     const tmpl = Doc.parseTemplate(matchCard)
     tmpl.status.textContent = OrderUtil.matchStatusString(m)
 
-    const setCoin = (pendingName: string, linkName: string, coin: Coin) => {
-      const formatCoinID = (cid: string) => {
-        if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
-          const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
-          return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
-        }
-        return cid
-      }
-      const coinLink = tmpl[linkName]
-      const pendingSpan = tmpl[pendingName]
+    const tryShowCoin = (pendingEl: PageElement, coinLink: PageElement, coin: Coin) => {
       if (!coin) {
-        Doc.show(tmpl[pendingName])
-        Doc.hide(tmpl[linkName])
+        Doc.hide(coinLink)
+        Doc.show(pendingEl)
         return
       }
       coinLink.textContent = formatCoinID(coin.stringID)
       coinLink.dataset.explorerCoin = coin.stringID
       setCoinHref(coin.assetID, coinLink)
-      Doc.hide(pendingSpan)
       Doc.show(coinLink)
+      Doc.hide(pendingEl)
+    }
+    const tryShowRefundCoin = () => {
+      if (!m.refund) {
+        // Special messaging for pending refunds.
+        let lockTime = lockTimeMakerMs
+        if (m.side === OrderUtil.Taker) lockTime = lockTimeTakerMs
+        const refundAfter = new Date(m.stamp + lockTime)
+        if (Date.now() > refundAfter.getTime()) tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
+        else {
+          const refundAfterStr = refundAfter.toLocaleTimeString('en-GB', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+          tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_WILL_HAPPEN_AFTER, { refundAfterTime: refundAfterStr })
+        }
+        Doc.hide(tmpl.refundCoin)
+        Doc.show(tmpl.refundPending)
+        return
+      }
+      tmpl.refundCoin.textContent = formatCoinID(m.refund.stringID)
+      tmpl.refundCoin.dataset.explorerCoin = m.refund.stringID
+      setCoinHref(m.refund.assetID, tmpl.refundCoin)
+      Doc.show(tmpl.refundCoin)
+      Doc.hide(tmpl.refundPending)
     }
 
-    setCoin('makerSwapPending', 'makerSwapCoin', makerSwapCoin(m))
-    setCoin('takerSwapPending', 'takerSwapCoin', takerSwapCoin(m))
-    setCoin('makerRedeemPending', 'makerRedeemCoin', makerRedeemCoin(m))
-    setCoin('takerRedeemPending', 'takerRedeemCoin', takerRedeemCoin(m))
-    setCoin('refundPending', 'refundCoin', m.refund)
+    tryShowCoin(tmpl.makerSwapPending, tmpl.makerSwapCoin, makerSwapCoin(m))
+    tryShowCoin(tmpl.takerSwapPending, tmpl.takerSwapCoin, takerSwapCoin(m))
+    tryShowCoin(tmpl.makerRedeemPending, tmpl.makerRedeemCoin, makerRedeemCoin(m))
+    tryShowCoin(tmpl.takerRedeemPending, tmpl.takerRedeemCoin, takerRedeemCoin(m))
+    tryShowRefundCoin()
 
     if (m.status === OrderUtil.MakerSwapCast && !m.revoked && !m.refund) {
       const c = makerSwapCoin(m)
@@ -308,14 +329,60 @@ export default class OrderPage extends BasePage {
       Doc.hide(tmpl.makerSwapMsg, tmpl.takerSwapMsg, tmpl.makerRedeemMsg, tmpl.takerRedeemMsg)
     }
 
-    Doc.setVis(!m.isCancel && (makerSwapCoin(m) || !m.revoked), tmpl.makerSwap)
-    Doc.setVis(!m.isCancel && (takerSwapCoin(m) || !m.revoked), tmpl.takerSwap)
-    Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || !m.revoked), tmpl.makerRedeem)
-    // When revoked, there is uncertainty about the taker redeem coin. The taker
-    // redeem may be needed if maker redeems while taker is waiting to refund.
-    Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (!m.revoked && m.active) || ((m.side === OrderUtil.Taker) && m.active && (m.counterRedeem || !m.refund))), tmpl.takerRedeem)
-    // The refund placeholder should not be shown if there is a counter redeem.
-    Doc.setVis(!m.isCancel && (m.refund || (m.revoked && m.active && !m.counterRedeem)), tmpl.refund)
+    if (!m.revoked) {
+      // Match is still following the usual success-path, it is desirable for the
+      // user to see it in full (even if to learn how atomic swap is supposed to
+      // work).
+
+      Doc.setVis(!m.isCancel && (makerSwapCoin(m) || m.active), tmpl.makerSwap)
+      Doc.setVis(!m.isCancel && (takerSwapCoin(m) || m.active), tmpl.takerSwap)
+      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || m.active), tmpl.makerRedeem)
+      // When maker isn't aware of taker redeem coin, once the match becomes inactive
+      // (nothing else maker is expected to do in this match) just hide taker redeem.
+      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || m.active), tmpl.takerRedeem)
+      // Refunding isn't a usual part of success-path, but don't rule it out.
+      Doc.setVis(!m.isCancel && m.refund, tmpl.refund)
+    } else {
+      // Match diverged from the usual success-path, since this could have happened
+      // at any step it is hard (maybe impossible) to predict the final state this
+      // match will end up in, so show only steps that already happened plus all
+      // the possibilities on the next step ahead.
+
+      // If we don't have swap coins after revocation, we won't show the pending message.
+      Doc.setVis(!m.isCancel && (makerSwapCoin(m)), tmpl.makerSwap)
+      Doc.setVis(!m.isCancel && (takerSwapCoin(m)), tmpl.takerSwap)
+      // When match is revoked and both swaps are present, maker redeem might still show up:
+      // - as maker, we'll try to redeem until it isn't possible due to refund by taker,
+      //   so we'll have to show redeem row until we either redeem or refund
+      //   because there isn't enough data in Match m to figure out whether taker
+      //   refunded already
+      // - as taker, we should expect maker redeeming any time, so we'll have to show
+      //   redeem pending element until maker redeem shows up, or until we refund.
+      Doc.setVis(!m.isCancel && (makerRedeemCoin(m) || (takerSwapCoin(m) && m.active && !m.refund)), tmpl.makerRedeem)
+      // When maker isn't aware of taker redeem coin, once the match becomes inactive
+      // (nothing else maker is expected to do in this match) just hide taker redeem.
+      Doc.setVis(!m.isCancel && (takerRedeemCoin(m) || (makerRedeemCoin(m) && m.active && !m.refund)), tmpl.takerRedeem)
+      // As taker, show refund placeholder only if we have outstanding swap to refund.
+      // There is no need to wait for anything else, we can show refund placeholder
+      // (to inform the user that it is likely to happen) right after match revocation.
+      let expectingRefund = Boolean(takerSwapCoin(m)) // as taker
+      if (m.side === OrderUtil.Maker) {
+        // As maker, show refund placeholder only if we have outstanding swap to refund.
+        // If we don't have taker swap there is no need to wait for anything else, we
+        // can show refund placeholder (to inform the user that it is likely to happen)
+        // right after match revocation.
+        expectingRefund = Boolean(makerSwapCoin(m))
+        // If we discover taker swap we'll be trying to redeem it (instead of trying
+        // to refund our own swap) until taker refunds, so start showing refund
+        // placeholder only after taker is expected to start his refund process in
+        // this case.
+        if (takerSwapCoin(m)) {
+          const takerRefundsAfter = new Date(m.stamp + lockTimeTakerMs)
+          expectingRefund = expectingRefund && Date.now() > takerRefundsAfter.getTime()
+        }
+      }
+      Doc.setVis(!m.isCancel && (m.refund || (m.active && !m.redeem && !m.counterRedeem && expectingRefund)), tmpl.refund)
+    }
   }
 
   /*
@@ -449,7 +516,7 @@ export default class OrderPage extends BasePage {
 
 /*
  * confirmationString is a string describing the state of confirmations for a
- * coin
+ * coin.
  * */
 function confirmationString (coin: Coin) {
   if (!coin.confs || coin.confs.required === 0) return ''
@@ -490,6 +557,17 @@ function inConfirmingMakerRedeem (m: Match) {
 */
 function inConfirmingTakerRedeem (m: Match) {
   return m.status < OrderUtil.MatchConfirmed && m.side === OrderUtil.Taker && m.status >= OrderUtil.MatchComplete
+}
+
+/*
+ * formatCoinID parses / converts CoinID into human-readable format.
+ */
+function formatCoinID (cid: string) {
+  if (cid.startsWith(coinIDTakerFoundMakerRedemption)) {
+    const makerAddr = cid.substring(coinIDTakerFoundMakerRedemption.length)
+    return intl.prep(intl.ID_TAKER_FOUND_MAKER_REDEMPTION, { makerAddr: makerAddr })
+  }
+  return cid
 }
 
 /*
