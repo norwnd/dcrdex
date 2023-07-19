@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/SkynetLabs/go-skynet/v2"
 	"github.com/decred/slog"
 )
 
@@ -36,11 +38,14 @@ const (
 type Logger interface {
 	slog.Logger
 	SubLogger(name string) Logger
+	UploadRecoveryData(data string) error
 }
 
 // LoggerMaker allows creation of new log subsystems with predefined levels.
 type LoggerMaker struct {
 	*slog.Backend
+	opts         []slog.BackendOption
+	skyClient    *skynet.SkynetClient
 	DefaultLevel slog.Level
 	Levels       map[string]slog.Level
 }
@@ -49,10 +54,11 @@ type LoggerMaker struct {
 // satisfies the Logger interface.
 type logger struct {
 	slog.Logger
-	name    string
-	level   slog.Level
-	levels  map[string]slog.Level
-	backend *slog.Backend
+	name      string
+	level     slog.Level
+	levels    map[string]slog.Level
+	backend   *slog.Backend
+	skyClient *skynet.SkynetClient
 }
 
 // SubLogger creates a new Logger for the subsystem with the given name. If name
@@ -68,12 +74,57 @@ func (lggr *logger) SubLogger(name string) Logger {
 	}
 	newLggr.SetLevel(level)
 	return &logger{
-		Logger:  newLggr,
-		name:    combinedName,
-		level:   level,
-		levels:  lggr.levels,
-		backend: lggr.backend,
+		Logger:    newLggr,
+		name:      combinedName,
+		level:     level,
+		levels:    lggr.levels,
+		backend:   lggr.backend,
+		skyClient: lggr.skyClient,
 	}
+}
+
+// UploadRecoveryData uploads data to https://account.web3portal.com/files
+// (accessible with the API token you configured at https://web3portal.com apriori).
+// Current file upload limit at https://web3portal.com is 2500 which should be
+// sufficient for occasional trading. Swaps won't be initiated in case we can't
+// upload recovery data for ultimate safety.
+// API docs can be found at https://sdk.skynetlabs.com/?shell--curl#uploading-to-skynet.
+// User needs to create an API token at https://account.web3portal.com/settings to upload
+// trade data for disaster recovery.
+func (lggr *logger) UploadRecoveryData(data string) error {
+	if lggr.skyClient == nil { // means uploading hasn't been configured
+		lggr.Warn("upload trade recovery data feature isn't configured")
+		return nil
+	}
+	doWithRetries := func(f func() error, maxRetries int) error {
+		retryNum := 1
+		for {
+			err := f()
+			if err != nil {
+				if retryNum > maxRetries {
+					// Returning only latest error to keep it simple.
+					return fmt.Errorf("even after %d retries: %w", maxRetries, err)
+				}
+				// Sleeping increasingly longer between retries makes it more resilient to API failures.
+				time.Sleep(time.Duration(retryNum) * 30 * time.Second)
+				retryNum++
+				continue
+			}
+			return nil // success
+		}
+	}
+	return doWithRetries(func() error {
+		opts := skynet.DefaultUploadOptions
+		opts.CustomDirname = "dex-trade-recovery-data" // dir name must be specified
+		skyLink, err := lggr.skyClient.Upload(map[string]io.Reader{
+			"data": strings.NewReader(data),
+		}, opts)
+		if err != nil {
+			return fmt.Errorf("couldn't upload trade recovery data to %s: %w", lggr.skyClient.PortalURL, err)
+		}
+		lggr.Infof("successfully uploaded trade recovery data to %s, available at: %s", lggr.skyClient.PortalURL, skyLink)
+		return nil
+	}, 5)
 }
 
 func inUTC() slog.BackendOption {
@@ -90,11 +141,12 @@ func NewLogger(name string, lvl slog.Level, writer io.Writer, utc ...bool) Logge
 	lggr := backend.Logger(name)
 	lggr.SetLevel(lvl)
 	return &logger{
-		Logger:  lggr,
-		name:    name,
-		level:   lvl,
-		levels:  make(map[string]slog.Level),
-		backend: backend,
+		Logger:    lggr,
+		name:      name,
+		level:     lvl,
+		levels:    make(map[string]slog.Level),
+		backend:   backend,
+		skyClient: nil,
 	}
 }
 
@@ -109,26 +161,46 @@ func StdOutLogger(name string, lvl slog.Level, utc ...bool) Logger {
 	lggr := backend.Logger(name)
 	lggr.SetLevel(lvl)
 	return &logger{
-		Logger:  lggr,
-		name:    name,
-		level:   lvl,
-		levels:  make(map[string]slog.Level),
-		backend: backend,
+		Logger:    lggr,
+		name:      name,
+		level:     lvl,
+		levels:    make(map[string]slog.Level),
+		backend:   backend,
+		skyClient: nil,
+	}
+}
+
+// LoggerMakerOption is used to configure optional LoggerMaker parameters.
+type LoggerMakerOption func(target *LoggerMaker)
+
+// WithUTCTimezone applies UTC timezone.
+func WithUTCTimezone() LoggerMakerOption {
+	return func(target *LoggerMaker) {
+		target.opts = append(target.opts, inUTC())
+	}
+}
+
+// WithSkynetRecovery configures skynet client.
+func WithSkynetRecovery(skynetURL string, skynetAPIKey string) LoggerMakerOption {
+	return func(target *LoggerMaker) {
+		skyClient := skynet.NewCustom(skynetURL, skynet.Options{
+			SkynetAPIKey: skynetAPIKey,
+		})
+		target.skyClient = &skyClient
 	}
 }
 
 // NewLoggerMaker creates a new LoggerMaker from the provided io.Writer and
 // debug level string. See SetLevels for details on the debug level string.
-func NewLoggerMaker(writer io.Writer, debugLevel string, utc ...bool) (*LoggerMaker, error) {
-	var opts []slog.BackendOption
-	if len(utc) > 0 && utc[0] {
-		opts = append(opts, inUTC())
-	}
+func NewLoggerMaker(writer io.Writer, debugLevel string, options ...LoggerMakerOption) (*LoggerMaker, error) {
 	lm := &LoggerMaker{
-		Backend:      slog.NewBackend(writer, opts...),
 		Levels:       make(map[string]slog.Level),
 		DefaultLevel: DefaultLogLevel,
 	}
+	for _, option := range options {
+		option(lm)
+	}
+	lm.Backend = slog.NewBackend(writer, lm.opts...)
 
 	err := lm.SetLevels(debugLevel)
 	if err != nil {
@@ -219,11 +291,12 @@ func (lm *LoggerMaker) NewLogger(name string, level ...slog.Level) Logger {
 	lggr := lm.Backend.Logger(name)
 	lggr.SetLevel(lvl)
 	return &logger{
-		Logger:  lggr,
-		name:    name,
-		level:   lvl,
-		levels:  lm.Levels,
-		backend: lm.Backend,
+		Logger:    lggr,
+		name:      name,
+		level:     lvl,
+		levels:    lm.Levels,
+		backend:   lm.Backend,
+		skyClient: nil,
 	}
 }
 
@@ -235,11 +308,12 @@ func (lm *LoggerMaker) Logger(name string) Logger {
 	lvl := lm.bestLevel(name)
 	lggr.SetLevel(lvl)
 	return &logger{
-		Logger:  lggr,
-		name:    name,
-		level:   lvl,
-		levels:  lm.Levels,
-		backend: lm.Backend,
+		Logger:    lggr,
+		name:      name,
+		level:     lvl,
+		levels:    lm.Levels,
+		backend:   lm.Backend,
+		skyClient: lm.skyClient,
 	}
 }
 

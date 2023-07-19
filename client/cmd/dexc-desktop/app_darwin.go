@@ -179,7 +179,14 @@ func mainCore() error {
 	defer shutdownCloser.Done() // execute deferred functions if we return early
 	// Initialize logging.
 	utc := !cfg.LocalLogs
-	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, cfg.LogStdout, utc)
+	var lmOptions []dex.LoggerMakerOption
+	if utc {
+		lmOptions = append(lmOptions, dex.WithUTCTimezone())
+	}
+	if cfg.SkynetAPIURL != "" && cfg.SkynetAPIKey != "" {
+		lmOptions = append(lmOptions, dex.WithSkynetRecovery(cfg.SkynetAPIURL, cfg.SkynetAPIKey))
+	}
+	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, cfg.LogStdout, lmOptions...)
 	shutdownCloser.Add(closeLogger)
 
 	log = logMaker.Logger("APP")

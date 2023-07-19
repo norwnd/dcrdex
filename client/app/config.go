@@ -113,9 +113,11 @@ type WebConfig struct {
 
 // LogConfig encapsulates the logging-related settings.
 type LogConfig struct {
-	LogPath    string `long:"logpath" description:"A file to save app logs"`
-	DebugLevel string `long:"log" description:"Logging level {trace, debug, info, warn, error, critical}"`
-	LocalLogs  bool   `long:"loglocal" description:"Use local time zone time stamps in log entries."`
+	LogPath      string `long:"logpath" description:"A file to save app logs"`
+	DebugLevel   string `long:"log" description:"Logging level {trace, debug, info, warn, error, critical}"`
+	LocalLogs    bool   `long:"loglocal" description:"Use local time zone time stamps in log entries."`
+	SkynetAPIKey string `long:"skynetapikey" description:"Use this API key to upload trade recovery data to Skynet service."`
+	SkynetAPIURL string `long:"skynetapiurl" description:"Skynet service API URL where trade recovery data will be uploaded."`
 }
 
 // Config is the common application configuration definition. This composite

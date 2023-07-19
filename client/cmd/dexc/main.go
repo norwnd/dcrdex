@@ -70,7 +70,14 @@ func runCore(cfg *app.Config) error {
 
 	// Initialize logging.
 	utc := !cfg.LocalLogs
-	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, true, utc)
+	var lmOptions []dex.LoggerMakerOption
+	if utc {
+		lmOptions = append(lmOptions, dex.WithUTCTimezone())
+	}
+	if cfg.SkynetAPIURL != "" && cfg.SkynetAPIKey != "" {
+		lmOptions = append(lmOptions, dex.WithSkynetRecovery(cfg.SkynetAPIURL, cfg.SkynetAPIKey))
+	}
+	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, true, lmOptions...)
 	defer closeLogger()
 	log = logMaker.Logger("DEXC")
 	log.Infof("%s version %v (Go version %s)", appName, app.Version, runtime.Version())
