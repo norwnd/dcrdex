@@ -3200,7 +3200,7 @@ func (dcr *ExchangeWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin
 	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
 	err = dcr.log.UploadRecoveryData(spew.Sdump(receipts))
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("cound't upload trade recovery data to external service: %w", err)
+		return nil, nil, 0, fmt.Errorf("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}
 
 	// Refund txs prepared and signed. Can now broadcast the swap(s).

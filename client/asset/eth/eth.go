@@ -1958,7 +1958,7 @@ func (w *ETHWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uint6
 	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
 	err = w.log.UploadRecoveryData(spew.Sdump(rcpts))
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("cound't upload trade recovery data to external service: %w", err)
+		return fail("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}
 
 	tx, err := w.initiate(w.ctx, w.assetID, swaps.Contracts, swaps.FeeRate, gasLimit, swaps.Version)
@@ -1970,8 +1970,9 @@ func (w *ETHWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uint6
 	w.addPendingTx(w.bipID, txHash, tx.Nonce(), swapVal, 0, fees)
 
 	receipts := make([]asset.Receipt, 0, n)
-	for _, receipt := range rcpts {
-		receipt.txHash = txHash // is only avaiable after txn has been published
+	for _, r := range rcpts {
+		receipt := r            // gotta copy
+		receipt.txHash = txHash // is only available after txn has been published
 		receipts = append(receipts, &receipt)
 	}
 
@@ -2066,7 +2067,7 @@ func (w *TokenWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uin
 	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
 	err = w.log.UploadRecoveryData(spew.Sdump(rcpts))
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("cound't upload trade recovery data to external service: %w", err)
+		return fail("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}
 
 	tx, err := w.initiate(w.ctx, w.assetID, swaps.Contracts, swaps.FeeRate, gasLimit, swaps.Version)
@@ -2082,8 +2083,9 @@ func (w *TokenWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uin
 	w.addPendingTx(w.assetID, txHash, tx.Nonce(), swapVal, 0, fees)
 
 	receipts := make([]asset.Receipt, 0, n)
-	for _, receipt := range rcpts {
-		receipt.txHash = txHash // is only avaiable after txn has been published
+	for _, r := range rcpts {
+		receipt := r            // gotta copy
+		receipt.txHash = txHash // is only available after txn has been published
 		receipts = append(receipts, &receipt)
 	}
 
