@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io"
 	"math"
 	"net/http"
@@ -3165,6 +3164,7 @@ func (dcr *ExchangeWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin
 		return nil, nil, 0, err
 	}
 
+	var refundTxs string // used for logging/recovery purposes
 	receipts := make([]asset.Receipt, 0, swapCount)
 	txHash := msgTx.TxHash()
 	for i, contract := range swaps.Contracts {
@@ -3183,6 +3183,14 @@ func (dcr *ExchangeWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin
 			expiration:   time.Unix(int64(contract.LockTime), 0).UTC(),
 			signedRefund: refundB,
 		})
+		rawRefund := receipts[i].SignedRefund()
+		if len(rawRefund) == 0 {
+			rawRefund = dex.Bytes("empty/absent") // so it's immediately clear we are lacking refund data
+		}
+		refundTxs = fmt.Sprintf("%scoin:%q contract:%q refundTx:%s", refundTxs, receipts[i].Coin(), receipts[i].Contract(), rawRefund)
+		if i != len(receipts)-1 {
+			refundTxs = fmt.Sprintf("%s, ", refundTxs)
+		}
 	}
 
 	// Logging trade recovery info here which is needed for recovering funds in
@@ -3198,7 +3206,7 @@ func (dcr *ExchangeWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin
 	// We could encrypt payload ... but networking metadata is still exposed, don't
 	// really care at the moment.
 	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
-	err = dcr.log.UploadRecoveryData(spew.Sdump(receipts))
+	err = dcr.log.UploadRecoveryData(refundTxs)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}

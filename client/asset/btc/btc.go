@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io"
 	"math"
 	"net/http"
@@ -4032,6 +4031,7 @@ func (btc *baseWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, ui
 	txHash := btc.hashTx(msgTx)
 
 	// Prepare the receipts.
+	var refundTxs string // used for logging/recovery purposes
 	receipts := make([]asset.Receipt, 0, swapCount)
 	for i, contract := range swaps.Contracts {
 		output := newOutput(txHash, uint32(i), contract.Value)
@@ -4052,6 +4052,14 @@ func (btc *baseWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, ui
 			expiration:   time.Unix(int64(contract.LockTime), 0).UTC(),
 			signedRefund: refundBuff.Bytes(),
 		})
+		rawRefund := receipts[i].SignedRefund()
+		if len(rawRefund) == 0 {
+			rawRefund = dex.Bytes("empty/absent") // so it's immediately clear we are lacking refund data
+		}
+		refundTxs = fmt.Sprintf("%scoin:%q contract:%q refundTx:%s", refundTxs, receipts[i].Coin(), receipts[i].Contract(), rawRefund)
+		if i != len(receipts)-1 {
+			refundTxs = fmt.Sprintf("%s, ", refundTxs)
+		}
 	}
 
 	// Logging trade recovery info here which is needed for recovering funds in
@@ -4067,7 +4075,7 @@ func (btc *baseWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, ui
 	// We could encrypt payload ... but networking metadata is still exposed, don't
 	// really care at the moment.
 	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
-	err = btc.log.UploadRecoveryData(spew.Sdump(receipts))
+	err = btc.log.UploadRecoveryData(refundTxs)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}
