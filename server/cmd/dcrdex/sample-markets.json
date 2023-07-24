@@ -1,81 +1,46 @@
 {
     "markets": [
         {
-            "base": "DCR_mainnet",
-            "quote": "BTC_mainnet",
+            "base": "DCR_testnet",
+            "quote": "ETH_testnet",
             "lotSize": 100000000,
-            "rateStep": 100000,
-            "epochDuration": 10000,
+            "rateStep": 1000,
+            "epochDuration": 6000,
             "marketBuyBuffer": 1.25
         },
         {
-            "base": "BTC_testnet",
-            "quote": "LTC_testnet",
-            "lotSize": 100000,
+            "base": "DCR_testnet",
+            "quote": "USDC_ETH_testnet",
+            "lotSize": 100000000,
             "rateStep": 1000000,
             "epochDuration": 6000,
             "marketBuyBuffer": 1.25
         }
     ],
     "assets": {
-        "DCR_mainnet": {
-            "bip44symbol": "dcr",
-            "network": "mainnet",
-            "maxFeeRate": 10,
-            "swapConf": 4,
-            "configPath": "/home/dcrd/.dcrd/dcrd.conf",
-            "regConfs": 2,
-            "regFee": 10000000,
-            "regXPub": "xpubdecredonlyadsf",
-            "bondAmt": 100000000,
-            "bondConfs": 1
-        },
         "DCR_testnet": {
             "bip44symbol": "dcr",
             "network": "testnet",
             "maxFeeRate": 10,
             "swapConf": 1,
-            "configPath": "/home/dcrd/.dcrd/dcrd.conf",
-            "regFee": 10000000,
-            "regXPub": "tpubdecredonlyadsf",
-            "bondAmt": 100000000,
+            "configPath": "/Users/norwnd/Library/Application Support/Dcrd/dcrd.conf",
+            "regFee": 10000,
+            "regXPub": "tpubVpZ9t5AHWHeVpT5V81jST5z32gwsCNGDCRmZZeN5ki6yZYDpxfo7XPmFyQDQVcTJM8x5K2dHAEvAMBSbaLi9QhbA5X5QAYopFMFZMm5B5mh",
+            "bondAmt": 100000,
             "bondConfs": 1
-        },
-        "BTC_mainnet": {
-            "bip44symbol": "btc",
-            "network": "mainnet",
-            "maxFeeRate": 100,
-            "swapConf": 3,
-            "regConfs": 2,
-            "regFee": 500000,
-            "regXPub": "xpubbitcoinonlyasdf"
-        },
-        "BTC_testnet": {
-            "bip44symbol": "btc",
-            "network": "testnet",
-            "maxFeeRate": 100,
-            "swapConf": 1
-        },
-        "LTC_mainnet": {
-            "bip44symbol": "ltc",
-            "network": "mainnet",
-            "maxFeeRate": 20,
-            "swapConf": 6
-        },
-        "LTC_testnet": {
-            "bip44symbol": "ltc",
-            "network": "testnet",
-            "maxFeeRate": 20,
-            "swapConf": 6
         },
         "ETH_testnet": {
             "bip44symbol": "eth",
             "network": "testnet",
-            "lotSize": 1000000000,
-            "rateStep": 1000000000,
             "maxFeeRate": 200,
             "swapConf": 12,
-            "configPath": "/home/.ethereum/dex.conf"
+            "configPath": "/Users/norwnd/Library/Application Support/Dcrdex/ethereum.conf"
+        },
+        "USDC_ETH_testnet": {
+            "bip44symbol": "usdc.eth",
+            "network": "testnet",
+            "maxFeeRate": 200,
+            "swapConf": 12
         }
     }
 }
