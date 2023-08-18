@@ -4031,6 +4031,7 @@ func (btc *baseWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, ui
 	txHash := btc.hashTx(msgTx)
 
 	// Prepare the receipts.
+	var recoveryData string // contains recovery data to be logged
 	receipts := make([]asset.Receipt, 0, swapCount)
 	for i, contract := range swaps.Contracts {
 		output := newOutput(txHash, uint32(i), contract.Value)
@@ -4051,6 +4052,32 @@ func (btc *baseWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, ui
 			expiration:   time.Unix(int64(contract.LockTime), 0).UTC(),
 			signedRefund: refundBuff.Bytes(),
 		})
+		rawRefund := receipts[i].SignedRefund()
+		if len(rawRefund) == 0 {
+			rawRefund = dex.Bytes("empty/absent") // so it's immediately clear we are lacking refund data
+		}
+		recoveryData = fmt.Sprintf("%scoin:%q contract:%q refundTx:%s", recoveryData, receipts[i].Coin(), receipts[i].Contract(), rawRefund)
+		if i != len(receipts)-1 {
+			recoveryData = fmt.Sprintf("%s, ", recoveryData)
+		}
+	}
+
+	// Logging trade recovery info here which is needed for recovering funds in
+	// the following scenarios:
+	// # For Maker
+	// - only refund is problematic, since Maker makes the first move on redeeming
+	// # For Taker
+	// - refund is problematic (same as for Maker), and Taker MUST refund before Maker
+	//   manages BOTH: redeem Taker's funds and refund his own funds (which is permitted
+	//   after 20h with current protocol config)
+	// - redeem is problematic, if Maker already redeemed Taker will need secret +
+	//   secretHash in order to redeem his part (he can't refund after this point)
+	// We could encrypt payload ... but networking metadata is still exposed, don't
+	// really care at the moment.
+	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
+	err = btc.log.UploadRecoveryData(recoveryData)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("Swap: couldn't upload trade recovery data to external service: %w", err)
 	}
 
 	// Refund txs prepared and signed. Can now broadcast the swap(s).

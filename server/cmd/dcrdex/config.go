@@ -169,7 +169,11 @@ func supportedSubsystems() []string {
 // invalid.
 func parseAndSetDebugLevels(debugLevel string, UTC bool) (*dex.LoggerMaker, error) {
 	// Create a LoggerMaker with the level string.
-	lm, err := dex.NewLoggerMaker(logWriter{}, debugLevel, UTC)
+	var lmOptions []dex.LoggerMakerOption
+	if UTC {
+		lmOptions = append(lmOptions, dex.WithUTCTimezone())
+	}
+	lm, err := dex.NewLoggerMaker(logWriter{}, debugLevel, lmOptions...)
 	if err != nil {
 		return nil, err
 	}

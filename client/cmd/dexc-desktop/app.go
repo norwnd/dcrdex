@@ -99,7 +99,14 @@ func mainCore() error {
 
 	// Initialize logging.
 	utc := !cfg.LocalLogs
-	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, cfg.LogStdout, utc)
+	var lmOptions []dex.LoggerMakerOption
+	if utc {
+		lmOptions = append(lmOptions, dex.WithUTCTimezone())
+	}
+	if cfg.SkynetAPIURL != "" && cfg.SkynetAPIKey != "" {
+		lmOptions = append(lmOptions, dex.WithSkynetRecovery(cfg.SkynetAPIURL, cfg.SkynetAPIKey))
+	}
+	logMaker, closeLogger := app.InitLogging(cfg.LogPath, cfg.DebugLevel, cfg.LogStdout, lmOptions...)
 	defer closeLogger()
 	log = logMaker.Logger("APP")
 	log.Infof("%s version %s (Go version %s)", appName, app.Version, runtime.Version())

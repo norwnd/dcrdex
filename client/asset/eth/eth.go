@@ -33,6 +33,7 @@ import (
 	"decred.org/dcrdex/dex/keygen"
 	dexeth "decred.org/dcrdex/dex/networks/eth"
 	dexpolygon "decred.org/dcrdex/dex/networks/polygon"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/ethereum/go-ethereum"
@@ -1929,6 +1930,37 @@ func (w *ETHWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uint6
 		}
 	}
 
+	rcpts := make([]swapReceipt, 0, n)
+	for _, swap := range swaps.Contracts {
+		var secretHash [dexeth.SecretHashSize]byte
+		copy(secretHash[:], swap.SecretHash)
+		rcpts = append(rcpts, swapReceipt{
+			expiration:   time.Unix(int64(swap.LockTime), 0),
+			value:        swap.Value,
+			secretHash:   secretHash,
+			ver:          swaps.Version,
+			contractAddr: dexeth.ContractAddresses[swaps.Version][w.net].String(),
+		})
+	}
+
+	// Logging trade recovery info here which is needed for recovering funds in
+	// the following scenarios:
+	// # For Maker
+	// - only refund is problematic, since Maker makes the first move on redeeming
+	// # For Taker
+	// - refund is problematic (same as for Maker), and Taker MUST refund before Maker
+	//   manages BOTH: redeem Taker's funds and refund his own funds (which is permitted
+	//   after 20h with current protocol config)
+	// - redeem is problematic, if Maker already redeemed Taker will need secret +
+	//   secretHash in order to redeem his part (he can't refund after this point)
+	// We could encrypt payload ... but networking metadata is still exposed, don't
+	// really care at the moment.
+	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
+	err = w.log.UploadRecoveryData(spew.Sdump(rcpts))
+	if err != nil {
+		return fail("Swap: couldn't upload trade recovery data to external service: %w", err)
+	}
+
 	tx, err := w.initiate(w.ctx, w.assetID, swaps.Contracts, swaps.FeeRate, gasLimit, swaps.Version)
 	if err != nil {
 		return fail("Swap: initiate error: %w", err)
@@ -1938,17 +1970,10 @@ func (w *ETHWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uint6
 	w.addPendingTx(w.bipID, txHash, tx.Nonce(), swapVal, 0, fees)
 
 	receipts := make([]asset.Receipt, 0, n)
-	for _, swap := range swaps.Contracts {
-		var secretHash [dexeth.SecretHashSize]byte
-		copy(secretHash[:], swap.SecretHash)
-		receipts = append(receipts, &swapReceipt{
-			expiration:   time.Unix(int64(swap.LockTime), 0),
-			value:        swap.Value,
-			txHash:       txHash,
-			secretHash:   secretHash,
-			ver:          swaps.Version,
-			contractAddr: dexeth.ContractAddresses[swaps.Version][w.net].String(),
-		})
+	for _, r := range rcpts {
+		receipt := r            // gotta copy
+		receipt.txHash = txHash // is only available after txn has been published
+		receipts = append(receipts, &receipt)
 	}
 
 	var change asset.Coin
@@ -2014,6 +2039,37 @@ func (w *TokenWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uin
 		} // See (*ETHWallet).Swap comments for a third option.
 	}
 
+	rcpts := make([]swapReceipt, 0, n)
+	for _, swap := range swaps.Contracts {
+		var secretHash [dexeth.SecretHashSize]byte
+		copy(secretHash[:], swap.SecretHash)
+		rcpts = append(rcpts, swapReceipt{
+			expiration:   time.Unix(int64(swap.LockTime), 0),
+			value:        swap.Value,
+			secretHash:   secretHash,
+			ver:          swaps.Version,
+			contractAddr: w.netToken.SwapContracts[swaps.Version].Address.String(),
+		})
+	}
+
+	// Logging trade recovery info here which is needed for recovering funds in
+	// the following scenarios:
+	// # For Maker
+	// - only refund is problematic, since Maker makes the first move on redeeming
+	// # For Taker
+	// - refund is problematic (same as for Maker), and Taker MUST refund before Maker
+	//   manages BOTH: redeem Taker's funds and refund his own funds (which is permitted
+	//   after 20h with current protocol config)
+	// - redeem is problematic, if Maker already redeemed Taker will need secret +
+	//   secretHash in order to redeem his part (he can't refund after this point)
+	// We could encrypt payload ... but networking metadata is still exposed, don't
+	// really care at the moment.
+	// For background context see https://github.com/decred/dcrdex/issues/952#issuecomment-1365657079.
+	err = w.log.UploadRecoveryData(spew.Sdump(rcpts))
+	if err != nil {
+		return fail("Swap: couldn't upload trade recovery data to external service: %w", err)
+	}
+
 	tx, err := w.initiate(w.ctx, w.assetID, swaps.Contracts, swaps.FeeRate, gasLimit, swaps.Version)
 	if err != nil {
 		return fail("Swap: initiate error: %w", err)
@@ -2023,23 +2079,14 @@ func (w *TokenWallet) Swap(swaps *asset.Swaps) ([]asset.Receipt, asset.Coin, uin
 		return fail("unable to find contract address for asset %d contract version %d", w.assetID, swaps.Version)
 	}
 
-	contractAddr := w.netToken.SwapContracts[swaps.Version].Address.String()
-
 	txHash := tx.Hash()
 	w.addPendingTx(w.assetID, txHash, tx.Nonce(), swapVal, 0, fees)
 
 	receipts := make([]asset.Receipt, 0, n)
-	for _, swap := range swaps.Contracts {
-		var secretHash [dexeth.SecretHashSize]byte
-		copy(secretHash[:], swap.SecretHash)
-		receipts = append(receipts, &swapReceipt{
-			expiration:   time.Unix(int64(swap.LockTime), 0),
-			value:        swap.Value,
-			txHash:       txHash,
-			secretHash:   secretHash,
-			ver:          swaps.Version,
-			contractAddr: contractAddr,
-		})
+	for _, r := range rcpts {
+		receipt := r            // gotta copy
+		receipt.txHash = txHash // is only available after txn has been published
+		receipts = append(receipts, &receipt)
 	}
 
 	var change asset.Coin

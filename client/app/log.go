@@ -39,10 +39,10 @@ func (w logWriter) Write(p []byte) (n int, err error) {
 	return w.Rotator.Write(p)
 }
 
-// initLogging initializes the logging rotater to write logs to logFile and
+// InitLogging initializes the logging rotater to write logs to logFile and
 // create roll files in the same directory. initLogging must be called before
 // the package-global log rotator variables are used.
-func InitLogging(logFilename, lvl string, stdout bool, utc bool) (lm *dex.LoggerMaker, closeFn func()) {
+func InitLogging(logFilename, lvl string, stdout bool, lmOptions ...dex.LoggerMakerOption) (lm *dex.LoggerMaker, closeFn func()) {
 	logDirectory := filepath.Dir(logFilename)
 	err := os.MkdirAll(logDirectory, 0700)
 	if err != nil {
@@ -57,7 +57,7 @@ func InitLogging(logFilename, lvl string, stdout bool, utc bool) (lm *dex.Logger
 	if !stdout {
 		fmt.Println("Logging to", logFilename)
 	}
-	lm, err = dex.NewLoggerMaker(&logWriter{logRotator, stdout}, lvl, utc)
+	lm, err = dex.NewLoggerMaker(&logWriter{logRotator, stdout}, lvl, lmOptions...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create custom logger: %v\n", err)
 		os.Exit(1)
