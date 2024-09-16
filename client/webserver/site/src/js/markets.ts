@@ -322,23 +322,23 @@ export default class MarketsPage extends BasePage {
 
     Doc.disableMouseWheel(page.rateField, page.lotField, page.qtyField, page.mktBuyField)
 
-    // Handle the full orderbook sent on the 'book' route.
+    // Handle the full orderbook.
     ws.registerRoute(bookRoute, (data: BookUpdate) => { this.handleBookRoute(data) })
-    // Handle the new order for the order book on the 'book_order' route.
+    // Handle the new order for the order book.
     ws.registerRoute(bookOrderRoute, (data: BookUpdate) => { this.handleBookOrderRoute(data) })
-    // Remove the order sent on the 'unbook_order' route from the orderbook.
+    // Remove the order from the orderbook.
     ws.registerRoute(unbookOrderRoute, (data: BookUpdate) => { this.handleUnbookOrderRoute(data) })
     // Update the remaining quantity on a booked order.
     ws.registerRoute(updateRemainingRoute, (data: BookUpdate) => { this.handleUpdateRemainingRoute(data) })
-    // Handle the new order for the order book on the 'epoch_order' route.
+    // Handle the new order for the order book.
     ws.registerRoute(epochOrderRoute, (data: BookUpdate) => { this.handleEpochOrderRoute(data) })
-    // Handle the initial candlestick data on the 'candles' route.
+    // Handle the initial candlestick data.
     ws.registerRoute(candlesRoute, (data: BookUpdate) => { this.handleCandlesRoute(data) })
-    // Handle the candles update on the 'candles' route.
+    // Handle the candles update.
     ws.registerRoute(candleUpdateRoute, (data: BookUpdate) => { this.handleCandleUpdateRoute(data) })
-
-    // Handle the recent matches update on the 'epoch_report' route.
+    // Handle the recent matches update.
     ws.registerRoute(epochMatchSummaryRoute, (data: BookUpdate) => { this.handleEpochMatchSummary(data) })
+
     // Bind the wallet unlock form.
     this.unlockForm = new UnlockWalletForm(page.unlockWalletForm, async () => { this.openFunc() })
     // Create a wallet
@@ -3106,6 +3106,7 @@ export default class MarketsPage extends BasePage {
     ws.deregisterRoute(epochOrderRoute)
     ws.deregisterRoute(candlesRoute)
     ws.deregisterRoute(candleUpdateRoute)
+    ws.deregisterRoute(epochMatchSummaryRoute)
     this.depthChart.unattach()
     this.candleChart.unattach()
     Doc.unbind(document, 'keyup', this.keyup)
