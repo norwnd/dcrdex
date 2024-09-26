@@ -147,7 +147,7 @@ func newBookie(dc *dexConnection, base, quote uint32, binSizes []string, logger 
 		} else {
 			dexAsset := dc.assets[assetID]
 			if dexAsset == nil {
-				dc.log.Errorf("DEX market has no %d asset. Is this even possible?", base)
+				dc.log.Errorf("DEX market has no %d asset. Is this even possible?", assetID)
 				return defaultUnitInfo("XYZ")
 			} else {
 				unitInfo := dexAsset.UnitInfo
@@ -714,6 +714,9 @@ func handleTradeSuspensionMsg(c *Core, dc *dexConnection, msg *msgjson.Message) 
 		return fmt.Errorf("no order book found with market id '%s'", sp.MarketID)
 	}
 
+	// Since we don't subscribe to server feed here it's okay to use book.Reset,
+	// otherwise we'd have to use ResetBeforeSubscribe/ResetAfterSubscribe pair
+	// instead.
 	err = book.Reset(&msgjson.OrderBook{
 		MarketID: sp.MarketID,
 		Seq:      sp.Seq,        // forces seq reset, but should be in seq with previous
