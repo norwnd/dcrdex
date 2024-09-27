@@ -33,6 +33,8 @@ var (
 )
 
 type bookFeed struct {
+	// core.BookFeed is kept here for its Candles() only, and it will be closed
+	// once loop terminates.
 	core.BookFeed
 	loop        *dex.StartStopWaiter
 	host        string
@@ -56,10 +58,13 @@ func newWSClient(addr string, conn ws.Connection, hndlr func(msg *msgjson.Messag
 }
 
 func (cl *wsClient) shutDownFeed() {
+	cl.feedMtx.Lock()
+	defer cl.feedMtx.Unlock()
+
 	if cl.feed != nil {
 		cl.feed.loop.Stop()
 		cl.feed.loop.WaitForShutdown()
-		cl.feed = nil
+		cl.feed = nil // allows for reuse of the same ws connection later
 	}
 }
 
@@ -160,9 +165,7 @@ func (s *Server) connect(ctx context.Context, conn ws.Connection, addr string) {
 	s.clientsMtx.Unlock()
 
 	defer func() {
-		cl.feedMtx.Lock()
 		cl.shutDownFeed()
-		cl.feedMtx.Unlock()
 
 		s.clientsMtx.Lock()
 		delete(s.clients, cl.cid)
@@ -280,8 +283,9 @@ out:
 	m.feed.Close()
 }
 
-// wsLoadMarket is the handler for the 'loadmarket' websocket route. Subscribes
-// the client to the notification feed and sends the order book.
+// wsLoadMarket is the handler for the 'loadmarket' websocket route. Sends current
+// order book state to client cl and subscribe him to notification feed that he can
+// use to keep order book state in sync with what dex server has in the book.
 func wsLoadMarket(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error {
 	req := new(marketLoad)
 	err := json.Unmarshal(msg.Payload, req)
@@ -295,6 +299,16 @@ func wsLoadMarket(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error 
 }
 
 func loadMarket(s *Server, cl *wsClient, req *marketLoad) (*bookFeed, *msgjson.Error) {
+	cl.feedMtx.Lock() // ensure we initialize market (sync server order book) just once
+	defer cl.feedMtx.Unlock()
+
+	// If market is initialized already, and client isn't trying to change market here
+	// in a meaningful way, then all is set already - just return.
+	if cl.feed != nil &&
+		(cl.feed.host == req.Host && cl.feed.base == req.Base && cl.feed.quote == req.Quote) {
+		return cl.feed, nil // already initialized
+	}
+
 	name, err := dex.MarketName(req.Base, req.Quote)
 	if err != nil {
 		errMsg := fmt.Sprintf("unknown market: %v", err)
@@ -309,9 +323,6 @@ func loadMarket(s *Server, cl *wsClient, req *marketLoad) (*bookFeed, *msgjson.E
 		return nil, msgjson.NewError(msgjson.RPCOrderBookError, errMsg)
 	}
 
-	cl.feedMtx.Lock()
-	defer cl.feedMtx.Unlock()
-	cl.shutDownFeed()
 	cl.feed = &bookFeed{
 		BookFeed: feed,
 		loop:     newMarketSyncer(cl, feed, s.log.SubLogger(name)),
@@ -322,6 +333,12 @@ func loadMarket(s *Server, cl *wsClient, req *marketLoad) (*bookFeed, *msgjson.E
 	return cl.feed, nil
 }
 
+// wsLoadCandles is the handler for the 'loadcandles' websocket route. If client cl
+// hasn't yet subscribed to order book (via 'loadmarket' websocket route) we'll have
+// to subscribe him here (exactly as wsLoadMarket does) because otherwise we won't
+// be able to provide him with candles from dex server (that's current implementation
+// nuance). Then we can fetch candles from dex server and subscribe to candle update
+// feed that will allow client cl to keep cadle state in sync with what server has.
 func wsLoadCandles(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error {
 	req := new(candlesLoad)
 	err := json.Unmarshal(msg.Payload, req)
@@ -330,21 +347,16 @@ func wsLoadCandles(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error
 		s.log.Errorf(errMsg)
 		return msgjson.NewError(msgjson.RPCInternal, errMsg)
 	}
-	cl.feedMtx.RLock()
-	feed := cl.feed
-	cl.feedMtx.RUnlock()
-	// If market hasn't been initialized/chosen yet (client should do it in a separate
-	// 'loadmarket' request), or if client wants to change currently chosen market (requesting
-	// candles for market that's different from currently chosen implies that) - we can
-	// try to load it here.
-	if feed == nil ||
-		(feed.host != req.Host || feed.base != req.Base || feed.quote != req.Quote) {
-		var msgErr *msgjson.Error
-		feed, msgErr = loadMarket(s, cl, &req.marketLoad)
-		if msgErr != nil {
-			return msgErr
-		}
+
+	// Corresponding market might have not been initialized for client cl, we must do
+	// it here to be able to server candles. It could happen if client doesn't serialize
+	// 'loadcandles' request to be sent after he received successful reply for 'loadmarket',
+	// or if he didn't issue the latter at all (and want to rely on lazy initialization).
+	feed, msgErr := loadMarket(s, cl, &req.marketLoad)
+	if msgErr != nil {
+		return msgErr
 	}
+
 	err = feed.Candles(req.Dur)
 	if err != nil {
 		return msgjson.NewError(msgjson.RPCInternal, err.Error())
@@ -355,12 +367,9 @@ func wsLoadCandles(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error
 // wsUnmarket is the handler for the 'unmarket' websocket route. This empty
 // message is sent when the user leaves the markets page. This closes the feed,
 // and potentially unsubscribes from orderbook with the server if there are no
-// other consumers
+// other consumers.
 func wsUnmarket(_ *Server, cl *wsClient, _ *msgjson.Message) *msgjson.Error {
-	cl.feedMtx.Lock()
 	cl.shutDownFeed()
-	cl.feedMtx.Unlock()
-
 	return nil
 }
 
