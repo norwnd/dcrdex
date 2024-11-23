@@ -393,11 +393,14 @@ func (dc *dexConnection) bookie(marketID string) *bookie {
 
 func (dc *dexConnection) midGap(base, quote uint32) (midGap uint64, err error) {
 	marketID := marketName(base, quote)
+	return dc.midGapMkt(marketID)
+}
+
+func (dc *dexConnection) midGapMkt(marketID string) (midGap uint64, err error) {
 	booky := dc.bookie(marketID)
 	if booky == nil {
 		return 0, fmt.Errorf("no bookie found for market %s", marketID)
 	}
-
 	return booky.MidGap()
 }
 

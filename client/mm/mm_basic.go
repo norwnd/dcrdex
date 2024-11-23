@@ -300,7 +300,7 @@ func (m *basicMarketMaker) cfg() *BasicMarketMakingConfig {
 func (m *basicMarketMaker) orderPrice(basisPrice, bestPrice, feeAdj uint64, sell bool, gapFactor float64) uint64 {
 	if m.cfg().GapStrategy == GapStrategyCompetitive {
 		m.log.Tracef(
-			"make %s order (competitive strategy): basisPrice = %d, bestPrice = %d, gapFactor = %d",
+			"make %s order (competitive strategy): basisPrice = %d, bestPrice = %d, gapFactor = %v",
 			sellStr(sell),
 			basisPrice,
 			bestPrice,
@@ -391,7 +391,7 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 	if found && bisonOrders[0].Rate < bestSell {
 		bestSell = bisonOrders[0].Rate
 	}
-	m.log.Tracef("(taking contents of Bison order-book into account) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
+	m.log.Tracef("(with Bison book) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
 	feeGap, err := m.calculator.feeGapStats(basisPrice)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error calculating fee gap stats: %w", err)
