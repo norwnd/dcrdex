@@ -51,6 +51,7 @@ import {
   GapStrategyAbsolutePlus,
   GapStrategyPercent,
   GapStrategyPercentPlus,
+  GapStrategyCompetitive,
   feesAndCommit
 } from './mmutil'
 import { Forms, bind as bindForm, NewWalletForm, TokenApprovalForm, DepositAddress, CEXConfigurationForm } from './forms'
@@ -1337,6 +1338,7 @@ export default class MarketMakerSettingsPage extends BasePage {
       }
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         return ['Percent', '%']
       default:
         throw new Error(`Unknown gap strategy ${gapStrategy}`)
@@ -1362,6 +1364,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return null
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (value <= 0 || value > 10) {
           return 'Percent must be between 0 and 10'
         }
@@ -1387,6 +1390,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return gapFactor
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (toDisplay) {
           return gapFactor * 100
         }
@@ -1542,8 +1546,10 @@ export default class MarketMakerSettingsPage extends BasePage {
     const header = this.gapFactorHeaderUnit(gapStrategy)[0]
     page.buyGapFactorHdr.textContent = header
     page.sellGapFactorHdr.textContent = header
-    Doc.hide(page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
+    Doc.hide(page.competitiveInfo, page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
     switch (gapStrategy) {
+      case 'competitive':
+        return Doc.show(page.competitiveInfo)
       case 'percent-plus':
         return Doc.show(page.percentPlusInfo)
       case 'percent':

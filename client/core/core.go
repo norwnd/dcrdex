@@ -6146,6 +6146,24 @@ func (c *Core) createTradeRequest(wallets *walletSet, coins asset.Coins, redeemS
 	}, nil
 }
 
+func validateTradeRate(rate uint64, market string, dc *dexConnection) error {
+	if rate == 0 {
+		return newError(orderParamsErr, "zero rate is invalid")
+	}
+	// sanity check we are placing a trade that doesn't significantly diverge from the price
+	// on Bison market (5% seems like a worrisome divergence we don't want to permit)
+	bisonRate := dc.coreMarket(market).SpotPrice.Rate
+	if bisonRate == 0 {
+		return newError(walletErr, fmt.Sprintf("couldn't determine Bison rate "+
+			"for market: %s", market))
+	}
+	if math.Abs(float64(rate-bisonRate)) > (0.05 * float64(bisonRate)) {
+		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+			"that's diverging from Bison rate %d for more than 5%%", rate, bisonRate))
+	}
+	return nil
+}
+
 // prepareTradeRequest prepares a trade request.
 func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, error) {
 	wallets, assetConfigs, dc, mktConf, err := c.prepareForTradeRequestPrep(pw, form.Base, form.Quote, form.Host, form.Sell)
@@ -6158,8 +6176,11 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 
 	rate, qty := form.Rate, form.Qty
 	if form.IsLimit {
-		if rate == 0 {
-			return nil, newError(orderParamsErr, "zero-rate order not allowed")
+		if qty == 0 {
+			return nil, newError(orderParamsErr, "zero quantity order not allowed")
+		}
+		if err := validateTradeRate(rate, mktID, dc); err != nil {
+			return nil, err
 		}
 		if minRate := dc.minimumMarketRate(assetConfigs.quoteAsset, mktConf.LotSize); rate < minRate {
 			return nil, newError(orderParamsErr, "order's rate is lower than market's minimum rate. %d < %d", rate, minRate)
@@ -6278,13 +6299,14 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 		return nil, err
 	}
 	fromWallet, toWallet := wallets.fromWallet, wallets.toWallet
+	mktID := marketName(form.Base, form.Quote)
 
 	for _, trade := range form.Placements {
-		if trade.Rate == 0 {
-			return nil, newError(orderParamsErr, "zero rate is invalid")
-		}
 		if trade.Qty == 0 {
 			return nil, newError(orderParamsErr, "zero quantity is invalid")
+		}
+		if err := validateTradeRate(trade.Rate, mktID, dc); err != nil {
+			return nil, err
 		}
 	}
 

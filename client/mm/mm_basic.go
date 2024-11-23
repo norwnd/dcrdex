@@ -36,6 +36,13 @@ const (
 	// GapStrategyPercentPlus sets the spread as a ratio of the mid-gap rate
 	// plus the break-even gap.
 	GapStrategyPercentPlus GapStrategy = "percent-plus"
+	// GapStrategyCompetitive picks an order rate that tries to compete with
+	// the best buy/sell orders in the book but also keeps away from the
+	// basis rate far enough to respect specified gap value. Note, unlike
+	// other strategies this one ignores on-chain fees (essentially equating
+	// these to 0) because they cause too much order book drift if we take
+	// them into account, this is calculated risk taking - use it with cation.
+	GapStrategyCompetitive GapStrategy = "competitive"
 )
 
 // OrderPlacement represents the distance from the mid-gap and the
@@ -89,7 +96,8 @@ func (c *BasicMarketMakingConfig) Validate() error {
 		c.GapStrategy != GapStrategyPercent &&
 		c.GapStrategy != GapStrategyPercentPlus &&
 		c.GapStrategy != GapStrategyAbsolute &&
-		c.GapStrategy != GapStrategyAbsolutePlus {
+		c.GapStrategy != GapStrategyAbsolutePlus &&
+		c.GapStrategy != GapStrategyCompetitive {
 		return fmt.Errorf("unknown gap strategy %q", c.GapStrategy)
 	}
 
@@ -98,7 +106,7 @@ func (c *BasicMarketMakingConfig) Validate() error {
 		switch c.GapStrategy {
 		case GapStrategyMultiplier:
 			limits = [2]float64{1, 100}
-		case GapStrategyPercent, GapStrategyPercentPlus:
+		case GapStrategyPercent, GapStrategyPercentPlus, GapStrategyCompetitive:
 			limits = [2]float64{0, 0.1}
 		case GapStrategyAbsolute, GapStrategyAbsolutePlus:
 			limits = [2]float64{0, math.MaxFloat64} // validate at < spot price at creation time
@@ -289,7 +297,33 @@ func (m *basicMarketMaker) cfg() *BasicMarketMakingConfig {
 	return m.cfgV.Load().(*BasicMarketMakingConfig)
 }
 
-func (m *basicMarketMaker) orderPrice(basisPrice, feeAdj uint64, sell bool, gapFactor float64) uint64 {
+func (m *basicMarketMaker) orderPrice(basisPrice, bestPrice, feeAdj uint64, sell bool, gapFactor float64) uint64 {
+	if m.cfg().GapStrategy == GapStrategyCompetitive {
+		m.log.Tracef(
+			"make %s order (competitive strategy): basisPrice = %d, bestPrice = %d, gapFactor = %d",
+			sellStr(sell),
+			basisPrice,
+			bestPrice,
+			gapFactor,
+		)
+
+		// maxAdj is how close we are permitted to get to basisPrice
+		maxAdj := uint64(math.Round(gapFactor * float64(basisPrice)))
+		if sell {
+			adjustedPrice := bestPrice - m.rateStep
+			if adjustedPrice < (basisPrice + maxAdj) {
+				adjustedPrice = basisPrice + maxAdj
+			}
+			return adjustedPrice
+		} else {
+			adjustedPrice := bestPrice + m.rateStep
+			if adjustedPrice > (basisPrice - maxAdj) {
+				adjustedPrice = basisPrice - maxAdj
+			}
+			return adjustedPrice
+		}
+	}
+
 	var adj uint64
 
 	// Apply the base strategy.
@@ -327,11 +361,41 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		return nil, nil, err
 	}
 
+	// find the best buy & sell orders in Bison books
+	book, _, err := m.core.SyncBook(m.host, m.baseID, m.quoteID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fetch Bison book: %v", err)
+	}
+	// bestBuy defaults to basisPrice-4%
+	bestBuy := steppedRate(
+		uint64(float64(basisPrice)-0.04*float64(basisPrice)),
+		m.rateStep,
+	)
+	// bestSell defaults to basisPrice+4%
+	bestSell := steppedRate(
+		uint64(float64(basisPrice)+0.04*float64(basisPrice)),
+		m.rateStep,
+	)
+	m.log.Tracef("(default 4%%) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
+	bisonOrders, found, err := book.BestNOrders(1, false)
+	if err != nil {
+		return nil, nil, fmt.Errorf("find best buy order in Bison book: %v", err)
+	}
+	if found && bisonOrders[0].Rate > bestBuy {
+		bestBuy = bisonOrders[0].Rate
+	}
+	bisonOrders, found, err = book.BestNOrders(1, true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("find best sell order in Bison book: %v", err)
+	}
+	if found && bisonOrders[0].Rate < bestSell {
+		bestSell = bisonOrders[0].Rate
+	}
+	m.log.Tracef("(taking contents of Bison order-book into account) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
 	feeGap, err := m.calculator.feeGapStats(basisPrice)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error calculating fee gap stats: %w", err)
 	}
-
 	m.registerFeeGap(feeGap)
 	var feeAdj uint64
 	if needBreakEvenHalfSpread(m.cfg().GapStrategy) {
@@ -346,7 +410,11 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 	orders := func(orderPlacements []*OrderPlacement, sell bool) []*TradePlacement {
 		placements := make([]*TradePlacement, 0, len(orderPlacements))
 		for i, p := range orderPlacements {
-			rate := m.orderPrice(basisPrice, feeAdj, sell, p.GapFactor)
+			bestPrice := bestBuy
+			if sell {
+				bestPrice = bestSell
+			}
+			rate := m.orderPrice(basisPrice, bestPrice, feeAdj, sell, p.GapFactor)
 
 			if m.log.Level() == dex.LevelTrace {
 				m.log.Tracef("ordersToPlace.orders: %s placement # %d, gap factor = %f, rate = %s, %+v",
