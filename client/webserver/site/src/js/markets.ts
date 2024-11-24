@@ -5,7 +5,6 @@ import OrderBook from './orderbook'
 import { ReputationMeter, tradingLimits, strongTier } from './account'
 import {
   CandleChart,
-  DepthLine,
   CandleReporters,
   Wave
 } from './charts'
@@ -173,7 +172,6 @@ export default class MarketsPage extends BasePage {
   metaOrders: Record<string, MetaOrder>
   preorderCache: Record<string, OrderEstimate>
   currentOrder: TradeForm
-  depthLines: Record<string, DepthLine[]>
   activeMarkerRate: number | null
   hovers: HTMLElement[]
   ogTitle: string
@@ -210,10 +208,6 @@ export default class MarketsPage extends BasePage {
     this.metaOrders = {}
     this.recentMatches = []
     this.preorderCache = {}
-    this.depthLines = {
-      hover: [],
-      input: []
-    }
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
     this.recentMatchesSortKey = 'age'
@@ -1062,54 +1056,53 @@ export default class MarketsPage extends BasePage {
   }
 
   updateOrderBttnState () {
-    // const { market: mkt, currentOrder: { qty: orderQty, rate: orderRate, isLimit, sell } } = this
-    // const baseWallet = app().assets[this.market.base.id].wallet
-    // const quoteWallet = app().assets[mkt.quote.id].wallet
-    // if (!baseWallet || !quoteWallet) return
-    //
-    // if (orderQty <= 0 || orderQty < mkt.cfg.lotsize) {
-    //   this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
-    //   return
-    // }
-    //
-    // // Market orders
-    // if (!isLimit) {
-    //   if (sell) {
-    //     this.setOrderBttnEnabled(orderQty <= baseWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
-    //   } else {
-    //     this.setOrderBttnEnabled(orderQty <= quoteWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
-    //   }
-    //   return
-    // }
-    //
-    // if (!orderRate) {
-    //   this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_RATE_ERROR))
-    //   return
-    // }
-    //
-    // // Limit sell
-    // if (sell) {
-    //   if (baseWallet.balance.available < mkt.cfg.lotsize) {
-    //     this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
-    //     return
-    //   }
-    //   if (mkt.maxSell) {
-    //     this.setOrderBttnEnabled(orderQty <= mkt.maxSell.swap.value, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
-    //   }
-    //   return
-    // }
-    //
-    // // Limit buy
-    // const rate = this.adjustedRateAtoms()
-    // const aLot = mkt.cfg.lotsize * (rate / OrderUtil.RateEncodingFactor)
-    // if (quoteWallet.balance.available < aLot) {
-    //   this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
-    //   return
-    // }
-    // if (mkt.maxBuys[rate]) {
-    //   const enable = orderQty <= mkt.maxBuys[rate].swap.lots * mkt.cfg.lotsize
-    //   this.setOrderBttnEnabled(enable, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
-    // }
+    const { market: mkt, currentOrder: { qty: orderQty, rate: orderRate, isLimit, sell } } = this
+    const baseWallet = app().assets[this.market.base.id].wallet
+    const quoteWallet = app().assets[mkt.quote.id].wallet
+    if (!baseWallet || !quoteWallet) return
+
+    if (orderQty <= 0 || orderQty < mkt.cfg.lotsize) {
+      this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
+      return
+    }
+
+    // Market orders
+    if (!isLimit) {
+      if (sell) {
+        this.setOrderBttnEnabled(orderQty <= baseWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+      } else {
+        this.setOrderBttnEnabled(orderQty <= quoteWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
+      }
+      return
+    }
+
+    if (!orderRate) {
+      this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_RATE_ERROR))
+      return
+    }
+
+    // Limit sell
+    if (sell) {
+      if (baseWallet.balance.available < mkt.cfg.lotsize) {
+        this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+        return
+      }
+      if (mkt.maxSell) {
+        this.setOrderBttnEnabled(orderQty <= mkt.maxSell.swap.value, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+      }
+      return
+    }
+
+    // Limit buy
+    const aLot = mkt.cfg.lotsize * (orderRate / OrderUtil.RateEncodingFactor)
+    if (quoteWallet.balance.available < aLot) {
+      this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
+      return
+    }
+    if (mkt.maxBuys[orderRate]) {
+      const enable = orderQty <= mkt.maxBuys[orderRate].swap.lots * mkt.cfg.lotsize
+      this.setOrderBttnEnabled(enable, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
+    }
   }
 
   setCandleDurBttns () {
