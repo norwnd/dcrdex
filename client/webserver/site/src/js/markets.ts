@@ -596,8 +596,7 @@ export default class MarketsPage extends BasePage {
       this.mktBuyFieldHandler()
     } else {
       this.previewMax()
-      this.currentOrder = this.parseOrder()
-      this.updateOrderBttnState()
+      this.previewTotal()
     }
   }
 
@@ -610,8 +609,7 @@ export default class MarketsPage extends BasePage {
     this.setOrderBttnText()
     this.setOrderVisibility()
     this.previewMax()
-    this.currentOrder = this.parseOrder()
-    this.updateOrderBttnState()
+    this.previewTotal()
   }
 
   /* hasPendingBonds is true if there are pending bonds */
@@ -795,27 +793,28 @@ export default class MarketsPage extends BasePage {
       if (!hasWallets) return false
       if (this.mmRunning) return false
 
+      // Reset limit-order form inputs to defaults.
       const lot = '1'
       const lotSize = String(this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor)
-      // Reset limit-order form inputs to defaults.
-      page.lotField.min = lot // improve up/down key-press handling, and hover-message
-      page.lotField.step = lot // improve up/down key-press handling, and hover-message
+      page.lotField.min = lot // improves up/down key-press handling, and hover-message
+      page.lotField.step = lot // improves up/down key-press handling, and hover-message
       page.lotField.value = ''
-      page.qtyField.min = lotSize // improve up/down key-press handling, and hover-message
-      page.qtyField.step = lotSize // improve up/down key-press handling, and hover-message
+      page.qtyField.min = lotSize // improves up/down key-press handling, and hover-message
+      page.qtyField.step = lotSize // improves up/down key-press handling, and hover-message
       page.qtyField.value = ''
       const rateStep = String(this.market.cfg.ratestep / this.market.rateConversionFactor)
-      page.rateField.min = rateStep // improve up/down key-press handling, and hover-message
-      page.rateField.step = rateStep // improve up/down key-press handling, and hover-message
+      page.rateField.min = rateStep // improves up/down key-press handling, and hover-message
+      page.rateField.step = rateStep // improves up/down key-press handling, and hover-message
+      // TODO - set default value (best buy/sell)
       page.rateField.value = ''
-      this.previewMax()
+      this.previewMax() // no-op for now, but could calculate max if we had default rate set
       page.orderTotalPreview.textContent = ''
       // Reset market-sell-order form inputs to defaults.
-      page.mktSellLotField.min = lot // improve up/down key-press handling, and hover-message
-      page.mktSellLotField.step = lot // improve up/down key-press handling, and hover-message
+      page.mktSellLotField.min = lot // improves up/down key-press handling, and hover-message
+      page.mktSellLotField.step = lot // improves up/down key-press handling, and hover-message
       page.mktSellLotField.value = ''
-      page.mktSellQtyField.min = lotSize // improve up/down key-press handling, and hover-message
-      page.mktSellQtyField.step = lotSize // improve up/down key-press handling, and hover-message
+      page.mktSellQtyField.min = lotSize // improves up/down key-press handling, and hover-message
+      page.mktSellQtyField.step = lotSize // improves up/down key-press handling, and hover-message
       page.mktSellQtyField.value = ''
 
       return true
@@ -1007,8 +1006,8 @@ export default class MarketsPage extends BasePage {
         this.resolveOrderFormVisibility()
       }
       if (Doc.isHidden(page.orderForm)) {
-        // Wait a couple of seconds before showing the form so the success
-        // message is shown to the user.
+        // wait a couple of seconds before showing the form so the success
+        // message is shown to the user
         setTimeout(toggle, 5000)
       }
     } else if (market.dex.viewOnly) {
@@ -1285,6 +1284,7 @@ export default class MarketsPage extends BasePage {
 
   /**
    * previewTotal calculates and displays Total value (in quote asset) for the order.
+   * It also updates order button state based on the values in the order form.
    */
   previewTotal () {
     const page = this.page
@@ -1298,6 +1298,8 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreview.textContent = intl.prep(intl.ID_LIMIT_ORDER_TOTAL_PREVIEW, { total, asset: market.quote.symbol.toUpperCase() })
     }
+
+    this.updateOrderBttnState()
   }
 
   /**
@@ -1347,12 +1349,10 @@ export default class MarketsPage extends BasePage {
 
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
       this.setMaxOrder(null)
-      this.updateOrderBttnState()
       return
     }
     if (mkt.maxSell) {
       this.setMaxOrder(mkt.maxSell.swap)
-      this.updateOrderBttnState()
       return
     }
 
@@ -1406,12 +1406,10 @@ export default class MarketsPage extends BasePage {
     const aLot = mkt.cfg.lotsize * (rate / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLot) {
       this.setMaxOrder(null)
-      this.updateOrderBttnState()
       return
     }
     if (mkt.maxBuys[rate]) {
       this.setMaxOrder(mkt.maxBuys[rate].swap)
-      this.updateOrderBttnState()
       return
     }
     // 0 delay for first fetch after balance update or market rate(price) change, otherwise
