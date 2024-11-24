@@ -709,6 +709,7 @@ export interface BookUpdate {
 }
 
 export interface MiniOrder {
+  id: string
   qty: number
   qtyAtomic: number
   rate: number

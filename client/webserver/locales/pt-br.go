@@ -85,7 +85,6 @@ var PtBr = map[string]*intl.Translation{
 	"Filled":                         {T: "Preenchido"},
 	"Settled":                        {T: "Assentado"},
 	"Status":                         {T: "Status"},
-	"view order history":             {T: "ver histórico de pedidos"},
 	"cancel_order":                   {T: "cancelar pedido"},
 	"order details":                  {T: "detalhes do pedido"},
 	"verify_order":                   {T: `Verificar<span id="vSideHeader"></span> Pedido`},

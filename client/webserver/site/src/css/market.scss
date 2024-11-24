@@ -327,15 +327,6 @@ div[data-handler=markets] {
     }
   }
 
-  #epochLine,
-  #durBttnBox {
-    position: absolute;
-    left: 65px;
-    top: 5px;
-    background-color: var(--section-bg);
-    z-index: 1;
-  }
-
   #durBttnBox {
     .candle-dur-bttn {
       background-color: var(--section-bg);
@@ -353,20 +344,6 @@ div[data-handler=markets] {
         border-color: var(--text-warning);
         color: var(--text-warning);
       }
-    }
-  }
-
-  #epochLine {
-    @extend .flex-center;
-
-    .epoch-line {
-      display: inline-block;
-      border-top: 3px dotted #626262;
-      width: 25px;
-      height: 0;
-      margin-right: 5px;
-      position: relative;
-      top: 1px;
     }
   }
 
@@ -680,8 +657,7 @@ div[data-handler=markets] {
     border-bottom: none;
   }
 
-  #candlesLegend,
-  #depthLegend {
+  #candlesLegend {
     z-index: 10;
     position: absolute;
     top: 0;
