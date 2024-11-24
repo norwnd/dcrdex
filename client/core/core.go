@@ -164,6 +164,9 @@ type dexConnection struct {
 
 	booksMtx sync.RWMutex
 	books    map[string]*bookie
+	// obSyncReqCnt counts order book sync requests issued to server
+	// through this dexConnection
+	obSyncReqCnt uint64
 
 	// tradeMtx is used to synchronize access to the trades map.
 	tradeMtx sync.RWMutex
@@ -6155,6 +6158,45 @@ func (c *Core) createTradeRequest(wallets *walletSet, coins asset.Coins, redeemS
 	}, nil
 }
 
+func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection) error {
+	if rate == 0 {
+		return newError(orderParamsErr, "zero rate is invalid")
+	}
+
+	// sanity check we are placing a trade that doesn't significantly diverge from the price
+	// on Bison market (10% seems like a worrisome divergence we don't want to permit)
+	bisonRate, err := dc.midGapMkt(market)
+	if err != nil {
+		return newError(walletErr, fmt.Sprintf("couldn't fetch mid-gap rate: %v", err))
+	}
+	// Note, we can't use "spot price" here because its value reflects the price of last
+	// trade which might have happened hours/days ago - and hence is too stale to rely on.
+	//bisonRate := dc.coreMarket(market).SpotPrice.Rate
+	if bisonRate == 0 {
+		return newError(walletErr, fmt.Sprintf("couldn't determine Bison rate "+
+			"for market: %s", market))
+	}
+	if math.Abs(float64(rate)-float64(bisonRate)) > (0.10 * float64(bisonRate)) {
+		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+			"that's diverging from Bison rate %d for more than 10 percent", rate, bisonRate))
+	}
+
+	// additionally, prevent placing limit-orders that might result into slippage of 1% or more
+	if sell {
+		if float64(rate) < (float64(bisonRate) - 0.01*float64(bisonRate)) {
+			return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+				"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
+		}
+	} else {
+		if float64(rate) > (float64(bisonRate) + 0.01*float64(bisonRate)) {
+			return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+				"that'd result into slippage of more than 1 percent (due to Bison rate = %d)", rate, bisonRate))
+		}
+	}
+
+	return nil
+}
+
 // prepareTradeRequest prepares a trade request.
 func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, error) {
 	wallets, assetConfigs, dc, mktConf, err := c.prepareForTradeRequestPrep(pw, form.Base, form.Quote, form.Host, form.Sell)
@@ -6167,8 +6209,11 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 
 	rate, qty := form.Rate, form.Qty
 	if form.IsLimit {
-		if rate == 0 {
-			return nil, newError(orderParamsErr, "zero-rate order not allowed")
+		if qty == 0 {
+			return nil, newError(orderParamsErr, "zero quantity order not allowed")
+		}
+		if err := validateTradeRate(form.Sell, rate, mktID, dc); err != nil {
+			return nil, err
 		}
 		if minRate := dc.minimumMarketRate(assetConfigs.quoteAsset, mktConf.LotSize); rate < minRate {
 			return nil, newError(orderParamsErr, "order's rate is lower than market's minimum rate. %d < %d", rate, minRate)
@@ -6287,13 +6332,14 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 		return nil, err
 	}
 	fromWallet, toWallet := wallets.fromWallet, wallets.toWallet
+	mktID := marketName(form.Base, form.Quote)
 
 	for _, trade := range form.Placements {
-		if trade.Rate == 0 {
-			return nil, newError(orderParamsErr, "zero rate is invalid")
-		}
 		if trade.Qty == 0 {
 			return nil, newError(orderParamsErr, "zero quantity is invalid")
+		}
+		if err := validateTradeRate(form.Sell, trade.Rate, mktID, dc); err != nil {
+			return nil, err
 		}
 	}
 
@@ -7218,7 +7264,7 @@ func (c *Core) initialize() error {
 // connectAccount makes a connection to the DEX for the given account. If a
 // non-nil dexConnection is returned from newDEXConnection, it was inserted into
 // the conns map even if the connection attempt failed (connected == false), and
-// the connect retry / keepalive loop is active. The intial connection attempt
+// the connect retry / keepalive loop is active. The initial connection attempt
 // or keepalive loop will not run if acct is disabled.
 func (c *Core) connectAccount(acct *db.AccountInfo) (dc *dexConnection, connected bool) {
 	host, err := addrHost(acct.Host)
@@ -8163,7 +8209,7 @@ func (c *Core) newDEXConnection(acctInfo *db.AccountInfo, flag connectDEXFlag) (
 
 	wsCfg := comms.WsCfg{
 		URL:      wsURL.String(),
-		PingWait: 20 * time.Second, // larger than server's pingPeriod (server/comms/server.go)
+		PingWait: 50 * time.Second, // larger than server's pingPeriod (server/comms/server.go)
 		Cert:     acctInfo.Cert,
 		Logger:   c.log.SubLogger(wsURL.String()),
 	}

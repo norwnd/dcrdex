@@ -968,6 +968,7 @@ func (u *unifiedExchangeAdaptor) placeMultiTrade(placements []*dexOrderInfo, sel
 
 	for i, res := range results {
 		if res.Error != nil {
+			u.log.Errorf("incomplete multi-trade, couldn't make a placement: %s", res.Error)
 			continue
 		}
 

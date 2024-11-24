@@ -78,6 +78,12 @@
   color: var(--buy-color);
 }
 
+.ico-own-book-order::before {
+  content: "\e90c";
+  display: inline-block;
+  color: var(--violet-color);
+}
+
 .ico-bell::before {
   content: "\e900";
 }

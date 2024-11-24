@@ -65,6 +65,7 @@
             <div class="d-flex flex-column align-items-stretch pb-2">
               <label class="text-nowrap me-2 mb-1 fs18 demi">[[[gap_strategy]]]</label>
               <select id="gapStrategySelect" class="form-select fs18">
+                <option value="competitive">[[[gap_strategy_competitive]]]</option>
                 <option value="percent-plus">[[[gap_strategy_percent_plus]]]</option>
                 <option value="percent">[[[gap_strategy_percent]]]</option>
                 <option value="absolute-plus">
@@ -75,6 +76,9 @@
               </select>
             </div>
             {{- /* STRATEGY DESCRIPTIONS */ -}}
+            <div id="competitiveInfo" class="w-100 pb-2 border-bottom fs16 text-justify">
+              [[[strategy_competitive]]]
+            </div>
             <div id="percentPlusInfo" class="w-100 pb-2 border-bottom fs16 text-justify">
               [[[strategy_percent_plus]]]
             </div>

@@ -38,6 +38,8 @@
 
     <a href="/markets" class="demi hoverbg d-hide" id="marketsMenuEntry">[[[Trade]]]</a>
 
+    <a href="/orders" class="demi hoverbg d-hide" id="ordersMenuEntry">[[[Order History]]]</a>
+
     <a href="/mm" class="ico-robot lh1 fs32 hoverbg d-hide" id="mmLink"></a>
 
     <div class="d-inline-block position-relative pointer hoverbg{{if not $authed}} d-hide{{end}}" id="noteBell">
@@ -89,14 +91,6 @@
   <div id="profileBox" class="d-hide p-3 fs15">
     <div class="icon fs20 ico-hamburger p-1" id="innerBurgerIcon"></div>
     <span class="text-danger" id="logoutErr"></span>
-    <a href="/orders" class="demi hoverbright plainlink d-flex align-items-center py-1 authed-only">
-      <span class="ico-settings fs16 me-2"></span>
-      [[[Order History]]]
-    </a>
-    <a href="/mm" class="demi hoverbright plainlink d-flex align-items-center py-1 authed-only">
-      <span class="ico-barchart fs16 me-2"></span>
-      [[[Market Making]]]
-    </a>
     <a href="/settings" class="demi hoverbright plainlink d-flex align-items-center py-1">
       <span class="ico-settings fs16 me-2"></span>
       [[[Settings]]]

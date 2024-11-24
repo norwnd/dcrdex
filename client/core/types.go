@@ -726,6 +726,7 @@ func newDisplayIDFromSymbols(base, quote string) string {
 // MiniOrder is minimal information about an order in a market's order book.
 // Replaced MiniOrder, which had a float Qty in conventional units.
 type MiniOrder struct {
+	ID        string  `json:"id"`
 	Qty       float64 `json:"qty"`
 	QtyAtomic uint64  `json:"qtyAtomic"`
 	Rate      float64 `json:"rate"`
