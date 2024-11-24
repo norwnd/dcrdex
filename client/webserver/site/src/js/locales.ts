@@ -3,6 +3,9 @@ import { postJSON } from './http'
 
 type Locale = Record<string, string>
 
+export const ID_LIMIT_ORDER_TOTAL_PREVIEW = 'LIMIT_ORDER_TOTAL_PREVIEW'
+export const ID_MARKET_ORDER_TOTAL_PREVIEW = 'MARKET_ORDER_TOTAL_PREVIEW'
+export const ID_NO_QUANTITY_EXCEEDS_MAX = 'NO_QUANTITY_EXCEEDS_MAX'
 export const ID_NO_PASS_ERROR_MSG = 'NO_PASS_ERROR_MSG'
 export const ID_NO_APP_PASS_ERROR_MSG = 'NO_APP_PASS_ERROR_MSG'
 export const ID_SET_BUTTON_BUY = 'SET_BUTTON_BUY'
