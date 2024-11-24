@@ -328,6 +328,12 @@ div[data-handler=markets] {
   }
 
   #durBttnBox {
+    position: absolute;
+    left: 65px;
+    top: 5px;
+    background-color: var(--section-bg);
+    z-index: 1;
+
     .candle-dur-bttn {
       background-color: var(--section-bg);
       padding: 2px 4px;
