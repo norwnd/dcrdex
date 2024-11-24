@@ -674,7 +674,7 @@ func (ob *OrderBook) ValidateMatchProof(note msgjson.MatchProofNote) error {
 }
 
 // MidGap returns the mid-gap price for the market. If one market side is empty
-// the bets rate from the other side will be used. If both sides are empty, an
+// the best rate from the other side will be used. If both sides are empty, an
 // error will be returned.
 func (ob *OrderBook) MidGap() (uint64, error) {
 	s, senough := ob.sells.BestNOrders(1)

@@ -51,6 +51,7 @@ import {
   GapStrategyAbsolutePlus,
   GapStrategyPercent,
   GapStrategyPercentPlus,
+  GapStrategyCompetitive,
   feesAndCommit
 } from './mmutil'
 import { Forms, bind as bindForm, NewWalletForm, TokenApprovalForm, DepositAddress, CEXConfigurationForm } from './forms'
@@ -63,7 +64,7 @@ const lastArbExchangeLK = 'lastArbExchange'
 const arbMMRowCacheKey = 'arbmm'
 
 const defaultSwapReserves = {
-  n: 50,
+  n: 0,
   prec: 0,
   inc: 10,
   minR: 0,
@@ -73,9 +74,9 @@ const defaultSwapReserves = {
 const defaultOrderReserves = {
   factor: 1.0,
   minR: 0,
-  maxR: 3,
-  range: 3,
-  prec: 3
+  maxR: 10,
+  range: 10,
+  prec: 10
 }
 const defaultTransfer = {
   factor: 0.1,
@@ -84,14 +85,14 @@ const defaultTransfer = {
   range: 1
 }
 const defaultSlippage = {
-  factor: 0.05,
+  factor: 0.0,
   minR: 0,
   maxR: 0.3,
   range: 0.3,
   prec: 3
 }
 const defaultDriftTolerance = {
-  value: 0.002,
+  value: 0.0,
   minV: 0,
   maxV: 0.02,
   range: 0.02,
@@ -109,7 +110,7 @@ const defaultProfit = {
   value: 0.01,
   minV: 0.001,
   maxV: 0.1,
-  range: 0.1 - 0.001
+  range: 0.02 - 0.001
 }
 const defaultLevelSpacing = {
   prec: 3,
@@ -142,11 +143,11 @@ const defaultUSDPerSide = {
 }
 
 const defaultMarketMakingConfig: ConfigState = {
-  gapStrategy: GapStrategyPercentPlus,
+  gapStrategy: GapStrategyCompetitive,
   sellPlacements: [],
   buyPlacements: [],
   driftTolerance: defaultDriftTolerance.value,
-  profit: 0.02,
+  profit: 0.005,
   orderPersistence: defaultOrderPersistence.value,
   cexRebalance: true,
   simpleArbLots: 1
@@ -668,9 +669,9 @@ export default class MarketMakerSettingsPage extends BasePage {
 
     // If this is a new bot, show the quick config form.
     const isQuickPlacements = !botCfg || this.isQuickPlacements(this.updatedConfig.buyPlacements, this.updatedConfig.sellPlacements)
-    const gapStrategy = botCfg?.basicMarketMakingConfig?.gapStrategy ?? GapStrategyPercentPlus
+    const gapStrategy = botCfg?.basicMarketMakingConfig?.gapStrategy ?? GapStrategyCompetitive
     page.gapStrategySelect.value = gapStrategy
-    if (botType === botTypeBasicArb || (isQuickPlacements && gapStrategy === GapStrategyPercentPlus)) this.showQuickConfig()
+    if (botType === botTypeBasicArb || (isQuickPlacements && gapStrategy === GapStrategyCompetitive)) this.showQuickConfig()
     else this.showAdvancedConfig()
 
     this.setOriginalValues()
@@ -1337,6 +1338,7 @@ export default class MarketMakerSettingsPage extends BasePage {
       }
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         return ['Percent', '%']
       default:
         throw new Error(`Unknown gap strategy ${gapStrategy}`)
@@ -1362,6 +1364,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return null
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (value <= 0 || value > 10) {
           return 'Percent must be between 0 and 10'
         }
@@ -1387,6 +1390,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return gapFactor
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (toDisplay) {
           return gapFactor * 100
         }
@@ -1542,8 +1546,10 @@ export default class MarketMakerSettingsPage extends BasePage {
     const header = this.gapFactorHeaderUnit(gapStrategy)[0]
     page.buyGapFactorHdr.textContent = header
     page.sellGapFactorHdr.textContent = header
-    Doc.hide(page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
+    Doc.hide(page.competitiveInfo, page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
     switch (gapStrategy) {
+      case 'competitive':
+        return Doc.show(page.competitiveInfo)
       case 'percent-plus':
         return Doc.show(page.percentPlusInfo)
       case 'percent':

@@ -165,20 +165,6 @@
                   </div>
                 </div>
               </section>
-              <section class="flex-grow-1 flex-stretch-column position-relative">
-                <div id="depthLegend" class="d-inline-flex p-1 align-items-center grey border-bottom border-start d-hide">
-                  <span>
-                    [[[price]]]: <span id="hoverPrice"></span>,
-                    [[[volume]]]: <span id="hoverVolume"></span>
-                  </span>
-                  <span class="d-hide">[[[sells]]]: <span id="sellBookedBase"></span> <span data-base-ticker></span>, <span id="sellBookedQuote"></span> <span data-quote-ticker></span></span>
-                  <span class="d-hide">|</span>
-                  <span class="me-2 d-hide">[[[buys]]]: <span id="buyBookedBase"></span> <span data-base-ticker></span>, <span id="buyBookedQuote"></span> <span data-quote-ticker></span></span>
-                </div>
-                <div id="depthChart" class="market-chart">
-                  <div id="epochLine"><div class="epoch-line"></div> [[[epoch]]]</div>
-                </div>
-              </section>
             </div>
           </div>
 
@@ -553,8 +539,6 @@
                   </div>
                 </div>
               </div>{{- /* END USER ORDERS */ -}}
-
-              <a href="/orders" class="flex-center py-1 plainlink hoverbg">[[[view order history]]]</a>
 
               {{- /* RECENT MATCHES */ -}}
               <div id=recentMatchesBox  class="flex-stretch-column pb-4 border-top">

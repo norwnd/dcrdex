@@ -87,7 +87,6 @@ var ZhCN = map[string]*intl.Translation{
 	"Filled":                         {T: "已满"},
 	"Settled":                        {T: "稳定的"},
 	"Status":                         {T: "状态"},
-	"view order history":             {T: "查看历史订单"},
 	"cancel_order":                   {T: "取消订单"},
 	"order details":                  {T: "订单详情"},
 	"verify_order":                   {T: `验证 <span id="vSideHeader"></span> 订单`},

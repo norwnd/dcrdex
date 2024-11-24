@@ -1461,6 +1461,10 @@ func (w *assetWallet) maxOrder(lotSize uint64, maxFeeRate uint64, ver uint32,
 	refundCost := g.Refund * maxFeeRate
 	oneFee := g.oneGas * maxFeeRate
 	feeReservesPerLot := oneFee + refundCost
+	// this doesn't work because server additionally validates at his own discretion whether
+	// a client has enough of base assets to fund his order:
+	//// statistically, 1-lot orders are rare - hence we can increase allowed lots here by x20
+	//feeReservesPerLot := (oneFee + refundCost) / 20 // integer division is fine here
 	var lots uint64
 	if feeWallet == nil {
 		lots = balance.Available / (lotSize + feeReservesPerLot)
@@ -1482,6 +1486,7 @@ func (w *assetWallet) maxOrder(lotSize uint64, maxFeeRate uint64, ver uint32,
 			FeeReservesPerLot: feeReservesPerLot,
 		}, nil
 	}
+
 	return w.estimateSwap(lots, lotSize, maxFeeRate, ver, feeReservesPerLot)
 }
 
@@ -1663,13 +1668,23 @@ func (w *ETHWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uint6
 			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
 	}
 
-	g, err := w.initGasEstimate(int(ord.MaxSwapCount), ord.Version,
-		ord.RedeemVersion, ord.RedeemAssetID)
+	g, err := w.initGasEstimate(int(ord.MaxSwapCount), ord.Version, ord.RedeemVersion, ord.RedeemAssetID)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("error estimating swap gas: %v", err)
 	}
 
-	ethToLock := ord.MaxFeeRate*g.Swap*ord.MaxSwapCount + ord.Value
+	// statistically, we can shave off an order of magnitude here in funds locked
+	// for blockchain fees to process orders with large number of lots, this is safe
+	// to do for maker, but might be somewhat risky if we are taker,
+	// this doesn't fully work because server additionally validates from his own
+	// perspective whether a client has enough of base assets to fund his order
+	expectedSwapCnt := ord.MaxSwapCount
+	if expectedSwapCnt > 20 {
+		expectedSwapCnt = expectedSwapCnt / 20
+	} else if expectedSwapCnt > 10 {
+		expectedSwapCnt = expectedSwapCnt / 10
+	}
+	ethToLock := ord.MaxFeeRate*g.Swap*expectedSwapCnt + ord.Value
 	// Note: In a future refactor, we could lock the redemption funds here too
 	// and signal to the user so that they don't call `RedeemN`. This has the
 	// same net effect, but avoids a lockFunds -> unlockFunds for us and likely
@@ -1721,7 +1736,18 @@ func (w *TokenWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uin
 		return nil, nil, 0, fmt.Errorf("error estimating swap gas: %v", err)
 	}
 
-	ethToLock := ord.MaxFeeRate * g.Swap * ord.MaxSwapCount
+	// statistically, we can shave off an order of magnitude here in funds locked
+	// for blockchain fees to process orders with large number of lots, this is safe
+	// to do for maker, but might be somewhat risky if we are taker,
+	// this doesn't fully work because server additionally validates from his own
+	// perspective whether a client has enough of base assets to fund his order
+	expectedSwapCnt := ord.MaxSwapCount
+	if expectedSwapCnt > 20 {
+		expectedSwapCnt = expectedSwapCnt / 20
+	} else if expectedSwapCnt > 10 {
+		expectedSwapCnt = expectedSwapCnt / 10
+	}
+	ethToLock := ord.MaxFeeRate * g.Swap * expectedSwapCnt
 	var success bool
 	if err = w.lockFunds(ord.Value, initiationReserve); err != nil {
 		return nil, nil, 0, fmt.Errorf("error locking token funds: %v", err)

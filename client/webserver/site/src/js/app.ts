@@ -903,13 +903,11 @@ export default class Application {
     }
     if (!authed) {
       page.profileBox.classList.remove('authed')
-      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry)
+      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry, page.mmLink)
       return
     }
-    Doc.setVis(Object.keys(this.exchanges).length > 0, page.marketsMenuEntry, page.mmLink)
-
     page.profileBox.classList.add('authed')
-    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry)
+    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry)
     Doc.setVis(mmStatus, page.mmLink)
   }
 

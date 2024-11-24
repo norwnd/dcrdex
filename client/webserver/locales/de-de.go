@@ -87,7 +87,6 @@ var DeDE = map[string]*intl.Translation{
 	"Filled":                         {T: "Erfüllt"},
 	"Settled":                        {T: "Abgewickelt"},
 	"Status":                         {T: "Status"},
-	"view order history":             {T: "Auftragshistorie anzeigen"},
 	"cancel_order":                   {T: "auftrag abbrechen"},
 	"order details":                  {T: "Auftragsdetails"},
 	"verify_order":                   {T: `Verifiziere Auftrag <span id="vSideHeader"></span>`},

@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	oraclePriceExpiration = time.Minute * 10
-	oracleRecheckInterval = time.Minute * 3
+	oraclePriceExpiration = time.Minute * 5
+	oracleRecheckInterval = time.Minute * 1
 
 	// If the total USD volume of all oracles is less than
 	// minimumUSDVolumeForOraclesAvg, the oracles will be ignored for

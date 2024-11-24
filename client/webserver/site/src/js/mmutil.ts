@@ -43,6 +43,7 @@ export const GapStrategyAbsolute = 'absolute'
 export const GapStrategyAbsolutePlus = 'absolute-plus'
 export const GapStrategyPercent = 'percent'
 export const GapStrategyPercentPlus = 'percent-plus'
+export const GapStrategyCompetitive = 'competitive'
 
 export const botTypeBasicMM = 'basicMM'
 export const botTypeArbMM = 'arbMM'
@@ -862,6 +863,7 @@ export class RunningMarketMakerDisplay {
     switch (gapStrategy) {
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         Doc.show(page.profitLabel, page.profitUnit)
         page.gapFactor.textContent = (gapFactor * 100).toFixed(2)
         break

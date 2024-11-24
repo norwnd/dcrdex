@@ -89,7 +89,6 @@ var Ar = map[string]*intl.Translation{
 	"Filled":                         {T: "تم تنفيده"},
 	"Settled":                        {T: "تمت تسويته"},
 	"Status":                         {T: "الحالة"},
-	"view order history":             {T: "عرض سجل الطلب"},
 	"cancel order":                   {T: "الغاء الطلب"},
 	"order details":                  {T: "تفاصيل الطلب"},
 	"verify_order":                   {T: `تحقق من <span id="vSideHeader"></span>  الطلب`},

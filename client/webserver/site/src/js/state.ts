@@ -11,7 +11,6 @@ export default class State {
   static loggersLK = 'loggers'
   static recordersLK = 'recorders'
   static lastMarketLK = 'selectedMarket'
-  static depthZoomLK = 'depthZoom'
   static lastMMMarketLK = 'mmMarket'
   static optionsExpansionLK = 'mmOptsExpand'
   static leftMarketDockLK = 'leftmarketdock'

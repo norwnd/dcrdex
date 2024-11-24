@@ -86,7 +86,6 @@ var PlPL = map[string]*intl.Translation{
 	"Filled":                         {T: "Zrealizowane"},
 	"Settled":                        {T: "Rozliczone"},
 	"Status":                         {T: "Status"},
-	"view order history":             {T: "wyświetl historię zleceń"},
 	"cancel_order":                   {T: "anuluj zlecenie"},
 	"order details":                  {T: "szczegóły zlecenia"},
 	"verify_order":                   {T: `Zweryfikuj zlecenie <span id="vSideHeader"></span>`},

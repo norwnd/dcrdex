@@ -393,11 +393,14 @@ func (dc *dexConnection) bookie(marketID string) *bookie {
 
 func (dc *dexConnection) midGap(base, quote uint32) (midGap uint64, err error) {
 	marketID := marketName(base, quote)
+	return dc.midGapMkt(marketID)
+}
+
+func (dc *dexConnection) midGapMkt(marketID string) (midGap uint64, err error) {
 	booky := dc.bookie(marketID)
 	if booky == nil {
 		return 0, fmt.Errorf("no bookie found for market %s", marketID)
 	}
-
 	return booky.MidGap()
 }
 
@@ -560,12 +563,21 @@ func (c *Core) Book(dex string, base, quote uint32) (*OrderBook, error) {
 	}
 
 	mkt := marketName(base, quote)
+
 	dc.booksMtx.RLock()
 	defer dc.booksMtx.RUnlock() // hold it locked until any transient sub/unsub is completed
+
+	dc.obSubscriptionReqCnt++
+
 	book, found := dc.books[mkt]
 	// If not found, attempt to make a temporary subscription and return the
 	// initial book.
-	if !found {
+	// Note, there are a bunch of issues with the way order server-originating book
+	// updates are handled, for details see: https://github.com/norwnd/dcrdex/pulls
+	// in particular this negatively affects mm bot operations, as a work-around
+	// we can remedy this for the most part by forcing full order book re-sync every
+	// once in a while (every 5th order book request)
+	if !found || (dc.obSubscriptionReqCnt%5 == 0) {
 		snap, err := dc.subscribe(base, quote)
 		if err != nil {
 			return nil, fmt.Errorf("unable to subscribe to book: %w", err)
