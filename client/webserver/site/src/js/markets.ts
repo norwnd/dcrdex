@@ -1145,9 +1145,6 @@ export default class MarketsPage extends BasePage {
     this.setMarketDetails()
     this.setCurrMarketPrice()
 
-    // if (!dex.candleDurs || dex.candleDurs.length === 0) this.currentChart = depthChart
-
-    // depth chart
     ws.request('loadmarket', makeMarket(host, baseID, quoteID))
 
     State.storeLocal(State.lastMarketLK, {
@@ -2676,6 +2673,7 @@ export default class MarketsPage extends BasePage {
       this.updateOrderBttnState()
       return
     }
+    this.currentOrder = this.parseOrder()
     const r = adjusted / this.market.rateConversionFactor
     this.page.rateField.value = String(r)
     this.previewQuoteAmt(true)
