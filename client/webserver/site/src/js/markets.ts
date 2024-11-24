@@ -313,27 +313,9 @@ export default class MarketsPage extends BasePage {
     bind(page.hideTradingReputation, 'click', () => { toggleTradingReputation(false) })
 
     // Buttons to set order type and side.
-    bind(page.buyBttn, 'click', () => {
-      Doc.hide(page.orderErr)
-      swapBttns(page.sellBttn, page.buyBttn)
-      page.submitBttn.classList.remove(sellBtnClass)
-      page.submitBttn.classList.add(buyBtnClass)
-      page.maxLbl.textContent = intl.prep(intl.ID_BUY)
-      this.setOrderBttnText()
-      this.setOrderVisibility()
-      this.previewMax()
-    })
-    bind(page.sellBttn, 'click', () => {
-      Doc.hide(page.orderErr)
-      swapBttns(page.buyBttn, page.sellBttn)
-      page.submitBttn.classList.add(sellBtnClass)
-      page.submitBttn.classList.remove(buyBtnClass)
-      page.maxLbl.textContent = intl.prep(intl.ID_SELL)
-      page.mktSellMaxLbl.textContent = intl.prep(intl.ID_SELL)
-      this.setOrderBttnText()
-      this.setOrderVisibility()
-      this.previewMax()
-    })
+    bind(page.buyBttn, 'click', () => { this.setBuy() })
+    bind(page.sellBttn, 'click', () => { this.setSell() })
+
     bind(page.limitBttn, 'click', () => {
       Doc.hide(page.orderErr)
       swapBttns(page.marketBttn, page.limitBttn)
@@ -509,7 +491,6 @@ export default class MarketsPage extends BasePage {
         if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
         this.startLoadingAnimations()
         this.setMarket(host, baseID, quoteID)
-        this.setRegistrationStatusVisibility()
       })
     }
     if (State.fetchLocal(State.leftMarketDockLK) !== '1') { // It is shown by default, hiding if necessary.
@@ -611,8 +592,13 @@ export default class MarketsPage extends BasePage {
     page.maxLbl.textContent = intl.prep(intl.ID_BUY)
     this.setOrderBttnText()
     this.setOrderVisibility()
-    this.currentOrder = this.parseOrder()
-    this.updateOrderBttnState()
+    if (!this.isLimit()) {
+      this.mktBuyFieldHandler()
+    } else {
+      this.previewMax()
+      this.currentOrder = this.parseOrder()
+      this.updateOrderBttnState()
+    }
   }
 
   setSell () {
@@ -623,6 +609,7 @@ export default class MarketsPage extends BasePage {
     page.maxLbl.textContent = intl.prep(intl.ID_SELL)
     this.setOrderBttnText()
     this.setOrderVisibility()
+    this.previewMax()
     this.currentOrder = this.parseOrder()
     this.updateOrderBttnState()
   }
@@ -1215,6 +1202,7 @@ export default class MarketsPage extends BasePage {
     this.marketList.select(host, baseID, quoteID)
     this.setLoaderMsgVisibility()
     this.setTokenApprovalVisibility()
+    this.setRegistrationStatusVisibility()
     this.resolveOrderFormVisibility()
     this.setOrderBttnText()
     this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_RATE_ERROR))
@@ -2993,7 +2981,7 @@ export default class MarketsPage extends BasePage {
   }
 
   /*
-   * marketBuyChanged is attached to the change events of the quantity input
+   * mktBuyFieldHandler is attached to the change events of the quantity input
    * for the market-buy form.
    */
   mktBuyFieldHandler () {
