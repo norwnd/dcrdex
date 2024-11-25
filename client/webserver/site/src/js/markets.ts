@@ -1,11 +1,10 @@
-import Doc, { WalletIcons } from './doc'
+import Doc, { WalletIcons, Animation } from './doc'
 import State from './state'
 import BasePage from './basepage'
 import OrderBook from './orderbook'
 import { ReputationMeter, tradingLimits, strongTier } from './account'
 import {
   CandleChart,
-  DepthLine,
   CandleReporters,
   Wave
 } from './charts'
@@ -80,6 +79,7 @@ const candleUpdateRoute = 'candle_update'
 const unmarketRoute = 'unmarket'
 const epochMatchSummaryRoute = 'epoch_match_summary'
 
+const animationLength = 500
 const anHour = 60 * 60 * 1000 // milliseconds
 const maxUserOrdersShown = 10
 
@@ -152,7 +152,16 @@ interface MarketsPageParams {
 export default class MarketsPage extends BasePage {
   page: Record<string, PageElement>
   main: HTMLElement
+  // maxEstimateAvailable reflects whether up-to-date max buy/sell order estimate
+  // has already been calculated. Max buy/sell order estimate depends on user-inputs
+  // such as Price and Quantity, when these inputs are updated maxEstimateAvailable
+  // resets to false (since the previous max estimate is no longer up-to-date with
+  // respect to user-inputs), and UI attempts to re-calculate Max estimate.
+  maxEstimateAvailable: boolean
+  // maxLoaded gets called when max buy/sell estimate has been loaded.
   maxLoaded: (() => void) | null
+  // maxMktSellLoaded gets called when max buy/sell estimate has been loaded.
+  maxMktSellLoaded: (() => void) | null
   maxOrderUpdateCounter: number
   market: CurrentMarket
   openAsset: SupportedAsset
@@ -163,7 +172,6 @@ export default class MarketsPage extends BasePage {
   metaOrders: Record<string, MetaOrder>
   preorderCache: Record<string, OrderEstimate>
   currentOrder: TradeForm
-  depthLines: Record<string, DepthLine[]>
   activeMarkerRate: number | null
   hovers: HTMLElement[]
   ogTitle: string
@@ -185,6 +193,7 @@ export default class MarketsPage extends BasePage {
   recentMatchesSortDirection: 1 | -1
   stats: [StatsDisplay, StatsDisplay]
   loadingAnimations: { candles?: Wave }
+  runningErrAnimations: Animation[]
   mmRunning: boolean | undefined
   forms: Forms
   constructor (main: HTMLElement, pageParams: MarketsPageParams) {
@@ -199,16 +208,13 @@ export default class MarketsPage extends BasePage {
     this.metaOrders = {}
     this.recentMatches = []
     this.preorderCache = {}
-    this.depthLines = {
-      hover: [],
-      input: []
-    }
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
     this.recentMatchesSortKey = 'age'
     this.recentMatchesSortDirection = -1
     // store original title so we can re-append it when updating market value.
     this.ogTitle = document.title
+    this.runningErrAnimations = []
     this.forms = new Forms(page.forms, {
       closed: (closedForm: PageElement | undefined) => {
         if (closedForm === page.vDetailPane) {
@@ -311,25 +317,25 @@ export default class MarketsPage extends BasePage {
     bind(page.sellBttn, 'click', () => { this.setSell() })
 
     bind(page.limitBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.marketBttn, page.limitBttn)
       this.setOrderVisibility()
     })
     bind(page.marketBttn, 'click', () => {
+      Doc.hide(page.orderErr)
       swapBttns(page.limitBttn, page.marketBttn)
       this.setOrderVisibility()
       this.setMarketBuyOrderEstimate()
     })
     bind(page.maxOrd, 'click', () => {
-      if (this.isSell()) {
-        const maxSell = this.market.maxSell
-        if (!maxSell) return
-        page.lotField.value = String(maxSell.swap.lots)
-      } else {
-        const maxBuy = this.market.maxBuys[this.adjustedRate()]
-        if (!maxBuy) return
-        page.lotField.value = String(maxBuy.swap.lots)
-      }
-      this.lotChanged()
+      const maxOrderLots = this.calcMaxOrderLots()
+      page.lotField.value = String(maxOrderLots)
+      this.lotFieldChangeHandler()
+    })
+    bind(page.mktSellMaxOrd, 'click', () => {
+      const maxSellOrderLots = this.calcMaxOrderLots()
+      page.mktSellLotField.value = String(maxSellOrderLots)
+      this.mktSellLotFieldChangeHandler()
     })
 
     Doc.disableMouseWheel(page.rateField, page.lotField, page.qtyField, page.mktBuyField)
@@ -416,13 +422,20 @@ export default class MarketsPage extends BasePage {
       Doc.bind(el, 'click', () => { closePopups() })
     })
 
-    // Event listeners for interactions with the various input fields.
-    bind(page.lotField, ['change', 'keyup'], () => { this.lotChanged() })
-    bind(page.qtyField, 'change', () => { this.quantityChanged(true) })
-    bind(page.qtyField, 'keyup', () => { this.quantityChanged(false) })
-    bind(page.mktBuyField, ['change', 'keyup'], () => { this.marketBuyChanged() })
-    bind(page.rateField, 'change', () => { this.rateFieldChanged() })
-    bind(page.rateField, 'keyup', () => { this.previewQuoteAmt(true) })
+    // Limit order form: event listeners for handling user interactions.
+    bind(page.rateField, 'change', () => { this.rateFieldChangeHandler() })
+    bind(page.rateField, 'input', () => { this.rateFieldInputHandler() })
+    bind(page.lotField, 'change', () => { this.lotFieldChangeHandler() })
+    bind(page.lotField, 'input', () => { this.lotFieldInputHandler() })
+    bind(page.qtyField, 'change', () => { this.qtyFieldChangeHandler() })
+    bind(page.qtyField, 'input', () => { this.qtyFieldInputHandler() })
+    // Market order form: event listeners for handling user interactions.
+    bind(page.mktBuyField, 'change', () => { this.mktBuyFieldHandler() })
+    bind(page.mktBuyField, 'input', () => { this.mktBuyFieldHandler() })
+    bind(page.mktSellLotField, 'change', () => { this.mktSellLotFieldChangeHandler() })
+    bind(page.mktSellLotField, 'input', () => { this.mktSellLotFieldInputHandler() })
+    bind(page.mktSellQtyField, 'change', () => { this.mktSellQtyFieldChangeHandler() })
+    bind(page.mktSellQtyField, 'input', () => { this.mktSellQtyFieldInputHandler() })
 
     // Market search input bindings.
     bind(page.marketSearchV1, ['change', 'keyup'], () => { this.filterMarkets() })
@@ -580,10 +593,10 @@ export default class MarketsPage extends BasePage {
     this.setOrderBttnText()
     this.setOrderVisibility()
     if (!this.isLimit()) {
-      this.marketBuyChanged()
+      this.mktBuyFieldHandler()
     } else {
-      this.currentOrder = this.parseOrder()
-      this.updateOrderBttnState()
+      this.previewMax()
+      this.previewTotal()
     }
   }
 
@@ -595,8 +608,8 @@ export default class MarketsPage extends BasePage {
     page.maxLbl.textContent = intl.prep(intl.ID_SELL)
     this.setOrderBttnText()
     this.setOrderVisibility()
-    this.currentOrder = this.parseOrder()
-    this.updateOrderBttnState()
+    this.previewMax()
+    this.previewTotal()
   }
 
   /* hasPendingBonds is true if there are pending bonds */
@@ -645,6 +658,24 @@ export default class MarketsPage extends BasePage {
       s.tmpl.baseSymbol.appendChild(Doc.symbolize(ba, true))
       s.tmpl.quoteSymbol.appendChild(Doc.symbolize(qa, true))
     }
+  }
+
+  /**
+   * calcMaxOrderLots returns the maximum order size, in lots (buy or sell,
+   * depending on what user chose in UI).
+   */
+  calcMaxOrderLots (): number {
+    if (this.isSell()) return this.market.maxSell?.swap.lots ?? 0
+    return this.market.maxBuys[this.adjustedRateAtoms(this.page.rateField.value)]?.swap.lots ?? 0
+  }
+
+  /**
+   * calcMaxOrderQtyAtoms returns the maximum order size, in atoms.
+   */
+  calcMaxOrderQtyAtoms (): number {
+    const lotSize = this.market.cfg.lotsize
+    const maxOrderLots = this.calcMaxOrderLots()
+    return maxOrderLots * lotSize
   }
 
   /* setHighLow calculates the high and low rates over the last 24 hours. */
@@ -722,25 +753,22 @@ export default class MarketsPage extends BasePage {
   }
 
   /*
-   * setOrderVisibility sets which form is visible based on the specified
-   * options.
+   * setOrderVisibility sets which form is visible based on the what user
+   * chose in UI.
    */
   setOrderVisibility () {
     const page = this.page
     if (this.isLimit()) {
-      Doc.show(page.priceBox, page.tifBox, page.qtyBox, page.maxBox)
-      Doc.hide(page.mktBuyBox)
-      this.previewQuoteAmt(true)
+      Doc.hide(page.mktBuyBox, page.mktSellBox)
+      Doc.show(page.limitOrderBox) // for limit - same form is used for buy and sell orders.
     } else {
-      Doc.hide(page.tifBox, page.maxBox, page.priceBox)
+      Doc.hide(page.limitOrderBox) // for limit - same form is used for buy and sell orders.
       if (this.isSell()) {
         Doc.hide(page.mktBuyBox)
-        Doc.show(page.qtyBox)
-        this.previewQuoteAmt(true)
+        Doc.show(page.mktSellBox)
       } else {
+        Doc.hide(page.mktSellBox)
         Doc.show(page.mktBuyBox)
-        Doc.hide(page.qtyBox)
-        this.previewQuoteAmt(false)
       }
     }
     this.updateOrderBttnState()
@@ -749,7 +777,7 @@ export default class MarketsPage extends BasePage {
   /* resolveOrderFormVisibility displays or hides the 'orderForm' based on
    * a set of conditions to be met.
    */
-  async resolveOrderFormVisibility () {
+  async resolveOrderFormVisibility (forseReset?: boolean) {
     const page = this.page
 
     const showOrderForm = async () : Promise<boolean> => {
@@ -764,10 +792,46 @@ export default class MarketsPage extends BasePage {
       const hasWallets = base && app().assets[base.id].wallet && quote && app().assets[quote.id].wallet
       if (!hasWallets) return false
       if (this.mmRunning) return false
+
+      // if order form is already showing we don't want to re-initialize it because
+      // it might contain user inputs already (hence return right away), unless
+      // we have been asked to forcefully reset it (which is needed for example when
+      // user switches to another market - because we are sharing same order form
+      // between different markets)
+      if (Doc.isDisplayed(page.orderForm) && !forseReset) {
+        return true
+      }
+
+      // re-initialize order form
+
+      // Reset limit-order form inputs to defaults.
+      const lot = '1'
+      const lotSize = String(this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor)
+      page.lotField.min = lot // improves up/down key-press handling, and hover-message
+      page.lotField.step = lot // improves up/down key-press handling, and hover-message
+      page.lotField.value = ''
+      page.qtyField.min = lotSize // improves up/down key-press handling, and hover-message
+      page.qtyField.step = lotSize // improves up/down key-press handling, and hover-message
+      page.qtyField.value = ''
+      const rateStep = String(this.market.cfg.ratestep / this.market.rateConversionFactor)
+      page.rateField.min = rateStep // improves up/down key-press handling, and hover-message
+      page.rateField.step = rateStep // improves up/down key-press handling, and hover-message
+      // TODO - set default value (best buy/sell)
+      page.rateField.value = '1.234'
+      this.previewMax() // no-op for now, but could calculate max if we had default rate set
+      page.orderTotalPreview.textContent = ''
+      // Reset market-sell-order form inputs to defaults.
+      page.mktSellLotField.min = lot // improves up/down key-press handling, and hover-message
+      page.mktSellLotField.step = lot // improves up/down key-press handling, and hover-message
+      page.mktSellLotField.value = ''
+      page.mktSellQtyField.min = lotSize // improves up/down key-press handling, and hover-message
+      page.mktSellQtyField.step = lotSize // improves up/down key-press handling, and hover-message
+      page.mktSellQtyField.value = ''
+
       return true
     }
 
-    Doc.setVis(await showOrderForm(), page.orderForm, page.orderTypeBttns)
+    Doc.setVis(await showOrderForm(), page.orderForm)
 
     if (this.market) {
       const { auth: { effectiveTier, pendingStrength } } = this.market.dex
@@ -782,7 +846,7 @@ export default class MarketsPage extends BasePage {
     }
 
     Doc.setVis(this.mmRunning, page.mmRunning)
-    if (this.mmRunning) Doc.hide(page.orderForm, page.orderTypeBttns)
+    if (this.mmRunning) Doc.hide(page.orderForm)
   }
 
   /* setLoaderMsgVisibility displays a message in case a dex asset is not
@@ -956,9 +1020,7 @@ export default class MarketsPage extends BasePage {
         // wait a couple of seconds before showing the form so the success
         // message is shown to the user
         setTimeout(toggle, 5000)
-        return
       }
-      toggle()
     } else if (market.dex.viewOnly) {
       page.unregisteredDex.textContent = market.dex.host
       showSection(page.notRegistered)
@@ -1029,14 +1091,13 @@ export default class MarketsPage extends BasePage {
     }
 
     // Limit buy
-    const rate = this.adjustedRate()
-    const aLot = mkt.cfg.lotsize * (rate / OrderUtil.RateEncodingFactor)
+    const aLot = mkt.cfg.lotsize * (orderRate / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLot) {
       this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
-    if (mkt.maxBuys[rate]) {
-      const enable = orderQty <= mkt.maxBuys[rate].swap.lots * mkt.cfg.lotsize
+    if (mkt.maxBuys[orderRate]) {
+      const enable = orderQty <= mkt.maxBuys[orderRate].swap.lots * mkt.cfg.lotsize
       this.setOrderBttnEnabled(enable, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
     }
   }
@@ -1064,11 +1125,6 @@ export default class MarketsPage extends BasePage {
       const res = await postJSON('/api/cexbook', { host, baseID, quoteID })
       console.log(res.book)
     }
-
-    // reset form inputs
-    page.lotField.value = ''
-    page.qtyField.value = ''
-    page.rateField.value = ''
 
     // clear orderbook.
     Doc.empty(this.page.buyRows)
@@ -1103,7 +1159,7 @@ export default class MarketsPage extends BasePage {
     const [bui, qui] = [app().unitInfo(baseID, dex), app().unitInfo(quoteID, dex)]
 
     const rateConversionFactor = OrderUtil.RateEncodingFactor / bui.conventional.conversionFactor * qui.conventional.conversionFactor
-    Doc.hide(page.maxOrd, page.chartErrMsg)
+    Doc.hide(page.chartErrMsg)
     if (this.maxEstimateTimer) {
       window.clearTimeout(this.maxEstimateTimer)
       this.maxEstimateTimer = null
@@ -1157,11 +1213,9 @@ export default class MarketsPage extends BasePage {
     this.setLoaderMsgVisibility()
     this.setTokenApprovalVisibility()
     this.setRegistrationStatusVisibility()
-    this.resolveOrderFormVisibility()
+    this.resolveOrderFormVisibility(true)
     this.setOrderBttnText()
-    this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_RATE_ERROR))
     this.setCandleDurBttns()
-    this.previewQuoteAmt(false)
     this.updateTitle()
     this.reputationMeter.setHost(dex.host)
     this.updateReputation()
@@ -1208,15 +1262,23 @@ export default class MarketsPage extends BasePage {
    */
   parseOrder (): TradeForm {
     const page = this.page
-    let qtyField = page.qtyField
     const limit = this.isLimit()
     const sell = this.isSell()
     const market = this.market
+
+    let qtyField = page.qtyField
     let qtyConv = market.baseUnitInfo.conventional.conversionFactor
-    if (!limit && !sell) {
-      qtyField = page.mktBuyField
-      qtyConv = market.quoteUnitInfo.conventional.conversionFactor
+    if (!limit) {
+      if (sell) {
+        // Market Sell order.
+        qtyField = page.mktSellQtyField
+      } else {
+        // Market Buy order.
+        qtyField = page.mktBuyField
+        qtyConv = market.quoteUnitInfo.conventional.conversionFactor
+      }
     }
+
     return {
       host: market.dex.host,
       isLimit: limit,
@@ -1231,45 +1293,77 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * previewQuoteAmt shows quote amount when rate or quantity input are changed
+   * previewTotal calculates and displays Total value (in quote asset) for the order.
+   * It also updates order button state based on the values in the order form.
    */
-  previewQuoteAmt (show: boolean) {
+  previewTotal () {
     const page = this.page
-    if (!this.market.base || !this.market.quote) return // Not a supported asset
-    const order = this.currentOrder = this.parseOrder()
-    const adjusted = this.adjustedRate()
-    page.orderErr.textContent = ''
-    if (adjusted) {
-      if (order.sell) this.preSell()
-      else this.preBuy()
-    }
-    if (!show || !adjusted || !order.qty) {
-      page.orderPreview.textContent = ''
-      return
-    }
-    const { unitInfo: { conventional: { unit } } } = app().assets[order.quote]
-    const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
-    const total = Doc.formatCoinValue(quoteQty, this.market.quoteUnitInfo)
+    const market = this.market
 
-    page.orderPreview.textContent = intl.prep(intl.ID_ORDER_PREVIEW, { total, asset: unit })
-    if (this.isSell()) this.preSell()
-    else this.preBuy()
+    const order = this.currentOrder = this.parseOrder()
+
+    if (order.qty > 0 && order.rate > 0) {
+      const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
+      const total = Doc.formatCoinValue(quoteQty, market.quoteUnitInfo)
+
+      page.orderTotalPreview.textContent = intl.prep(intl.ID_LIMIT_ORDER_TOTAL_PREVIEW, { total, asset: market.quote.symbol.toUpperCase() })
+    }
+
+    this.updateOrderBttnState()
   }
 
   /**
-   * preSell populates the max order message for the largest available sell.
+   * previewMktTotal calculates rough amount of asset received (in conventional units)
+   * when placing market sell order of qty base asset (in conventional units).
    */
-  preSell () {
-    const mkt = this.market
-    const baseWallet = app().assets[mkt.base.id].wallet
-    if (baseWallet.balance.available < mkt.cfg.lotsize) {
-      this.setMaxOrder(null)
-      this.updateOrderBttnState()
+  previewMktSellTotal (qty: number) {
+    const page = this.page
+    const market = this.market
+    const gapAtoms = this.midGapAtoms()
+    if (!gapAtoms) {
+      page.mktSellTotalPreview.textContent = ''
       return
     }
+    const qtyAtoms = convertToAtoms(String(qty), market.quoteUnitInfo.conventional.conversionFactor)
+    const receivedAtoms = qtyAtoms * gapAtoms
+    const received = Doc.formatCoinValue(receivedAtoms, market.quoteUnitInfo)
+    page.mktSellTotalPreview.textContent = intl.prep(intl.ID_MARKET_ORDER_TOTAL_PREVIEW, { total: String(received), asset: market.quote.symbol.toUpperCase() })
+  }
+
+  /**
+   * previewMax populates the max order message for the largest available buy or sell.
+   */
+  previewMax () {
+    if (this.isSell()) {
+      this.previewMaxSell()
+      return
+    }
+    this.previewMaxBuy()
+  }
+
+  /**
+   * previewMaxSell displays max available size for sell order.
+   */
+  previewMaxSell () {
+    const page = this.page
+    const mkt = this.market
+
+    const baseWallet = app().assets[mkt.base.id].wallet
+    if (!baseWallet) {
+      console.warn('max order estimate not available, no base wallet in app assets for:', mkt.base.id)
+      Doc.hidePreservingLayout(page.maxOrd, page.mktSellMaxOrd)
+      return
+    }
+
+    Doc.showPreservingLayout(page.maxOrd, page.mktSellMaxOrd)
+
+    if (baseWallet.balance.available < mkt.cfg.lotsize) {
+      this.setMaxOrder(null)
+      return
+    }
+    // unlike with buy-orders, for sell-orders max doesn't depend on chosen rate
     if (mkt.maxSell) {
       this.setMaxOrder(mkt.maxSell.swap)
-      this.updateOrderBttnState()
       return
     }
 
@@ -1280,38 +1374,73 @@ export default class MarketsPage extends BasePage {
       mkt.maxSellRequested = false
       mkt.maxSell = res.maxSell
       mkt.sellBalance = baseWallet.balance.available
-      this.setMaxOrder(res.maxSell.swap)
-      this.updateOrderBttnState()
+      // Since this executes in callback quite a bit of time could have passed, and the
+      // user might have switched to another form already (from buy to sell order form,
+      // or vise-versa), update max value only if user is on the relevant form.
+      if (this.isSell()) {
+        if (this.maxLoaded) {
+          this.maxLoaded()
+          this.maxLoaded = null
+        }
+        if (this.maxMktSellLoaded) {
+          this.maxMktSellLoaded()
+          this.maxMktSellLoaded = null
+        }
+        this.setMaxOrder(res.maxSell.swap)
+      }
     })
   }
 
   /**
-   * preBuy populates the max order message for the largest available buy.
+   * previewMaxBuy displays max available size for buy order.
    */
-  preBuy () {
+  previewMaxBuy () {
+    const page = this.page
     const mkt = this.market
-    const rate = this.adjustedRate()
+
+    const rate = this.adjustedRateAtoms(this.page.rateField.value)
+    // There is no need to try calculating maxbuy if rate hasn't been set to a
+    // meaningful value.
+    if (isNaN(rate) || rate <= 0) {
+      Doc.hidePreservingLayout(page.maxOrd, page.mktSellMaxOrd)
+      return
+    }
     const quoteWallet = app().assets[mkt.quote.id].wallet
-    if (!quoteWallet) return
+    if (!quoteWallet) {
+      console.warn('max order estimate not available, no quote wallet in app assets for:', mkt.quote.id)
+      Doc.hidePreservingLayout(page.maxOrd, page.mktSellMaxOrd)
+      return
+    }
+
+    Doc.showPreservingLayout(page.maxOrd, page.mktSellMaxOrd)
+
     const aLot = mkt.cfg.lotsize * (rate / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLot) {
       this.setMaxOrder(null)
-      this.updateOrderBttnState()
       return
     }
     if (mkt.maxBuys[rate]) {
       this.setMaxOrder(mkt.maxBuys[rate].swap)
-      this.updateOrderBttnState()
       return
     }
-    // 0 delay for first fetch after balance update or market change, otherwise
-    // meter these at 1 / sec.
-    const delay = Object.keys(mkt.maxBuys).length ? 350 : 0
+    const delay = 0 // can schedule right away, no need to delay it
     this.scheduleMaxEstimate('/api/maxbuy', { rate }, delay, (res: MaxBuy) => {
       mkt.maxBuys[rate] = res.maxBuy
       mkt.buyBalance = app().assets[mkt.quote.id].wallet.balance.available
-      this.setMaxOrder(res.maxBuy.swap)
-      this.updateOrderBttnState()
+      // Since this executes in callback quite a bit of time could have passed, and the
+      // user might have switched to another form already (from buy to sell order form,
+      // or vise-versa), update max value only if user is on the relevant form.
+      if (!this.isSell()) {
+        if (this.maxLoaded) {
+          this.maxLoaded()
+          this.maxLoaded = null
+        }
+        if (this.maxMktSellLoaded) {
+          this.maxMktSellLoaded()
+          this.maxMktSellLoaded = null
+        }
+        this.setMaxOrder(res.maxBuy.swap)
+      }
     })
   }
 
@@ -1322,16 +1451,20 @@ export default class MarketsPage extends BasePage {
    */
   scheduleMaxEstimate (path: string, args: any, delay: number, success: (res: any) => void) {
     const page = this.page
+    this.maxEstimateAvailable = false // invalidates previously-calculated value.
     if (!this.maxLoaded) this.maxLoaded = app().loading(page.maxOrd)
+    if (!this.maxMktSellLoaded) this.maxMktSellLoaded = app().loading(page.mktSellMaxOrd)
     const [bid, qid] = [this.market.base.id, this.market.quote.id]
     const [bWallet, qWallet] = [app().assets[bid].wallet, app().assets[qid].wallet]
     if (!bWallet || !bWallet.running || !qWallet || !qWallet.running) return
     if (this.maxEstimateTimer) window.clearTimeout(this.maxEstimateTimer)
 
-    Doc.show(page.maxOrd, page.maxLotBox)
-    Doc.hide(page.maxAboveZero, page.maxZeroNoFees, page.maxZeroNoBal)
+    Doc.hide(page.maxQtyBox, page.mktSellMaxQtyBox, page.maxZeroNoFees, page.maxZeroNoBal)
+
     page.maxFromLots.textContent = intl.prep(intl.ID_CALCULATING)
     page.maxFromLotsLbl.textContent = ''
+    page.mktSellMaxFromLots.textContent = intl.prep(intl.ID_CALCULATING)
+    page.mktSellMaxFromLotsLbl.textContent = ''
     this.maxOrderUpdateCounter++
     const counter = this.maxOrderUpdateCounter
     this.maxEstimateTimer = window.setTimeout(async () => {
@@ -1345,30 +1478,36 @@ export default class MarketsPage extends BasePage {
       })
       if (counter !== this.maxOrderUpdateCounter) return
       if (!app().checkResponse(res)) {
-        console.warn('max order estimate not available:', res)
+        console.warn('max order estimate not available, dexc response:', res)
         page.maxFromLots.textContent = intl.prep(intl.ID_ESTIMATE_UNAVAILABLE)
+        page.mktSellMaxFromLots.textContent = intl.prep(intl.ID_ESTIMATE_UNAVAILABLE)
         if (this.maxLoaded) {
           this.maxLoaded()
           this.maxLoaded = null
         }
+        if (this.maxMktSellLoaded) {
+          this.maxMktSellLoaded()
+          this.maxMktSellLoaded = null
+        }
         return
       }
       success(res)
+      this.maxEstimateAvailable = true
     }, delay)
   }
 
   /* setMaxOrder sets the max order text. */
   setMaxOrder (maxOrder: SwapEstimate | null) {
     const page = this.page
-    if (this.maxLoaded) {
-      this.maxLoaded()
-      this.maxLoaded = null
-    }
-    Doc.show(page.maxOrd, page.maxLotBox)
     const sell = this.isSell()
 
-    let lots = 0
-    if (maxOrder) lots = maxOrder.lots
+    const lots = maxOrder ? maxOrder.lots : 0
+    if (lots !== 0) {
+      Doc.show(page.maxQtyBox, page.mktSellMaxQtyBox)
+    } else {
+      // Don't display 0 quantity for simplicity.
+      Doc.hide(page.maxQtyBox, page.mktSellMaxQtyBox)
+    }
 
     page.maxFromLots.textContent = lots.toString()
     // XXX add plural into format details, so we don't need this
@@ -1423,23 +1562,60 @@ export default class MarketsPage extends BasePage {
    * true if the order appears valid.
    */
   validateOrder (order: TradeForm) {
-    const { page, market: { cfg: { minimumRate }, rateConversionFactor } } = this
-    if (order.isLimit) {
-      if (!order.rate) {
-        Doc.show(page.orderErr)
-        page.orderErr.textContent = intl.prep(intl.ID_NO_ZERO_RATE)
-        return false
+    const page = this.page
+
+    const showError = function (err: string) {
+      page.orderErr.textContent = intl.prep(err)
+      Doc.show(page.orderErr)
+    }
+
+    if (!order.isLimit) {
+      if (this.isSell()) {
+        // Market Sell order.
+        if (!order.qty) {
+          // Hints to the user what inputs don't pass validation.
+          this.animateErrors(highlightOutlineRed(page.mktSellQtyField))
+          showError(intl.ID_NO_ZERO_QUANTITY)
+          return false
+        }
+        // Skipping max order validation step in case we don't have reasonable value
+        // to compare against. Note, the order still will be re-checked by dexc at
+        // the placement time, so we have this validation here just to provide snappy
+        // feedback for the user.
+        if (this.maxEstimateAvailable && order.qty > this.calcMaxOrderQtyAtoms()) {
+          // Hints to the user what inputs don't pass validation.
+          this.animateErrors(highlightBackgroundRed(page.mktSellMaxOrd), highlightOutlineRed(page.mktSellLotField))
+          showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
+          return false
+        }
+        return true
       }
-      if (order.rate < minimumRate) {
-        Doc.show(page.orderErr)
-        const [r, minRate] = [order.rate / rateConversionFactor, minimumRate / rateConversionFactor]
-        page.orderErr.textContent = `rate is lower than the market's minimum rate. ${r} < ${minRate}`
-        return false
-      }
+
+      // Market Buy order - no validation needed.
+      return true
+    }
+
+    // Dealing with limit order then.
+    if (!order.rate) {
+      // Hints to the user what inputs don't pass validation.
+      this.animateErrors(highlightOutlineRed(page.rateField))
+      showError(intl.ID_NO_ZERO_RATE)
+      return false
     }
     if (!order.qty) {
-      Doc.show(page.orderErr)
-      page.orderErr.textContent = intl.prep(intl.ID_NO_ZERO_QUANTITY)
+      // Hints to the user what inputs don't pass validation.
+      this.animateErrors(highlightOutlineRed(page.qtyField))
+      showError(intl.ID_NO_ZERO_QUANTITY)
+      return false
+    }
+    // Skipping max order validation step in case we don't have reasonable value
+    // to compare against. Note, the order still will be re-checked by dexc at
+    // the placement time, so we have this validation here just to provide snappy
+    // feedback for the user.
+    if (this.maxEstimateAvailable && order.qty > this.calcMaxOrderQtyAtoms()) {
+      // Hints to the user what inputs don't pass validation.
+      this.animateErrors(highlightBackgroundRed(page.maxOrd), highlightOutlineRed(page.lotField))
+      showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
     return true
@@ -1469,7 +1645,7 @@ export default class MarketsPage extends BasePage {
    * quantity from base to quote or vice-versa, or for display purposes.
    */
   midGapConventional () {
-    const gap = this.midGap()
+    const gap = this.midGapAtoms()
     if (!gap) return gap
     const { baseUnitInfo: b, quoteUnitInfo: q } = this.market
     return gap * b.conventional.conversionFactor / q.conventional.conversionFactor
@@ -1483,7 +1659,7 @@ export default class MarketsPage extends BasePage {
    * conventional rate for display or to convert conventional units, use
    * midGapConventional
    */
-  midGap () {
+  midGapAtoms () {
     const book = this.book
     if (!book) return
     if (book.buys && book.buys.length) {
@@ -1503,13 +1679,12 @@ export default class MarketsPage extends BasePage {
    * market.
    */
   setMarketBuyOrderEstimate () {
-    const market = this.market
-    const lotSize = market.cfg.lotsize
-    const xc = app().user.exchanges[market.dex.host]
-    const buffer = xc.markets[market.sid].buybuffer
+    const { page, market: { sid, baseUnitInfo: bui, cfg: { lotsize: lotSize }, dex: { host } } } = this
+    const xc = app().user.exchanges[host]
+    const buffer = xc.markets[sid].buybuffer
     const gap = this.midGapConventional()
     if (gap) {
-      this.page.minMktBuy.textContent = Doc.formatCoinValue(lotSize * buffer * gap, market.baseUnitInfo)
+      page.minMktBuy.textContent = Doc.formatCoinValue(lotSize * buffer * gap, bui)
     }
   }
 
@@ -1939,7 +2114,7 @@ export default class MarketsPage extends BasePage {
       page.vmFromAsset.textContent = fromAsset.symbol.toUpperCase()
       // Format fromAsset fiat value.
       this.showFiatValue(fromAsset.id, order.qty, page.vmFromTotalFiat)
-      const gap = this.midGap()
+      const gap = this.midGapAtoms()
       if (gap) {
         Doc.show(page.vMarketEstimate)
         const received = order.sell ? order.qty * gap : order.qty / gap
@@ -2182,7 +2357,7 @@ export default class MarketsPage extends BasePage {
     page.vSwapFeesMax.textContent = Doc.formatCoinValue(swap.estimate.maxFees, fromFeeAssetUI)
 
     // Set redemption fee estimates in the details pane.
-    const midGap = this.midGap()
+    const midGap = this.midGapAtoms()
     const estRate = midGap || order.rate / rateConversionFactor
     const received = order.sell ? swapped * estRate : swapped / estRate
     const receivedInParentUnits = toExchangeRate > 0 ? received / toExchangeRate : received
@@ -2275,18 +2450,32 @@ export default class MarketsPage extends BasePage {
   stepSubmit () {
     const page = this.page
     const market = this.market
+
     Doc.hide(page.orderErr)
-    if (!this.validateOrder(this.parseOrder())) return
+
+    const showError = function (err: string, args?: Record<string, string>) {
+      page.orderErr.textContent = intl.prep(err, args)
+      Doc.show(page.orderErr)
+    }
+
+    // imitate order button click
+    this.setOrderBttnEnabled(false)
+    setTimeout(() => {
+      this.updateOrderBttnState()
+    }, 300) // 300ms seems fluent
+
+    const valid = this.validateOrder(this.parseOrder())
+    if (!valid) {
+      return
+    }
     const baseWallet = app().walletMap[market.base.id]
     const quoteWallet = app().walletMap[market.quote.id]
     if (!baseWallet) {
-      page.orderErr.textContent = intl.prep(intl.ID_NO_ASSET_WALLET, { asset: market.base.symbol })
-      Doc.show(page.orderErr)
+      showError(intl.ID_NO_ASSET_WALLET, { asset: market.base.symbol })
       return
     }
     if (!quoteWallet) {
-      page.orderErr.textContent = intl.prep(intl.ID_NO_ASSET_WALLET, { asset: market.quote.symbol })
-      Doc.show(page.orderErr)
+      showError(intl.ID_NO_ASSET_WALLET, { asset: market.quote.symbol })
       return
     }
     this.showVerify()
@@ -2373,7 +2562,7 @@ export default class MarketsPage extends BasePage {
   anyRate (): [number, number, number] {
     const { cfg: { spot }, baseCfg: { id: baseID }, quoteCfg: { id: quoteID }, rateConversionFactor, bookLoaded } = this.market
     if (bookLoaded) {
-      const midGap = this.midGap()
+      const midGap = this.midGapAtoms()
       if (midGap) return [midGap * OrderUtil.RateEncodingFactor, midGap, this.midGapConventional() || 0]
     }
     if (spot && spot.rate) return [spot.rate, spot.rate / OrderUtil.RateEncodingFactor, spot.rate / rateConversionFactor]
@@ -2529,12 +2718,12 @@ export default class MarketsPage extends BasePage {
         // If we're not showing the max order panel yet, don't do anything.
         if (!mkt.maxSell) break
         if (typeof mkt.sellBalance === 'number' && mkt.sellBalance !== avail) mkt.maxSell = null
-        if (this.isSell()) this.preSell()
+        if (this.isSell()) this.previewMaxSell()
         break
       case mkt.quoteCfg.id:
         if (!Object.keys(mkt.maxBuys).length) break
         if (typeof mkt.buyBalance === 'number' && mkt.buyBalance !== avail) mkt.maxBuys = {}
-        if (!this.isSell()) this.preBuy()
+        if (!this.isSell()) this.previewMaxBuy()
     }
   }
 
@@ -2544,17 +2733,18 @@ export default class MarketsPage extends BasePage {
    */
   async submitOrder () {
     const page = this.page
-    Doc.hide(page.orderErr, page.vErr)
+    Doc.hide(page.vErr)
     const order = this.currentOrder
     const req = { order: wireOrder(order) }
     if (!this.validateOrder(order)) return
     // Show loader and hide submit button.
     page.vSubmit.classList.add('d-hide')
     page.vLoader.classList.remove('d-hide')
+    Doc.hide(page.vSubmit)
+    Doc.show(page.vLoader)
     const res = await postJSON('/api/tradeasync', req)
-    // Hide loader and show submit button.
-    page.vSubmit.classList.remove('d-hide')
-    page.vLoader.classList.add('d-hide')
+    Doc.hide(page.vLoader)
+    Doc.show(page.vSubmit)
     // If error, display error on confirmation modal.
     if (!app().checkResponse(res)) {
       page.vErr.textContent = res.msg
@@ -2584,69 +2774,261 @@ export default class MarketsPage extends BasePage {
     this.resolveOrderFormVisibility()
   }
 
-  /* lotChanged is attached to the keyup and change events of the lots input. */
-  lotChanged () {
+  lotFieldInputHandler () {
     const page = this.page
-    const lots = parseInt(page.lotField.value || '0')
-    if (lots <= 0) {
-      page.lotField.value = page.lotField.value === '' ? '' : '0'
+
+    const [inputValid,,, adjQty] = this.parseLotInput(page.lotField.value)
+    if (!inputValid) {
+      page.orderTotalPreview.textContent = ''
+      page.lotField.value = ''
       page.qtyField.value = ''
-      this.previewQuoteAmt(false)
-      this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
       return
     }
-    const lotSize = this.market.cfg.lotsize
-    const orderQty = lots * lotSize
-    page.lotField.value = String(lots)
-    // Conversion factor must be a multiple of 10.
-    page.qtyField.value = String(orderQty / this.market.baseUnitInfo.conventional.conversionFactor)
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.qtyField.value = String(adjQty)
 
-    if (!this.isLimit() && this.isSell()) {
-      const baseWallet = app().assets[this.market.base.id].wallet
-      this.setOrderBttnEnabled(orderQty <= baseWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+    this.previewTotal()
+  }
+
+  lotFieldChangeHandler () {
+    const page = this.page
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseLotInput(page.lotField.value)
+    if (!inputValid || adjusted) {
+      // Disable submit button temporarily (that additionally draws his
+      // attention to order-form) to prevent user clicking on it while input
+      // auto-adjusting is in progress. Otherwise, he might not notice the rounding.
+      this.setOrderBttnEnabled(false)
+      // Let the user know that lot value he's entered was rounded down to the
+      // nearest integer number.
+      this.animateErrors(highlightOutlineRed(page.lotField), highlightBackgroundRed(page.lotSizeBox))
     }
-    this.previewQuoteAmt(true)
+    if (!inputValid) {
+      page.orderTotalPreview.textContent = ''
+      page.lotField.value = ''
+      page.qtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.lotField.value = String(adjLots)
+    page.qtyField.value = String(adjQty)
+
+    this.previewTotal()
+  }
+
+  mktSellLotFieldInputHandler () {
+    const page = this.page
+
+    const [inputValid,,, adjQty] = this.parseLotInput(page.mktSellLotField.value)
+    if (!inputValid) {
+      page.mktSellTotalPreview.textContent = ''
+      page.mktSellLotField.value = ''
+      page.mktSellQtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.mktSellQtyField.value = String(adjQty)
+
+    this.previewMktSellTotal(adjQty)
+  }
+
+  mktSellLotFieldChangeHandler () {
+    const page = this.page
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseLotInput(page.mktSellLotField.value)
+    if (!inputValid || adjusted) {
+      // Disable submit button temporarily (that additionally draws his
+      // attention to order-form) to prevent user clicking on it while input
+      // auto-adjusting is in progress. Otherwise, he might not notice the rounding.
+      this.setOrderBttnEnabled(false)
+      // Let the user know that lot value he's entered was rounded down to the
+      // nearest integer number.
+      this.animateErrors(highlightOutlineRed(page.mktSellLotField), highlightBackgroundRed(page.mktSellLotSizeBox))
+    }
+    if (!inputValid) {
+      page.mktSellTotalPreview.textContent = ''
+      page.mktSellLotField.value = ''
+      page.mktSellQtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.mktSellLotField.value = String(adjLots)
+    page.mktSellQtyField.value = String(adjQty)
+
+    this.previewMktSellTotal(adjQty)
+  }
+
+  /**
+   * parseLotInput parses lot input and returns:
+   * 1) whether there are any parsing issues (true if none, false when
+   *    parsing fails)
+   * 2) whether rounding(adjustment) had happened (true when did)
+   * 3) adjusted lot value
+   * 4) adjusted quantity value
+   *
+   * If lot value couldn't be parsed (parsing issues), the following
+   * values are returned: [false, false, 0, 0].
+   */
+  parseLotInput (value: string | undefined): [boolean, boolean, number, number] {
+    const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSize } } } = this
+
+    Doc.hide(page.orderErr)
+
+    const lotsAdj = parseInt(value || '')
+    if (isNaN(lotsAdj) || lotsAdj < 0) {
+      return [false, false, 0, 0]
+    }
+
+    const rounded = String(lotsAdj) !== value
+    const adjQty = lotsAdj * lotSize / bui.conventional.conversionFactor
+
+    return [true, rounded, lotsAdj, adjQty]
+  }
+
+  qtyFieldInputHandler () {
+    const page = this.page
+
+    // TODO
+    console.log('qtyFieldInputHandler')
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid,, adjLots] = this.parseQtyInput(page.qtyField.value)
+    if (!inputValid) {
+      page.orderTotalPreview.textContent = ''
+      page.lotField.value = ''
+      page.qtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.lotField.value = String(adjLots)
+
+    this.previewTotal()
+  }
+
+  qtyFieldChangeHandler () {
+    const page = this.page
+
+    // TODO
+    console.log('qtyFieldChangeHandler')
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(page.qtyField.value)
+    if (!inputValid || adjusted) {
+      // Disable submit button temporarily (that additionally draws his
+      // attention to order-form) to prevent user clicking on it while input
+      // auto-adjusting is in progress. Otherwise, he might not notice the rounding.
+      this.setOrderBttnEnabled(false)
+      // Let the user know that quantity he's entered was rounded down.
+      this.animateErrors(highlightOutlineRed(page.qtyField), highlightBackgroundRed(page.lotSizeBox))
+    }
+    if (!inputValid) {
+      page.orderTotalPreview.textContent = ''
+      page.lotField.value = ''
+      page.qtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.lotField.value = String(adjLots)
+    page.qtyField.value = String(adjQty)
+
+    this.previewTotal()
+  }
+
+  mktSellQtyFieldInputHandler () {
+    const page = this.page
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid,, adjLots, adjQty] = this.parseQtyInput(page.mktSellQtyField.value)
+    if (!inputValid) {
+      page.mktSellTotalPreview.textContent = ''
+      page.mktSellLotField.value = ''
+      page.mktSellQtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.mktSellLotField.value = String(adjLots)
+
+    this.previewMktSellTotal(adjQty)
+  }
+
+  mktSellQtyFieldChangeHandler () {
+    const page = this.page
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(page.mktSellQtyField.value)
+    if (!inputValid || adjusted) {
+      // Disable submit button temporarily (that additionally draws his
+      // attention to order-form) to prevent user clicking on it while input
+      // auto-adjusting is in progress. Otherwise, he might not notice the rounding.
+      this.setOrderBttnEnabled(false)
+      // Let the user know that quantity he's entered was rounded down.
+      this.animateErrors(highlightOutlineRed(page.mktSellQtyField), highlightBackgroundRed(page.mktSellLotSizeBox))
+    }
+    if (!inputValid) {
+      page.mktSellTotalPreview.textContent = ''
+      page.mktSellLotField.value = ''
+      page.mktSellQtyField.value = ''
+      return
+    }
+    // Lots and quantity fields are tightly coupled to each other, when one is
+    // changed, we need to update the other one as well.
+    page.mktSellLotField.value = String(adjLots)
+    page.mktSellQtyField.value = String(adjQty)
+
+    this.previewMktSellTotal(adjQty)
+  }
+
+  /**
+   * parseQtyInput parses quantity input and returns:
+   * 1) whether there are any parsing issues (true if none, false when
+   *    parsing fails)
+   * 2) whether rounding(adjustment) had happened (true when did)
+   * 3) adjusted lot value
+   * 4) adjusted quantity value
+   *
+   * If quantity value couldn't be parsed (parsing issues), the following
+   * values are returned: [false, false, 0, 0].
+   */
+  parseQtyInput (value: string | undefined): [boolean, boolean, number, number] {
+    const { market: { baseUnitInfo: bui, cfg: { lotsize: lotSizeAtom } } } = this
+
+    const qtyRawAtom = convertToAtoms(value || '', bui.conventional.conversionFactor)
+    if (isNaN(qtyRawAtom) || qtyRawAtom < 0) {
+      return [false, false, 0, 0]
+    }
+
+    const lotsRaw = qtyRawAtom / lotSizeAtom
+    const adjLots = Math.floor(lotsRaw)
+    const adjQtyAtom = adjLots * lotSizeAtom
+    const rounded = adjQtyAtom !== qtyRawAtom
+    const adjQty = adjQtyAtom / bui.conventional.conversionFactor
+
+    return [true, rounded, adjLots, adjQty]
   }
 
   /*
-   * quantityChanged is attached to the keyup and change events of the quantity
-   * input.
+   * mktBuyFieldHandler is attached to the change events of the quantity input
+   * for the market-buy form.
    */
-  quantityChanged (finalize: boolean) {
-    const page = this.page
-    const order = this.currentOrder = this.parseOrder()
-    if (order.qty < 0) {
-      page.lotField.value = '0'
-      page.qtyField.value = ''
-      this.previewQuoteAmt(false)
-      return
-    }
-    const lotSize = this.market.cfg.lotsize
-    const lots = Math.floor(order.qty / lotSize)
-    const adjusted = order.qty = this.currentOrder.qty = lots * lotSize
-    page.lotField.value = String(lots)
-
-    if (!order.isLimit && !order.sell) return
-
-    // Conversion factor must be a multiple of 10.
-    if (finalize) page.qtyField.value = String(adjusted / this.market.baseUnitInfo.conventional.conversionFactor)
-    this.previewQuoteAmt(true)
-  }
-
-  /*
-   * marketBuyChanged is attached to the keyup and change events of the quantity
-   * input for the market-buy form.
-   */
-  marketBuyChanged () {
+  mktBuyFieldHandler () {
     const page = this.page
     const qty = convertToAtoms(page.mktBuyField.value || '', this.market.quoteUnitInfo.conventional.conversionFactor)
-    const gap = this.midGap()
-    if (qty > 0) {
-      const quoteWallet = app().assets[this.market.quote.id].wallet
-      this.setOrderBttnEnabled(qty <= quoteWallet.balance.available, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
-    } else {
-      this.setOrderBttnEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
-    }
+    const gap = this.midGapAtoms()
     if (!gap || !qty) {
       page.mktBuyLots.textContent = '0'
       page.mktBuyScore.textContent = '0'
@@ -2659,35 +3041,88 @@ export default class MarketsPage extends BasePage {
     page.mktBuyScore.textContent = Doc.formatCoinValue(received, this.market.baseUnitInfo)
   }
 
-  /*
-   * rateFieldChanged is attached to the keyup and change events of the rate
-   * input.
-   */
-  rateFieldChanged () {
-    // Truncate to rate step. If it is a market buy order, do not adjust.
-    const adjusted = this.adjustedRate()
-    if (adjusted <= 0) {
-      this.depthLines.input = []
-      this.page.rateField.value = '0'
-      this.previewQuoteAmt(true)
-      this.updateOrderBttnState()
+  rateFieldInputHandler () {
+    const page = this.page
+
+    // TODO
+    console.log('rateFieldInputHandler')
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid] = this.parseRateInput(this.page.rateField.value)
+    if (!inputValid) {
+      page.orderTotalPreview.textContent = ''
+      this.previewMax() // will hide max buy/sell view
       return
     }
-    this.currentOrder = this.parseOrder()
-    const r = adjusted / this.market.rateConversionFactor
-    this.page.rateField.value = String(r)
-    this.previewQuoteAmt(true)
-    this.updateOrderBttnState()
+
+    this.previewMax()
+    this.previewTotal()
+  }
+
+  rateFieldChangeHandler () {
+    const page = this.page
+
+    // TODO
+    console.log('rateFieldChangeHandler')
+
+    Doc.hide(page.orderErr)
+
+    const [inputValid, adjusted, adjRate] = this.parseRateInput(this.page.rateField.value)
+    if (!inputValid || adjusted) {
+      // Disable submit button temporarily (that additionally draws his
+      // attention to order-form) to prevent user clicking on it while input
+      // auto-adjusting is in progress. Otherwise, he might not notice the rounding.
+      this.setOrderBttnEnabled(false)
+      // Let the user know that rate he's entered is invalid or was rounded down.
+      this.animateErrors(highlightOutlineRed(page.rateField), highlightBackgroundRed(page.rateStepBox))
+    }
+    if (!inputValid) {
+      page.rateField.value = ''
+      page.orderTotalPreview.textContent = ''
+      this.previewMax() // will hide max buy/sell view
+      return
+    }
+    page.rateField.value = String(adjRate)
+
+    this.previewMax()
+    this.previewTotal()
+  }
+
+  /**
+   * parseRateInput parses rate(price) string (in conventional units) and returns:
+   * 1) whether there are any parsing issues (true if none, false when
+   *    parsing fails)
+   * 2) whether rounding(adjustment) to rate-step had happened (true when did)
+   * 3) adjusted rate(price) value
+   *
+   * If rate(price) couldn't be parsed (parsing issues), default rate(price)
+   * value (current market price) is returned.
+   */
+  parseRateInput (rateStr: string | undefined): [boolean, boolean, number] {
+    const rawRateAtom = this.rateAtoms(rateStr)
+    const adjRateAtom = this.adjustedRateAtoms(rateStr)
+    const rateParsingIssue = isNaN(rawRateAtom) || rawRateAtom <= 0
+    const rounded = adjRateAtom !== rawRateAtom
+    const adjRate = adjRateAtom / this.market.rateConversionFactor
+
+    return [!rateParsingIssue, rounded, adjRate]
   }
 
   /*
-   * adjustedRate is the current rate field rate, rounded down to a
-   * multiple of rateStep.
+   * rateAtoms is the current rate field value in atoms.
    */
-  adjustedRate (): number {
-    const v = this.page.rateField.value
-    if (!v) return NaN
-    const rate = convertToAtoms(v, this.market.rateConversionFactor)
+  rateAtoms (rateStr: string | undefined): number {
+    if (!rateStr) return NaN
+    return convertToAtoms(rateStr, this.market.rateConversionFactor)
+  }
+
+  /*
+   * adjustedRateAtoms is the current rate field value in atoms, rounded down
+   * to a multiple of rateStep.
+   */
+  adjustedRateAtoms (rateStr: string | undefined): number {
+    const rate = this.rateAtoms(rateStr)
     const rateStep = this.market.cfg.ratestep
     return rate - (rate % rateStep)
   }
@@ -2905,6 +3340,19 @@ export default class MarketsPage extends BasePage {
     this.candleChart.unattach()
     Doc.unbind(document, 'keyup', this.keyup)
     clearInterval(this.secondTicker)
+  }
+
+  animateErrors (...animations: (() => Animation)[]) {
+    for (const ani of this.runningErrAnimations) {
+      // Note, animation might still continue executing in background for 1 tick,
+      // that shouldn't result in any issues for us though.
+      ani.stop()
+    }
+
+    this.runningErrAnimations = []
+    for (const ani of animations) {
+      this.runningErrAnimations.push(ani())
+    }
   }
 }
 
@@ -3462,4 +3910,47 @@ function hostColor (host: string): string {
   const hosts = Object.keys(app().exchanges)
   hosts.sort()
   return generateHue(hosts.indexOf(host))
+}
+
+/**
+ * highlightBackgroundRed returns Animation-factory that will construct Animation that will
+ * change element background color to red and back in a smooth transition.
+ * Note: Animation will start when constructed by "new" ^ right away - that's why
+ * we return constructor-func here (aka factory), instead of constructing Animation
+ * right away.
+ */
+function highlightBackgroundRed (element: PageElement): () => Animation {
+  const [r, g, b, a] = State.isDark() ? [203, 94, 94, 0.8] : [153, 48, 43, 0.6]
+  return (): Animation => {
+    return new Animation(animationLength, (progress: number) => {
+      element.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
+    },
+    'easeIn',
+    () => {
+      // Setting background color to 'none' SOMETIMES results in a no-op for some reason, wat.
+      // Hence, setting to 'transparent' instead.
+      element.style.backgroundColor = 'transparent'
+    })
+  }
+}
+
+/**
+ * highlightOutlineRed returns Animation-factory that will construct Animation that will
+ * change element outline color to red and back in a smooth transition.
+ * Note: Animation will start when constructed by "new" ^ right away - that's why
+ * we return constructor-func here (aka factory), instead of constructing Animation
+ * right away.
+ */
+function highlightOutlineRed (element: PageElement): () => Animation {
+  const [r, g, b, a] = State.isDark() ? [203, 94, 94, 0.8] : [153, 48, 43, 0.8]
+  return (): Animation => {
+    element.style.outline = '2px solid'
+    return new Animation(animationLength, (progress: number) => {
+      element.style.outlineColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
+    },
+    'easeIn',
+    () => {
+      element.style.outlineColor = 'transparent'
+    })
+  }
 }
