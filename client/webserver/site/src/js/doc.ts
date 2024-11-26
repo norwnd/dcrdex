@@ -257,6 +257,22 @@ export default class Doc {
   }
 
   /*
+   * hidePreservingLayout hides the specified elements without affecting page layout
+   * (like Doc.hide can). Use Doc.showPreservingLayout to undo.
+   */
+  static hidePreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'hidden'
+  }
+
+  /*
+   * showPreservingLayout shows the specified elements, undoing changes by made with
+   * Doc.hidePreservingLayout.
+   */
+  static showPreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'visible'
+  }
+
+  /*
    * show or hide the specified elements, based on value of the truthiness of
    * vis.
    */
@@ -609,19 +625,6 @@ export default class Doc {
     return result || '0 s'
   }
 
-  /*
-   * disableMouseWheel can be used to disable the mouse wheel for any
-   * input. It is very easy to unknowingly scroll up on a number input
-   * and then submit an unexpected value. This function prevents the
-   * scroll increment/decrement behavior for a wheel action on a
-   * number input.
-   */
-  static disableMouseWheel (...inputFields: Element[]) {
-    for (const inputField of inputFields) {
-      Doc.bind(inputField, 'wheel', () => { /* pass */ }, { passive: true })
-    }
-  }
-
   // showFormError can be used to set and display error message on forms.
   static showFormError (el: PageElement, msg: any) {
     el.textContent = msg
@@ -671,7 +674,7 @@ export class Animation {
       now = new Date().getTime()
     }
     f(1)
-    this.runCompletionFunction()
+    return this.runCompletionFunction()
   }
 
   /* wait returns a promise that will resolve when the animation completes. */
