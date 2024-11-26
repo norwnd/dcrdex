@@ -6188,7 +6188,7 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 	// on Bison market (10% seems like a worrisome divergence we don't want to permit)
 	bisonRate, err := dc.midGapMkt(market)
 	if err != nil {
-		return newError(walletErr, fmt.Sprintf("couldn't fetch mid-gap rate: %v", err))
+		return newError(walletErr, fmt.Sprintf("couldn't fetch mid-gap rate for %s market: %v", market, err))
 	}
 	// Note, we can't use "spot price" here because its value reflects the price of last
 	// trade which might have happened hours/days ago - and hence is too stale to rely on.
@@ -6197,9 +6197,9 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 		return newError(walletErr, fmt.Sprintf("couldn't determine Bison rate "+
 			"for market: %s", market))
 	}
-	if math.Abs(float64(rate)-float64(bisonRate)) > (0.10 * float64(bisonRate)) {
+	if math.Abs(float64(rate)-float64(bisonRate)) > (0.15 * float64(bisonRate)) {
 		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
-			"that's diverging from Bison rate %d for more than 10 percent", rate, bisonRate))
+			"that's diverging from Bison rate %d for more than 15 percent", rate, bisonRate))
 	}
 
 	// additionally, prevent placing limit-orders that might result into slippage of 1% or more
@@ -6211,7 +6211,7 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 	} else {
 		if float64(rate) > (float64(bisonRate) + 0.01*float64(bisonRate)) {
 			return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
-				"that'd result into slippage of more than 1 percent (due to Bison rate = %d)", rate, bisonRate))
+				"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
 		}
 	}
 

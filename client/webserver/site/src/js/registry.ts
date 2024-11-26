@@ -716,7 +716,6 @@ export interface MiniOrder {
   msgRate: number
   epoch: number
   sell: boolean
-  token: string
 }
 
 export interface CoreOrderBook {
@@ -733,7 +732,7 @@ export interface MarketOrderBook {
 }
 
 export interface RemainderUpdate {
-  token: string
+  id: string
   qty: number
   qtyAtomic: number
 }
