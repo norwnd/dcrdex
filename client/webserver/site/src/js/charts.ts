@@ -49,13 +49,6 @@ export interface VolumeReport {
   sellQuote: number
 }
 
-export interface DepthReporters {
-  mouse: (r: MouseReport | null) => void
-  click: (x: number) => void
-  volume: (r: VolumeReport) => void
-  zoom: (z: number) => void
-}
-
 export interface CandleReporters {
   mouse: (r: Candle | null) => void
 }
@@ -66,15 +59,6 @@ export interface ChartReporters {
   zoom: (bigger: boolean) => void
 }
 
-export interface DepthLine {
-  rate: number
-  color: string
-}
-
-export interface DepthMarker {
-  rate: number
-  active: boolean
-}
 interface Theme {
   body: string
   axisLabel: string
