@@ -36,15 +36,12 @@ div[data-handler=markets] {
   .order-panel {
     min-width: 375px;
 
-    #orderForm {
+    #orderFormBuy,
+    #orderFormSell {
       input[type=number] {
         height: 30px;
         border-radius: 0;
         font-size: 14px;
-      }
-
-      input:focus {
-        outline: none;
       }
 
       span.unitbox {
@@ -89,7 +86,8 @@ div[data-handler=markets] {
         }
       }
 
-      #orderPreview,
+      #orderTotalPreviewBuy,
+      #orderTotalPreviewSell,
       .h21 {
         height: 21px;
       }
