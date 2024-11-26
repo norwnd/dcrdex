@@ -6154,6 +6154,27 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 		return newError(orderParamsErr, "zero rate is invalid")
 	}
 
+	// to prevent accidental placement of orders with unreasonable rates we'll
+	// limit ourselves to only those orders that aren't immediately matched
+	// (for now)
+	book := dc.bookie(market)
+	bisonOrders, found, err := book.BestNOrders(1, false)
+	if err != nil {
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best buy order in Bison book: %v", err))
+	}
+	if sell && found && rate <= bisonOrders[0].Rate {
+		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+			"that would immediately match a buy order in Bison book", rate))
+	}
+	bisonOrders, found, err = book.BestNOrders(1, true)
+	if err != nil {
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best sell order in Bison book: %v", err))
+	}
+	if !sell && found && rate >= bisonOrders[0].Rate {
+		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+			"that would immediately match a sell order in Bison book", rate))
+	}
+
 	// sanity check we are placing a trade that doesn't significantly diverge from the price
 	// on Bison market (10% seems like a worrisome divergence we don't want to permit)
 	bisonRate, err := dc.midGapMkt(market)
@@ -6190,6 +6211,10 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 
 // prepareTradeRequest prepares a trade request.
 func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, error) {
+	if !form.IsLimit {
+		return nil, newError(orderParamsErr, "market orders are disabled (for safety reasons)")
+	}
+
 	wallets, assetConfigs, dc, mktConf, err := c.prepareForTradeRequestPrep(pw, form.Base, form.Quote, form.Host, form.Sell)
 	if err != nil {
 		return nil, err

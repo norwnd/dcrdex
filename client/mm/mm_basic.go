@@ -351,6 +351,15 @@ func (m *basicMarketMaker) orderPrice(basisPrice, bestPrice, feeAdj uint64, sell
 }
 
 func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacement, err error) {
+	m.log.Tracef("mm bot (basic) is starting to calculate placements")
+	defer func() {
+		m.log.Tracef(
+			"mm bot (basic) is done calculating placements, buyOrdersCnt = %d, sellOrdersCnt = %d",
+			len(buyOrders),
+			len(sellOrders),
+		)
+	}()
+
 	basisPrice, err := m.calculator.basisPrice()
 	if err != nil {
 		return nil, nil, err
@@ -414,14 +423,9 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		feeAdj = feeGap.FeeGap / 2
 	}
 
-	//if m.log.Level() == dex.LevelTrace {
-	//	m.log.Tracef("ordersToPlace %s, basis price = %s, break-even fee adjustment = %s",
-	//		m.name, m.fmtRate(basisPrice), m.fmtRate(feeAdj))
-	//}
-
 	orders := func(orderPlacements []*OrderPlacement, sell bool) []*TradePlacement {
 		placements := make([]*TradePlacement, 0, len(orderPlacements))
-		for i, p := range orderPlacements {
+		for _, p := range orderPlacements {
 			bestPrice := bestBuy
 			if sell {
 				bestPrice = bestSell
@@ -451,11 +455,6 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 					m.startPrice,
 					diffPercent,
 				)
-			}
-
-			if m.log.Level() == dex.LevelTrace {
-				m.log.Tracef("ordersToPlace.orders: %s placement # %d, gap factor = %f, rate = %s, %+v",
-					sellStr(sell), i, p.GapFactor, m.fmtRate(rate), rate)
 			}
 
 			lots := p.Lots
@@ -490,7 +489,7 @@ func (m *basicMarketMaker) rebalance(newEpoch uint64) {
 
 	// simple work-around for not competing with my own (bot's) orders in Bison book,
 	// every 4th epoch (happens every 60s) we simply revoke our orders so that we can
-	// re-book these with correct price (presumably on that very same epoch).
+	// re-book these with correct price (presumably on that very same epoch)
 	if newEpoch%4 == 0 {
 		m.tryCancelOrders(m.ctx, &newEpoch, false)
 	}
@@ -543,15 +542,13 @@ func (m *basicMarketMaker) botLoop(ctx context.Context) (*sync.WaitGroup, error)
 		for {
 			select {
 			case ni := <-bookFeed.Next():
-				if m.log.Level() == dex.LevelTrace {
-					m.log.Tracef(
-						"MM bot %s got book feed update, action: %s, market: %s, host: %s",
-						m.botID,
-						ni.Action,
-						ni.MarketID,
-						ni.Host,
-					)
-				}
+				m.log.Tracef(
+					"MM bot %s got book feed update, action: %s, market: %s, host: %s",
+					m.botID,
+					ni.Action,
+					ni.MarketID,
+					ni.Host,
+				)
 				switch epoch := ni.Payload.(type) {
 				case *core.ResolvedEpoch:
 					m.rebalance(epoch.Current)
