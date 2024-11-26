@@ -618,6 +618,8 @@ export interface PageElement extends HTMLElement {
   options?: HTMLOptionElement[]
   selectedIndex?: number
   disabled?: boolean
+  min?: string
+  step?: string
 }
 
 export interface BooleanConfig {
@@ -694,8 +696,8 @@ export interface TradeForm {
   sell: boolean
   base: number
   quote: number
-  qty: number
-  rate: number
+  qty: number // in atoms
+  rate: number // in atoms
   tifnow: boolean
   options: Record<string, any>
 }

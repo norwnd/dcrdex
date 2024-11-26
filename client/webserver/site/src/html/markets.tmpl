@@ -189,7 +189,7 @@
               </div>
 
               {{- /* ORDER TYPE BUTTONS */ -}}
-              <div id="orderTypeBttns" class="fs14 d-hide d-flex justify-content-start align-items-stretch d-hide min-fit">
+              <div id="orderTypeBttns" class="fs14 d-hide d-flex justify-content-start align-items-stretch min-fit">
                 <button id="limitBttn" type="button" class="flex-center px-3 py-0 markettab border-bottom selected">[[[Limit Order]]]</button>
                 <button id="marketBttn" type="button" class="flex-center px-3 py-0 markettab border-bottom border-start border-end">[[[Market Order]]]</button>
               </div>
@@ -248,167 +248,170 @@
                 <span class="fs14 grey mt-2 p-2 border-top">[[[cannot_manually_trade]]]</span>
               </div>
 
-              {{- /* ORDER FORM */ -}}
-              <div id="orderForm" class="p-3 d-hide">
+              {{- /* BUY ORDER FORM */ -}}
+              <div id="orderFormBuy" class="p-3 d-hide">
                 <div class="p-0 w-100">
-
-                  {{- /* BUY - SELL SELECTOR */ -}}
-                  <div class="d-flex justify-content-start pb-2 fs14">
-                    <button id="buyBttn" type="button" class="buygreen-bg selected">
-                      [[[Buy]]]
-                      <span data-base-ticker></span>
-                    </button>
-                    <button id="sellBttn" type="button" class="sellred-bg ms-2">
-                      [[[Sell]]]
-                      <span data-base-ticker></span>
-                    </button>
-                    <span></span>
-                  </div>
-
-                  {{- /* MARKET CONFIG */ -}}
-                  <div class="d-flex justify-content-between my-2 fs14">
-                    <div>
-                      [[[:title:lot_size]]]:
-                      <span id="lotSize"></span>
-                      <span data-base-ticker></span>
-                    </div>
-                    <div>
-                      [[[Rate Step]]]:
-                      <span id="rateStep"></span>
-                      <span data-quote-ticker></span>
-                    </div>
-                  </div>
-                  <div class="my-2 fs14 h21" id="maxBox">
-                    <div id="maxOrd" class="d-hide position-relative pointer">
-                      <span id="maxLotBox" class="d-hide">
-                        <span class="underline">[[[Max]]] <span id="maxLbl">[[[Buy]]]</span></span>:
-                        <span id="maxFromLots"></span>
-                        <span id="maxFromLotsLbl">[[[lot]]]</span>
-                      </span>
-                      <span id="maxAboveZero" class="d-hide">
-                        ,
-                        <span id="maxFromAmt"></span>
-                        <span id="maxFromTicker"></span>
-                        <!-- &rarr;
-                        <span id="maxToAmt"></span>
-                        <span id="maxToTicker"></span> -->
-                      </span>
-                      <span id="maxZeroNoFees">
-                        , [[[max_zero_no_fees]]]
-                      </span>
-                      <span id="maxZeroNoBal">
-                        , [[[max_zero_no_bal]]]
-                      </span>
-                    </div>
-                  </div>
-
-                  {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex mt-3" id="priceBox">
-                    <label for="rateField" class="col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
-                    <div class="col-18 p-0 position-relative">
-                      <input type="number" id="rateField">
-                      <span class="unitbox"><span class="unit" data-quote-ticker></span>/<span class="unit" data-base-ticker></span></span>
-                    </div>
-                  </div>
-                  <div class="d-flex mt-4" id="qtyBox">
-                    <label for="qtyField" class="col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
-                    <div class="col-6 p-0 position-relative">
-                      <input type="number" id="lotField">
-                      <span class="unit unitbox">[[[:title:lots]]]</span>
-                    </div>
-                    <div class="col-1 p-0"></div> {{/* spacer */}}
-                    <div class="col-11 p-0 position-relative">
-                      <input type="number" id="qtyField">
-                      <span class="unit unitbox" data-base-ticker></span>
-                    </div>
-                  </div>
-
-                  {{- /* MARKET BUY ORDER QUANTITY INPUT */ -}}
-                  <div id="mktBuyBox" class="d-hide">
-                    <div class="text-center mt-2 fs15">
-                      [[[min trade is about]]] <span id="minMktBuy"></span> <span data-quote-ticker></span>
-                    </div>
-                    <div class="d-flex justify-content-center mt-2">
-                      <!-- <label for="mktBuyField" class="flex-center col-12 p-0">Trading</label> -->
-                      <div class="col-12 p-0 position-relative">
-                        <input type="number" id="mktBuyField">
-                        <span class="unit unitbox" data-quote-ticker></span>
+                  <div id="limitOrderBoxBuy">
+                    <div class="d-flex justify-content-between my-2 fs14">
+                      <div id="lotSizeBoxBuy">
+                        [[[:title:lot_size]]]:
+                        <span id="lotSizeBuy"></span>
+                        <span data-base-ticker></span>
+                      </div>
+                      <div id="rateStepBoxBuy">
+                        [[[Rate Step]]]:
+                        <span id="rateStepBuy"></span>
+                        <span data-unit="quote"></span>
                       </div>
                     </div>
-                    <div class="p-0 fs14 flex-center mt-1">
-                      <span>
-                        ~ <span id="mktBuyScore">0</span> <span data-base-ticker></span>
-                        @ <span id="mktBuyLots">0</span> <span >[[[:title:lots]]]</span><br>
-
+                    <div id="maxOrdBuy" class="position-relative pointer">
+                      <span id="maxLotBoxBuy">
+                        <span class="underline">[[[Max]]] <span id="maxLblBuy">[[[Buy]]]</span></span>:
+                        <span id="maxFromLotsBuy"></span>
+                        <span id="maxFromLotsLblBuy">[[[lot]]]</span>
+                      </span>
+                      <span id="maxQtyBoxBuy" class="d-hide">
+                        =
+                        <span id="maxAboveZeroBuy">
+                          <span id="maxFromAmtBuy"></span>
+                          <span id="maxFromTickerBuy"></span>
+                          <!-- &rarr;
+                          <span id="maxToAmtBuy"></span>
+                          <span id="maxToTickerBuy"></span> -->
+                        </span>
+                      </span>
+                      <span id="maxZeroNoFeesBuy">
+                        , [[[max_zero_no_fees_buy]]]
+                      </span>
+                      <span id="maxZeroNoBalBuy">
+                        , [[[max_zero_no_bal_buy]]]
                       </span>
                     </div>
-                  </div>
-
-                  {{- /* ORDER PREVIEW */ -}}
-                  <div class="mt-2 fs14 text-end" id="orderPreview"></div>
-
-                  {{- /* TIME-IN-FORCE CHECK BOX */ -}}
-                  <div class="my-1 text-start form-check" id="tifBox">
-                    <input id="tifNow" class="form-check-input" type="checkbox" value="">
-                    <label class="form-check-label" for="tifNow">
-                      [[[Immediate or cancel]]]
-                      <span class="ico-info fs12" data-tooltip="[[[immediate_explanation]]]"></span>
-                    </label>
+                    {{- /* RATE AND QUANTITY INPUTS */ -}}
+                    <div class="d-flex mt-3" id="priceBoxBuy">
+                      <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
+                      <div class="col-18 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="rateFieldBuy">
+                        <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
+                      </div>
+                    </div>
+                    <div class="d-flex mt-4" id="qtyBoxBuy">
+                      <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
+                      <div class="col-6 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="lotFieldBuy">
+                        <span class="unit unitbox">[[[:title:lots]]]</span>
+                      </div>
+                      <div class="col-1 p-0"></div> {{/* spacer */}}
+                      <div class="col-11 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="qtyFieldBuy">
+                        <span class="unit unitbox" data-base-ticker></span>
+                      </div>
+                    </div>
+                    {{- /* ORDER PREVIEW */ -}}
+                    <div class="mt-2 fs14 text-end" id="orderTotalPreviewBuy"></div>
+                    {{- /* TIME-IN-FORCE CHECK BOX */ -}}
+                    <div class="my-1 text-start form-check" id="tifBoxBuy">
+                      <input id="tifNowBuy" class="form-check-input" type="checkbox" value="">
+                      <label class="form-check-label" for="tifNow">
+                        [[[Immediate or cancel]]]
+                        <span class="ico-info fs12" data-tooltip="[[[immediate_explanation]]]"></span>
+                      </label>
+                    </div>
                   </div>
 
                   {{- /* SUBMIT ORDER BUTTON */ -}}
                   <div class="text-end">
-                    <button id="submitBttn" type="button" class="fs14 submit text-center buygreen-bg" disabled></button> {{/* textContent set by script */}}
+                    <button id="submitBttnBuy" type="button" class="my-1 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   </div>
-
-                  {{- /* ORDER LIMITS */ -}}
-                  <div class="mt-2 p-2 text-center border fs17">
-                    [[[order_form_remaining_limit]]]
-                  </div>
-
 
                 </div>
-                <div class="fs15 pt-3 text-center d-hide text-danger text-break" id="orderErr"></div>
+                <div class="fs15 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
               </div>
 
-              {{- /* BALANCES */ -}}
+              {{- /* SELL ORDER FORM */ -}}
+              <div id="orderFormSell" class="p-3 d-hide">
+                <div class="p-0 w-100">
+                  <div id="limitOrderBoxSell">
+                    <div class="d-flex justify-content-between my-2 fs14">
+                      <div id="lotSizeBoxSell">
+                        [[[:title:lot_size]]]:
+                        <span id="lotSizeSell"></span>
+                        <span data-base-ticker></span>
+                      </div>
+                      <div id="rateStepBoxSell">
+                        [[[Rate Step]]]:
+                        <span id="rateStepSell"></span>
+                        <span data-unit="quote"></span>
+                      </div>
+                    </div>
+                    <div id="maxOrdSell" class="position-relative pointer">
+                      <span id="maxLotBoxSell">
+                        <span class="underline">[[[Max]]] <span id="maxLblSell">[[[Sell]]]</span></span>:
+                        <span id="maxFromLotsSell"></span>
+                        <span id="maxFromLotsLblSell">[[[lot]]]</span>
+                      </span>
+                      <span id="maxQtyBoxSell" class="d-hide">
+                        =
+                        <span id="maxAboveZeroSell">
+                          <span id="maxFromAmtSell"></span>
+                          <span id="maxFromTickerSell"></span>
+                        </span>
+                      </span>
+                      <span id="maxZeroNoFeesSell">
+                        , [[[max_zero_no_fees_sell]]]
+                      </span>
+                      <span id="maxZeroNoBalSell">
+                        , [[[max_zero_no_bal_sell]]]
+                      </span>
+                    </div>
+                    {{- /* RATE AND QUANTITY INPUTS */ -}}
+                    <div class="d-flex mt-3" id="priceBoxSell">
+                      <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
+                      <div class="col-18 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="rateFieldSell">
+                        <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
+                      </div>
+                    </div>
+                    <div class="d-flex mt-4" id="qtyBoxSell">
+                      <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
+                      <div class="col-6 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="lotFieldSell">
+                        <span class="unit unitbox">[[[:title:lots]]]</span>
+                      </div>
+                      <div class="col-1 p-0"></div> {{/* spacer */}}
+                      <div class="col-11 p-0 position-relative">
+                        <input type="number" class="form-control select bg1" id="qtyFieldSell">
+                        <span class="unit unitbox" data-base-ticker></span>
+                      </div>
+                    </div>
+                    {{- /* ORDER PREVIEW */ -}}
+                    <div class="mt-2 fs14 text-end" id="orderTotalPreviewSell"></div>
+                    {{- /* TIME-IN-FORCE CHECK BOX */ -}}
+                    <div class="my-1 text-start form-check" id="tifBoxSell">
+                      <input id="tifNowSell" class="form-check-input" type="checkbox" value="">
+                      <label class="form-check-label" for="tifNow">
+                        [[[Immediate or cancel]]]
+                        <span class="ico-info fs12" data-tooltip="[[[immediate_explanation]]]"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {{- /* SUBMIT ORDER BUTTON */ -}}
+                  <div class="text-end">
+                    <button id="submitBttnSell" type="button" class="my-1 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
+                  </div>
+
+                </div>
+                <div class="fs15 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>
+              </div>
+
+              {{- /* WALLET RELATED ERRORS */ -}}
               <div id="noWallet" class="p-3 border-bottom flex-center fs16 grey d-hide"></div>
-              <div id="walletInfoTmpl" class="border-top mb-2 flex-stretch-column min-fit">
-                <div class="d-flex align-items-center px-3 py-1 border-bottom" data-tmpl="walletIcons">
-                  <img data-tmpl="logo" class="micro-icon me-1">
-                  <span data-tmpl="symbol"></span>
-                  <div class="flex-grow-1"></div>
-                  <div data-tmpl="walletState" class="fs12">{{template "walletIcons"}}</div>
-                  <div data-tmpl="walletAddr" class="ico-qrcode fs12 p-2 pointer hoverbg"></div>
-                  <span class="ico-expired fs16 ps-1" data-tmpl="expired" data-tooltip="[[[outdated_tooltip]]]"></span>
-                </div>
-                <div data-tmpl="unsupported" class="flex-center position-relative py-2 d-hide">
-                  <div class="fs13 ico-cross"></div>
-                  <span class="fs15 grey ms-1">asset not supported</span>
-                </div>
-                <div data-tmpl="connect" class="pointer d-hide" data-tooltip="[[[connect_refresh_tooltip]]]">
-                  <div class="ico-sleeping"></div>
-                </div>
-                <div data-tmpl="newWalletRow" class="flex-center p-2 d-hide">
-                  <button data-tmpl="newWalletBttn" type="button" class="pointer hoverbg text-center p-2 text-nowrap">[[[add_a_wallet]]]</button>
-                </div>
-                <div data-tmpl="spinner" class="flex-center position-relative py-2">
-                  <div class="ico-spinner spinner fs15"></div>
-                </div>
-                <div data-tmpl="balanceRows" class="flex-stretch-column border-bottom lh1 pt-2 px-3">
-                  <div class="d-flex justify-content-between align-items-center mb-2 fs15" data-tmpl="balanceRowTmpl">
-                    <span data-tmpl="title"></span>
-                    <div data-tmpl="bal" class="flex-center"></div>
-                  </div>
-                </div>
-                <div data-tmpl="wantProvidersBox" class="flex-stretch-column border-bottom fs16">
-                  <button data-tmpl="wantProviders" class="m-2 p-2" data-tooltip="[[[add_provider_tooltip]]]">
-                    <span class="ico-disconnected text-warning me-2"></span>
-                    <span>You should specify a custom API provider</span>
-                  </button>
-                </div>
-              </div>
 
+              {{- /* ORDER LIMITS */ -}}
+              <div class="mt-2 p-2 text-center border fs17">
+                [[[order_form_remaining_limit]]]
+              </div>
               {{- /* REPUTATION */ -}}
               <div id="reputationAndTradingTierBox">
                 <div id="showTradingTier" class="p-2 grey fs15 hoverbg pointer">
