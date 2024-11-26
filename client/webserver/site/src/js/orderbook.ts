@@ -43,14 +43,14 @@ export default class OrderBook {
   }
 
   /* remove removes an order from the order book. */
-  remove (token: string) {
-    if (this.removeFromSide(this.sells, token)) return
-    this.removeFromSide(this.buys, token)
+  remove (id: string) {
+    if (this.removeFromSide(this.sells, id)) return
+    this.removeFromSide(this.buys, id)
   }
 
   /* removeFromSide removes an order from the list of orders. */
-  removeFromSide (side: MiniOrder[], token: string) {
-    const [ord, i] = this.findOrder(side, token)
+  removeFromSide (side: MiniOrder[], id: string) {
+    const [ord, i] = this.findOrder(side, id)
     if (ord) {
       side.splice(i, 1)
       return true
@@ -59,9 +59,9 @@ export default class OrderBook {
   }
 
   /* findOrder finds an order in a specified side */
-  findOrder (side: MiniOrder[], token: string): [MiniOrder | null, number] {
+  findOrder (side: MiniOrder[], id: string): [MiniOrder | null, number] {
     for (let i = 0; i < side.length; i++) {
-      if (side[i].token === token) {
+      if (side[i].id === id) {
         return [side[i], i]
       }
     }

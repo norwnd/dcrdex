@@ -39,7 +39,6 @@ import {
   MaxSell,
   MaxBuy,
   SwapEstimate,
-  MarketOrderBook,
   APIResponse,
   PreSwap,
   PreRedeem,
@@ -1445,24 +1444,6 @@ export default class MarketsPage extends BasePage {
     return true
   }
 
-  /* handleBook accepts the data sent in the 'book' notification. */
-  handleBook (data: MarketOrderBook) {
-    const { baseCfg, quoteCfg } = this.market
-    this.book = new OrderBook(data, baseCfg.symbol, quoteCfg.symbol)
-    this.loadTable()
-    for (const order of (data.book.epoch || [])) {
-      if (order.rate > 0) this.book.add(order)
-      this.addTableOrder(order)
-    }
-    if (!this.book) {
-      Doc.empty(this.page.buyRows)
-      Doc.empty(this.page.sellRows)
-      return
-    }
-    this.recentMatches = data.book.recentMatches ?? []
-    this.refreshRecentMatchesTable()
-  }
-
   /*
    * midGapConventional is the same as midGap, but returns the mid-gap rate as
    * the conventional ratio. This is used to convert from a conventional
@@ -1518,15 +1499,21 @@ export default class MarketsPage extends BasePage {
     return Math.max(maxUserOrdersShown, app().orders(host, mktID).length)
   }
 
+  // loadUserOrders draws user orders section on markets page.
   async loadUserOrders () {
     const { base: b, quote: q, dex: { host }, cfg: { name: mktID } } = this.market
     for (const oid in this.metaOrders) delete this.metaOrders[oid]
     if (!b || !q) return this.resolveUserOrders([]) // unsupported asset
     const activeOrders = app().orders(host, mktID)
     if (activeOrders.length >= maxUserOrdersShown) return this.resolveUserOrders(activeOrders)
+
+    // TODO - we probably just want to remove all the code below
+    // Looks like we have some room for non-active orders
     const filter: OrderFilter = {
       hosts: [host],
       market: { baseID: b.id, quoteID: q.id },
+      // TODO - this looks strange, prob wanna do this instead
+      // n: maxUserOrdersShown - activeOrders.length
       n: this.maxUserOrderCount()
     }
     const res = await postJSON('/api/orders', filter)
@@ -1745,7 +1732,17 @@ export default class MarketsPage extends BasePage {
     const mktBook = note.payload
     const { baseCfg: b, quoteCfg: q, dex: { host } } = this.market
     if (mktBook.base !== b.id || mktBook.quote !== q.id || note.host !== host) return // user already changed markets
-    this.handleBook(mktBook)
+
+    const { baseCfg, quoteCfg } = this.market
+    this.book = new OrderBook(mktBook, baseCfg.symbol, quoteCfg.symbol)
+    this.loadTable()
+    for (const order of (mktBook.book.epoch || [])) {
+      if (order.rate > 0) this.book.add(order)
+      this.addTableOrder(order)
+    }
+    this.recentMatches = mktBook.book.recentMatches ?? []
+    this.refreshRecentMatchesTable()
+
     this.market.bookLoaded = true
     this.updateTitle()
     this.setMarketBuyOrderEstimate()
@@ -1766,7 +1763,7 @@ export default class MarketsPage extends BasePage {
     app().log('book', 'handleUnbookOrderRoute:', data)
     if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
     const order = data.payload
-    this.book.remove(order.token)
+    this.book.remove(order.id)
     this.removeTableOrder(order)
     this.updateTitle()
   }
@@ -2702,7 +2699,7 @@ export default class MarketsPage extends BasePage {
      same orders grouped into arrays. The orders are grouped by their rate
      and whether or not they are epoch queue orders. Epoch queue orders
      will come after non epoch queue orders with the same rate. */
-  binOrdersByRateAndEpoch (orders: MiniOrder[]) {
+  binOrdersByRateAndEpoch (orders: MiniOrder[]): MiniOrder[][] {
     if (!orders || !orders.length) return []
     const bins = []
     let currEpochBin = []
@@ -2771,10 +2768,9 @@ export default class MarketsPage extends BasePage {
 
   /* removeTableOrder removes a single order from its table. */
   removeTableOrder (order: MiniOrder) {
-    const token = order.token
     for (const tbody of [this.page.sellRows, this.page.buyRows]) {
       for (const tr of (Array.from(tbody.children) as OrderRow[])) {
-        if (tr.manager.removeOrder(token)) {
+        if (tr.manager.removeOrder(order.id)) {
           return
         }
       }
@@ -3272,6 +3268,7 @@ function wireOrder (order: TradeForm) {
 class OrderTableRowManager {
   tableRow: HTMLElement
   page: Record<string, PageElement>
+  market: CurrentMarket
   orderBin: MiniOrder[]
   sell: boolean
   msgRate: number
@@ -3283,6 +3280,7 @@ class OrderTableRowManager {
 
     this.tableRow = tableRow
     const page = this.page = Doc.parseTemplate(tableRow)
+    this.market = market
     this.orderBin = orderBin
     this.sell = orderBin[0].sell
     this.msgRate = orderBin[0].msgRate
@@ -3291,22 +3289,6 @@ class OrderTableRowManager {
     const rateText = Doc.formatRateFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStep)
     Doc.setVis(this.isEpoch(), this.page.epoch)
 
-    // see if we need to add own order marker to this row
-    const userOrders = app().orders(market.dex.host, marketID(market.baseCfg.symbol, market.quoteCfg.symbol))
-    for (const bin of orderBin) {
-      let ownOrderSpotted = false
-      for (const userOrder of userOrders) {
-        if (userOrder.id === bin.id) {
-          ownOrderSpotted = true
-          Doc.show(this.page.ownBookOrder)
-          break
-        }
-      }
-      if (ownOrderSpotted) {
-        break
-      }
-    }
-
     if (this.msgRate === 0) {
       page.rate.innerText = 'market'
     } else {
@@ -3314,14 +3296,14 @@ class OrderTableRowManager {
       page.rate.innerText = rateText
       page.rate.classList.add(cssClass)
     }
-    this.updateQtyNumOrdersEl()
+    this.redrawOrderRowEl()
   }
 
-  // updateQtyNumOrdersEl populates the quantity element in the row, and also
-  // displays the number of orders if there is more than one order in the order
-  // bin.
-  updateQtyNumOrdersEl () {
-    const { page, orderBin } = this
+  // updateQtyNumOrdersEl populates the quantity element in the row, displays the
+  // number of orders if there is more than one order in the order bin, and also
+  // displays "own marker" if the row contains order(s) that belong to the user.
+  redrawOrderRowEl () {
+    const { page, market, orderBin } = this
     const qty = orderBin.reduce((total, curr) => total + curr.qtyAtomic, 0)
     const numOrders = orderBin.length
     page.qty.innerText = Doc.formatFullPrecision(qty, this.baseUnitInfo)
@@ -3332,41 +3314,82 @@ class OrderTableRowManager {
     } else {
       page.numOrders.setAttribute('hidden', 'true')
     }
+
+    // to see if we need to add "own marker" to this row we check against current active
+    // orders user has. We receive user orders(updates) through "user notifications feed",
+    // while here we are re-drawing order-book table rows as the result of processing
+    // "order book feed" events (so, we consume 2 different WS feeds in JS app). Because
+    // there is no way to synchronize between events from these 2 feeds the best we can
+    // do here is to try and update order book-table rows in delayed manner via issuing
+    // 2 setTimeout calls (executing 100ms and 2s into the future), this will provide some
+    // time buffer for order notification to get delivered via "user notifications feed"
+    // and update corresponding active user orders in JS app. We issue 2 setTimeout calls
+    // because the 1st one (having short delay) targets the most likely scenario of active
+    // user orders being up-to-date while the 2nd one is just here for the worst case
+    // scenario to make sure that we do eventually mark/unmark this row as needed (even
+    // in delayed manner, it's still better to resolve it's state properly).
+    // Note, because we brute-force all the orders in this row against all active user
+    // orders (the freshest version we have) there is no possible issues we can encounter
+    // caused by races that might/will happen between different setTimeout calls since
+    // every call executes as atomic unit with respect to other similar calls.
+    const markUnmarkOwnOrders = () => {
+      const userOrders = app().orders(market.dex.host, marketID(market.baseCfg.symbol, market.quoteCfg.symbol))
+      let ownOrderSpotted = false
+      for (const bin of orderBin) {
+        for (const userOrder of userOrders) {
+          if (userOrder.id === bin.id) {
+            ownOrderSpotted = true
+            break
+          }
+        }
+        if (ownOrderSpotted) {
+          break
+        }
+      }
+      if (ownOrderSpotted) {
+        Doc.show(this.page.ownBookOrder)
+      } else {
+        // remove "own marker" in case we no longer have user orders in this row
+        Doc.hide(this.page.ownBookOrder)
+      }
+    }
+    setTimeout(markUnmarkOwnOrders, 100) // 100ms delay
+    setTimeout(markUnmarkOwnOrders, 2000) // 2s delay
   }
 
   // insertOrder adds an order to the order bin and updates the row elements
   // accordingly.
   insertOrder (order: MiniOrder) {
     this.orderBin.push(order)
-    this.updateQtyNumOrdersEl()
+    this.redrawOrderRowEl()
   }
 
   // updateOrderQuantity updates the quantity of the order identified by a token,
   // if it exists in the row, and updates the row elements accordingly. The function
   // returns true if the order is in the bin, and false otherwise.
   updateOrderQty (update: RemainderUpdate) {
-    const { token, qty, qtyAtomic } = update
+    const { id, qty, qtyAtomic } = update
     for (let i = 0; i < this.orderBin.length; i++) {
-      if (this.orderBin[i].token === token) {
+      if (this.orderBin[i].id === id) {
         this.orderBin[i].qty = qty
         this.orderBin[i].qtyAtomic = qtyAtomic
-        this.updateQtyNumOrdersEl()
+        this.redrawOrderRowEl()
         return true
       }
     }
     return false
   }
 
-  // removeOrder removes the order identified by the token, if it exists in the row,
+  // removeOrder removes the order identified by id, if it exists in the row,
   // and updates the row elements accordingly. If the order bin is empty, the row is
   // removed from the screen. The function returns true if an order was removed, and
   // false otherwise.
-  removeOrder (token: string) {
-    const index = this.orderBin.findIndex(order => order.token === token)
+  removeOrder (id: string) {
+    const index = this.orderBin.findIndex(order => order.id === id)
     if (index < 0) return false
     this.orderBin.splice(index, 1)
     if (!this.orderBin.length) this.tableRow.remove()
-    else this.updateQtyNumOrdersEl()
+    else this.redrawOrderRowEl()
     return true
   }
 
@@ -3377,7 +3400,7 @@ class OrderTableRowManager {
       return !(order.epoch && order.epoch !== newEpoch)
     })
     if (!this.orderBin.length) this.tableRow.remove()
-    else this.updateQtyNumOrdersEl()
+    else this.redrawOrderRowEl()
   }
 
   // getRate returns the rate of the orders in the row.

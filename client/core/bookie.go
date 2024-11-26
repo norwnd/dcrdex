@@ -381,7 +381,6 @@ func (b *bookie) minifyOrder(oid dex.Bytes, trade *msgjson.TradeNote, epoch uint
 		Rate:      calc.ConventionalRate(trade.Rate, b.baseUnits, b.quoteUnits),
 		MsgRate:   trade.Rate,
 		Sell:      trade.Side == msgjson.SellOrderNum,
-		Token:     token(oid),
 		Epoch:     epoch,
 	}
 }
@@ -613,12 +612,12 @@ func (c *Core) Book(dex string, base, quote uint32) (*OrderBook, error) {
 func (b *bookie) translateBookSide(ins []*orderbook.Order) (outs []*MiniOrder) {
 	for _, o := range ins {
 		outs = append(outs, &MiniOrder{
+			ID:        hex.EncodeToString(o.OrderID[:]),
 			Qty:       float64(o.Quantity) / float64(b.baseUnits.Conventional.ConversionFactor),
 			QtyAtomic: o.Quantity,
 			Rate:      calc.ConventionalRate(o.Rate, b.baseUnits, b.quoteUnits),
 			MsgRate:   o.Rate,
 			Sell:      o.Side == msgjson.SellOrderNum,
-			Token:     token(o.OrderID[:]),
 			Epoch:     o.Epoch,
 		})
 	}
@@ -979,7 +978,7 @@ func handleUnbookOrderMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) erro
 		Action:   UnbookOrderAction,
 		Host:     dc.acct.host,
 		MarketID: note.MarketID,
-		Payload:  &MiniOrder{Token: token(note.OrderID)},
+		Payload:  &MiniOrder{ID: hex.EncodeToString(note.OrderID)},
 	})
 
 	return nil
@@ -1008,7 +1007,7 @@ func handleUpdateRemainingMsg(_ *Core, dc *dexConnection, msg *msgjson.Message) 
 		Host:     dc.acct.host,
 		MarketID: note.MarketID,
 		Payload: &RemainderUpdate{
-			Token:     token(note.OrderID),
+			ID:        hex.EncodeToString(note.OrderID),
 			Qty:       float64(note.Remaining) / float64(book.baseUnits.Conventional.ConversionFactor),
 			QtyAtomic: note.Remaining,
 		},

@@ -733,13 +733,12 @@ type MiniOrder struct {
 	MsgRate   uint64  `json:"msgRate"`
 	Epoch     uint64  `json:"epoch,omitempty"`
 	Sell      bool    `json:"sell"`
-	Token     string  `json:"token"`
 }
 
 // RemainderUpdate is an update to the quantity for an order on the order book.
 // Replaced RemainingUpdate, which had a float Qty in conventional units.
 type RemainderUpdate struct {
-	Token     string  `json:"token"`
+	ID        string  `json:"id"`
 	Qty       float64 `json:"qty"`
 	QtyAtomic uint64  `json:"qtyAtomic"`
 }
