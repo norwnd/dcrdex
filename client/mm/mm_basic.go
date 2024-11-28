@@ -365,8 +365,15 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		)
 	}()
 
-	// maxAllowedRateMismatch is a safety threshold we don't want for MM bot to cross
-	const maxAllowedRateMismatch = 0.05 // 5%
+	// maxAllowedRateDiffPercent is a safety threshold we don't want for MM bot to cross
+	const maxAllowedRateDiffPercent = 0.05 // 5%
+	var (
+		// bisonRateDiffPercent is a directional (with +/- sign) difference between bisonPrice
+		// and m.firstReliableBisonPrice
+		bisonRateDiffPercent float64
+		// basisRateDiffPercent is same as bisonRateDiffPercent, but for Basis price
+		basisRateDiffPercent float64
+	)
 
 	book, feed, err := m.core.SyncBook(m.host, m.baseID, m.quoteID)
 	if err != nil {
@@ -378,18 +385,9 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		return nil, nil, fmt.Errorf("calculate Bison rate: %v", err)
 	}
 	if m.firstReliableBisonPrice != 0 {
-		// check how delinquent Bison price is (compared to the reliable price we have from the
-		// time when MM bot started)
-		rateMismatch := math.Abs((float64(bisonPrice) - float64(m.firstReliableBisonPrice)) / float64(bisonPrice))
-		if rateMismatch > maxAllowedRateMismatch {
-			return nil, nil, fmt.Errorf(
-				"(strategy - %s) unacceptable bisonPrice = %d and firstReliableBisonPrice = %d mismatch of %v percent",
-				m.cfg().GapStrategy,
-				bisonPrice,
-				m.firstReliableBisonPrice,
-				rateMismatch,
-			)
-		}
+		// below we'll want to check how delinquent Bison price is (compared to the reliable
+		// price we have from the time when MM bot started)
+		bisonRateDiffPercent = (float64(bisonPrice) - float64(m.firstReliableBisonPrice)) / float64(m.firstReliableBisonPrice)
 	}
 
 	basisPrice, err := m.calculator.basisPrice()
@@ -397,48 +395,40 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		return nil, nil, err
 	}
 	if m.firstReliableBasisPrice != 0 {
-		// check how delinquent Basis price is (compared to the reliable price we have from the
-		// time when MM bot started)
-		rateMismatch := math.Abs((float64(basisPrice) - float64(m.firstReliableBasisPrice)) / float64(basisPrice))
-		if rateMismatch > maxAllowedRateMismatch {
-			return nil, nil, fmt.Errorf(
-				"(strategy - %s) unacceptable basisPrice = %d and firstReliableBasisPrice = %d mismatch of %v percent",
-				m.cfg().GapStrategy,
-				basisPrice,
-				m.firstReliableBasisPrice,
-				rateMismatch,
-			)
-		}
+		// below we'll want to check how delinquent Basis price is (compared to the reliable
+		// price we have from the time when MM bot started)
+		basisRateDiffPercent = (float64(basisPrice) - float64(m.firstReliableBasisPrice)) / float64(m.firstReliableBasisPrice)
 	}
 
 	{
 		// check the confluence of Bison and Basis price
-		rateMismatch := math.Abs((float64(bisonPrice) - float64(basisPrice)) / float64(bisonPrice))
-		if rateMismatch > maxAllowedRateMismatch {
+		rateConfluenceDiffPercent := math.Abs((float64(bisonPrice) - float64(basisPrice)) / float64(bisonPrice))
+		if rateConfluenceDiffPercent > maxAllowedRateDiffPercent {
 			return nil, nil, fmt.Errorf(
 				"(strategy - %s) unacceptable bisonPrice = %d and basisPrice = %d mismatch of %v percent",
 				m.cfg().GapStrategy,
 				bisonPrice,
 				basisPrice,
-				rateMismatch,
+				rateConfluenceDiffPercent,
 			)
 		}
 	}
 
 	if m.firstReliableBisonPrice == 0 {
-		// Bison price is reliable, initializing reference (first) price
+		// Bison price is reliable because it has confluence with Basis price, initializing
+		// reference (first) price
 		m.firstReliableBisonPrice = bisonPrice
 	}
 	if m.firstReliableBasisPrice == 0 {
-		// Basis price is reliable, initializing reference (first) price
+		// Basis price is reliable because it has confluence with Bison price, initializing reference (first) price
 		m.firstReliableBasisPrice = basisPrice
 	}
 
 	// find the best buy & sell orders in Bison books, these will help us determine
 	// how good of a price we should offer (compared to unattractive & safe default)
 
-	// bestBuy falls back to min(bisonPrice-4%, basisPrice-4%), this is reasonably safe reference point
-	// in case the difference between bisonPrice and basisPrice is large
+	// bestBuy falls back to min(bisonPrice-4%, basisPrice-4%), this is a reasonably safe reference point
+	// even when the difference between bisonPrice and basisPrice is large (at the edge of what's allowed)
 	bestBuy := min(
 		steppedRate(uint64(float64(bisonPrice)-0.04*float64(bisonPrice)), m.rateStep),
 		steppedRate(uint64(float64(basisPrice)-0.04*float64(basisPrice)), m.rateStep),
@@ -479,11 +469,60 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 	orders := func(orderPlacements []*OrderPlacement, sell bool) []*TradePlacement {
 		placements := make([]*TradePlacement, 0, len(orderPlacements))
 		for _, p := range orderPlacements {
+			// when assessing how far the price has gone since MM bot started (current price vs first
+			// reliable price difference), we must 1) never chase the price and 2) we actually always
+			// want to "resist it, but from a safe distance" (because this is the best time to
+			// buy/sell into - best liquidity, since people panic/FoMO in those moments)
+			if sell {
+				if bisonRateDiffPercent < 0 && math.Abs(bisonRateDiffPercent) > maxAllowedRateDiffPercent {
+					m.log.Tracef(
+						"(strategy - %s) won't place sell order since bisonPrice = %d has rapidly moved down compared to firstReliableBisonPrice = %d (mismatch of %v percent)",
+						m.cfg().GapStrategy,
+						bisonPrice,
+						m.firstReliableBisonPrice,
+						math.Abs(bisonRateDiffPercent),
+					)
+					continue
+				}
+				if bisonRateDiffPercent < 0 && math.Abs(basisRateDiffPercent) > maxAllowedRateDiffPercent {
+					m.log.Tracef(
+						"(strategy - %s) won't place sell order since basisPrice = %d has rapidly moved down compared to firstReliableBasisPrice = %d (mismatch of %v percent)",
+						m.cfg().GapStrategy,
+						basisPrice,
+						m.firstReliableBasisPrice,
+						math.Abs(basisRateDiffPercent),
+					)
+					continue
+				}
+			}
+			if !sell {
+				if bisonRateDiffPercent > 0 && math.Abs(bisonRateDiffPercent) > maxAllowedRateDiffPercent {
+					m.log.Tracef(
+						"(strategy - %s) won't place buy order since bisonPrice = %d has rapidly moved up compared to firstReliableBisonPrice = %d (mismatch of %v percent)",
+						m.cfg().GapStrategy,
+						bisonPrice,
+						m.firstReliableBisonPrice,
+						math.Abs(bisonRateDiffPercent),
+					)
+					continue
+				}
+				if bisonRateDiffPercent > 0 && math.Abs(basisRateDiffPercent) > maxAllowedRateDiffPercent {
+					m.log.Tracef(
+						"(strategy - %s) won't place buy order since basisPrice = %d has rapidly moved up compared to firstReliableBasisPrice = %d (mismatch of %v percent)",
+						m.cfg().GapStrategy,
+						basisPrice,
+						m.firstReliableBasisPrice,
+						math.Abs(basisRateDiffPercent),
+					)
+					continue
+				}
+			}
+
 			bestPrice := bestBuy
 			if sell {
 				bestPrice = bestSell
 			}
-			// truePrice is the most reliable estimate of the price we can get, for now
+			// truePrice is the most reliable estimate of "real" price we can get, for now
 			// we consider basisPrice to be "safest", but once we can calculate
 			// MidGapBookWeightedWithSpread we might prefer switching to that if there is
 			// enough liquidity in Bison book(s) and the spread it returns is low (and
@@ -506,8 +545,11 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		return placements
 	}
 
+	// TODO - since MM bot doesn't support disable 1 side in UI we are temporarily
+	// hardcoding it here until the following issue is resolved:
+	// https://github.com/decred/dcrdex/issues/3101
 	buyOrders = orders(m.cfg().BuyPlacements, false)
-	sellOrders = orders(m.cfg().SellPlacements, true)
+	//sellOrders = orders(m.cfg().SellPlacements, true)
 	return buyOrders, sellOrders, nil
 }
 
