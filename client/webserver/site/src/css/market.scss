@@ -86,10 +86,14 @@ div[data-handler=markets] {
         }
       }
 
-      #orderTotalPreviewBuy,
-      #orderTotalPreviewSell,
-      .h21 {
-        height: 21px;
+      #orderTotalPreviewBuy {
+        height: 24px;
+        color: var(--sell-color);
+      }
+
+      #orderTotalPreviewSell {
+        height: 24px;
+        color: var(--buy-color);
       }
     }
 
