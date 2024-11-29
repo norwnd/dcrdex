@@ -68,8 +68,6 @@ var PlPL = map[string]*intl.Translation{
 	"Max":                            {T: "Max"},
 	"lot":                            {T: "lot"},
 	"min trade is about":             {T: "minimalna wielkość zamówienia wynosi około"},
-	"immediate_explanation":          {T: "Jeśli zamówienie nie zostanie w pełni spasowane w następnym cyklu, pozostałe środki nie będą wystawiane ani pasowane ponownie. Zlecenie typu 'taker-only'."},
-	"Immediate or cancel":            {T: "Natychmiast, lub wcale"},
 	"Balances":                       {T: "Salda"},
 	"outdated_tooltip":               {T: "Saldo może być nieaktualne. Połącz się z portfelem, aby je odświeżyć."},
 	"available":                      {T: "dostępne"},

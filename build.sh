@@ -3,6 +3,7 @@ set -e
 #!/usr/bin/env bash
 
 pushd client/webserver/site
+rm -rf dist
 npm clean-install
 npm run build
 popd

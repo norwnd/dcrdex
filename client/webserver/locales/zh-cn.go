@@ -69,8 +69,6 @@ var ZhCN = map[string]*intl.Translation{
 	"Max":                            {T: "最大"},
 	"lot":                            {T: "很多"},
 	"min trade is about":             {T: "最小交易额"},
-	"immediate_explanation":          {T: "如果订单在下一个匹配周期内不能完全匹配，不匹配的数量将不会被再次匹配。需要重新设置订单。"},
-	"Immediate or cancel":            {T: "立即或取消"},
 	"Balances":                       {T: "余额"},
 	"outdated_tooltip":               {T: "余额可能已过期。连接钱包刷新。"},
 	"available":                      {T: "可用"},

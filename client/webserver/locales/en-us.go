@@ -91,8 +91,6 @@ var EnUS = map[string]*intl.Translation{
 	"Max":                            {T: "Max"},
 	"lot":                            {T: "lot"},
 	"min trade is about":             {T: "min trade is about"},
-	"immediate_explanation":          {T: "If the order doesn't fully match during the next match cycle, any unmatched quantity will not be booked or matched again. Taker-only order."},
-	"Immediate or cancel":            {T: "Immediate or cancel"},
 	"Balances":                       {T: "Balances"},
 	"outdated_tooltip":               {T: "Balance may be outdated. Connect to the wallet to refresh."},
 	"available":                      {T: "available"},
