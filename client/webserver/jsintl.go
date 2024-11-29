@@ -3,8 +3,8 @@ package webserver
 import "decred.org/dcrdex/client/intl"
 
 const (
-	limitOrderTotalPreview           = "LIMIT_ORDER_TOTAL_PREVIEW"
-	marketOrderTotalPreview          = "MARKET_ORDER_TOTAL_PREVIEW"
+	limitOrderBuyTotalPreview        = "LIMIT_ORDER_BUY_TOTAL_PREVIEW"
+	limitOrderSellTotalPreview       = "LIMIT_ORDER_SELL_TOTAL_PREVIEW"
 	noQuantityExceedsMax             = "NO_QUANTITY_EXCEEDS_MAX"
 	noPassErrMsgID                   = "NO_PASS_ERROR_MSG"
 	noAppPassErrMsgID                = "NO_APP_PASS_ERROR_MSG"
@@ -225,14 +225,14 @@ const (
 )
 
 var enUS = map[string]*intl.Translation{
-	limitOrderTotalPreview:           {T: "Total: {{ total }} {{ asset }}"},
-	marketOrderTotalPreview:          {T: "Total: ~ {{ total }} {{ asset }}"},
+	limitOrderBuyTotalPreview:        {T: "-{{ total }} {{ asset }}"},
+	limitOrderSellTotalPreview:       {T: "+{{ total }} {{ asset }}"},
 	noQuantityExceedsMax:             {T: "not enough funds"},
 	noPassErrMsgID:                   {T: "password cannot be empty"},
 	noAppPassErrMsgID:                {T: "app password cannot be empty"},
 	passwordNotMatchID:               {T: "passwords do not match"},
-	setButtonBuyID:                   {T: "Place order to buy  {{ asset }}"},
-	setButtonSellID:                  {T: "Place order to sell {{ asset }}"},
+	setButtonBuyID:                   {T: "Buy  {{ asset }}"},
+	setButtonSellID:                  {T: "Sell {{ asset }}"},
 	orderBttnBuyBalErrID:             {T: "Insufficient balance to buy."},
 	orderBttnSellBalErrID:            {T: "Insufficient balance to sell."},
 	orderBttnQtyErrID:                {T: "Order quantity must be specified."},
