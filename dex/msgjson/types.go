@@ -413,7 +413,7 @@ func NewResponse(id uint64, result any, rpcErr *Error) (*Message, error) {
 // Payload is []byte("null").
 func (msg *Message) Response() (*ResponsePayload, error) {
 	if msg.Type != Response {
-		return nil, fmt.Errorf("invalid type %d for ResponsePayload", msg.Type)
+		return nil, fmt.Errorf("invalid type %s for ResponsePayload", msg.Type)
 	}
 	resp := new(ResponsePayload)
 	err := json.Unmarshal(msg.Payload, &resp)

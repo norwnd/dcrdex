@@ -192,7 +192,7 @@ func (s *Server) Notify(route string, payload any) {
 // handleMessage handles the websocket message, calling the right handler for
 // the route.
 func (s *Server) handleMessage(conn *wsClient, msg *msgjson.Message) *msgjson.Error {
-	s.log.Tracef("message of type %d received for route %s", msg.Type, msg.Route)
+	s.log.Tracef("message of type %s received for route %s", msg.Type, msg.Route)
 	if msg.Type == msgjson.Request {
 		handler, found := wsHandlers[msg.Route]
 		if !found {
