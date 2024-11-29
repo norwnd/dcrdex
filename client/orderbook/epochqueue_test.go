@@ -16,11 +16,12 @@ import (
 
 var tLogger = dex.NewLogger("TBOOK", dex.LevelTrace, os.Stdout)
 
-func makeEpochOrderNote(mid string, oid order.OrderID, side uint8, rate uint64, qty uint64, commitment order.Commitment, epoch uint64) *msgjson.EpochOrderNote {
+func makeEpochOrderNote(seq uint64, mid string, oid order.OrderID, side uint8, rate uint64, qty uint64, commitment order.Commitment, epoch uint64) *msgjson.EpochOrderNote {
 	return &msgjson.EpochOrderNote{
 		Commit: commitment[:],
 		BookOrderNote: msgjson.BookOrderNote{
 			OrderNote: msgjson.OrderNote{
+				Seq:      seq,
 				MarketID: mid,
 				OrderID:  oid[:],
 			},
@@ -69,21 +70,21 @@ func TestEpochQueue(t *testing.T) {
 	copy(n1Pimg[:], n1PimgB)
 	n1Commitment := n1Pimg.Commit() // aba75140b1f6edf26955a97e1b09d7b17abdc9c0b099fc73d9729501652fbf66
 	n1OrderID := [32]byte{'a'}
-	n1 := makeEpochOrderNote(mid, n1OrderID, msgjson.BuyOrderNum, 1, 2, n1Commitment, epoch)
+	n1 := makeEpochOrderNote(1, mid, n1OrderID, msgjson.BuyOrderNum, 1, 2, n1Commitment, epoch)
 
 	n2PimgB, _ := hex.DecodeString("8e6c140071db1eb2f7a18194f1a045a94c078835c75dff2f3e836180baad9e95")
 	var n2Pimg order.Preimage
 	copy(n2Pimg[:], n2PimgB)
 	n2Commitment := n2Pimg.Commit() // 0f4bc030d392cef3f44d0781870ab7fcb78a0cda36c73e50b88c741b4f851600
 	n2OrderID := [32]byte{'b'}
-	n2 := makeEpochOrderNote(mid, n2OrderID, msgjson.BuyOrderNum, 1, 2, n2Commitment, epoch)
+	n2 := makeEpochOrderNote(2, mid, n2OrderID, msgjson.BuyOrderNum, 1, 2, n2Commitment, epoch)
 
 	n3PimgB, _ := hex.DecodeString("e1f796fa0fc16ba7bb90be2a33e87c3d60ab628471a420834383661801bb0bfd")
 	var n3Pimg order.Preimage
 	copy(n3Pimg[:], n3PimgB)
 	n3Commitment := n3Pimg.Commit() // aba75140b1f6edf26955a97e1b09d7b17abdc9c0b099fc73d9729501652fbf66
 	n3OrderID := [32]byte{'c'}
-	n3 := makeEpochOrderNote(mid, n3OrderID, msgjson.BuyOrderNum, 1, 2, n3Commitment, epoch)
+	n3 := makeEpochOrderNote(3, mid, n3OrderID, msgjson.BuyOrderNum, 1, 2, n3Commitment, epoch)
 
 	// This csum matches the server-side tests.
 	wantCSum, _ := hex.DecodeString("8c743c3225b89ffbb50b5d766d3e078cd8e2658fa8cb6e543c4101e1d59a8e8e")
@@ -257,7 +258,7 @@ func benchmarkGenerateMatchProof(c int, b *testing.B) {
 	preimages := make([]order.Preimage, 0, c)
 	for i := range notes {
 		pi := randPreimage()
-		notes[i] = makeEpochOrderNote("mkt", randOrderID(),
+		notes[i] = makeEpochOrderNote(uint64(i), "mkt", randOrderID(),
 			msgjson.BuyOrderNum, 1, 2, blake256.Sum256(pi[:]), 10)
 		preimages = append(preimages, pi)
 	}
