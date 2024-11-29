@@ -264,29 +264,6 @@
                         <span data-unit="quote"></span>
                       </div>
                     </div>
-                    <div id="maxOrdBuy" class="position-relative pointer">
-                      <span id="maxLotBoxBuy">
-                        <span class="underline">[[[Max]]] <span id="maxLblBuy">[[[Buy]]]</span></span>:
-                        <span id="maxFromLotsBuy"></span>
-                        <span id="maxFromLotsLblBuy">[[[lot]]]</span>
-                      </span>
-                      <span id="maxQtyBoxBuy" class="d-hide">
-                        =
-                        <span id="maxAboveZeroBuy">
-                          <span id="maxFromAmtBuy"></span>
-                          <span id="maxFromTickerBuy"></span>
-                          <!-- &rarr;
-                          <span id="maxToAmtBuy"></span>
-                          <span id="maxToTickerBuy"></span> -->
-                        </span>
-                      </span>
-                      <span id="maxZeroNoFeesBuy">
-                        , [[[max_zero_no_fees_buy]]]
-                      </span>
-                      <span id="maxZeroNoBalBuy">
-                        , [[[max_zero_no_bal_buy]]]
-                      </span>
-                    </div>
                     {{- /* RATE AND QUANTITY INPUTS */ -}}
                     <div class="d-flex mt-3" id="priceBoxBuy">
                       <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
@@ -307,21 +284,15 @@
                         <span class="unit unitbox" data-base-ticker></span>
                       </div>
                     </div>
-                    {{- /* ORDER PREVIEW */ -}}
-                    <div class="mt-2 fs14 text-end" id="orderTotalPreviewBuy"></div>
-                    {{- /* TIME-IN-FORCE CHECK BOX */ -}}
-                    <div class="my-1 text-start form-check" id="tifBoxBuy">
-                      <input id="tifNowBuy" class="form-check-input" type="checkbox" value="">
-                      <label class="form-check-label" for="tifNow">
-                        [[[Immediate or cancel]]]
-                        <span class="ico-info fs12" data-tooltip="[[[immediate_explanation]]]"></span>
-                      </label>
-                    </div>
+                    <div id="qtySliderBuy" class="mini-slider flex-grow-1 mt-2"></div>
                   </div>
 
-                  {{- /* SUBMIT ORDER BUTTON */ -}}
-                  <div class="text-end">
-                    <button id="submitBttnBuy" type="button" class="my-1 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
+                  {{- /* SUBMIT ORDER BOX */ -}}
+                  <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
+                    <div id="orderTotalPreviewBuy"></div>
+                    <div>
+                      <button id="submitBttnBuy" type="button" class="m-2 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
+                    </div>
                   </div>
 
                 </div>
@@ -384,21 +355,14 @@
                         <span class="unit unitbox" data-base-ticker></span>
                       </div>
                     </div>
-                    {{- /* ORDER PREVIEW */ -}}
-                    <div class="mt-2 fs14 text-end" id="orderTotalPreviewSell"></div>
-                    {{- /* TIME-IN-FORCE CHECK BOX */ -}}
-                    <div class="my-1 text-start form-check" id="tifBoxSell">
-                      <input id="tifNowSell" class="form-check-input" type="checkbox" value="">
-                      <label class="form-check-label" for="tifNow">
-                        [[[Immediate or cancel]]]
-                        <span class="ico-info fs12" data-tooltip="[[[immediate_explanation]]]"></span>
-                      </label>
-                    </div>
                   </div>
 
-                  {{- /* SUBMIT ORDER BUTTON */ -}}
-                  <div class="text-end">
-                    <button id="submitBttnSell" type="button" class="my-1 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
+                  {{- /* SUBMIT ORDER BOX */ -}}
+                  <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
+                    <div id="orderTotalPreviewSell"></div>
+                    <div>
+                      <button id="submitBttnSell" type="button" class="m-2 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
+                    </div>
                   </div>
 
                 </div>
