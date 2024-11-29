@@ -1,4 +1,4 @@
-import Doc, { Animation } from './doc'
+import Doc, { Animation, MiniSlider } from './doc'
 import State from './state'
 import BasePage from './basepage'
 import OrderBook from './orderbook'
@@ -35,7 +35,6 @@ import {
   CandlesPayload,
   TradeForm,
   BookUpdate,
-  SwapEstimate,
   APIResponse,
   PreSwap,
   PreRedeem,
@@ -161,6 +160,7 @@ export default class MarketsPage extends BasePage {
   maxBuyLastReqID: number
   // maxSellLastReqID same as maxBuyLastReqID but for /maxsell requests.
   maxSellLastReqID: number
+  qtySliderBuy: MiniSlider
   verifiedOrder: TradeForm
   market: CurrentMarket
   openAsset: SupportedAsset
@@ -278,15 +278,22 @@ export default class MarketsPage extends BasePage {
     bind(page.showTradingReputation, 'click', () => { toggleTradingReputation(true) })
     bind(page.hideTradingReputation, 'click', () => { toggleTradingReputation(false) })
 
-    bind(page.maxOrdBuy, 'click', () => {
-      const maxOrderLots = this.calcMaxOrderLots(false)
-      page.lotFieldBuy.value = String(maxOrderLots)
-      this.lotFieldBuyChangeHandler()
-    })
-    bind(page.maxOrdSell, 'click', () => {
-      const maxOrderLots = this.calcMaxOrderLots(true)
-      page.lotFieldSell.value = String(maxOrderLots)
-      this.lotFieldSellChangeHandler()
+    this.qtySliderBuy = new MiniSlider(page.qtySliderBuy, (sliderValue: number) => {
+      const page = this.page
+
+      // Update lot/qty values accordingly, assume max buy has already been fetched and rate has
+      // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
+      const adjRate = this.adjustedRateAtoms(this.page.rateFieldBuy.value)
+      const maxBuy = this.market.maxBuys[adjRate]
+      // Derive lot value (integer) from the value of slider and our wallet balance.
+      // No need to check for errors because only user can "produce" an invalid input.
+      page.lotFieldBuy.value = String(Math.floor(maxBuy.swap.lots * sliderValue))
+      const [,,, adjQty] = this.parseLotInput(page.lotFieldBuy.value)
+      // Lots and quantity fields are tightly coupled to each other, when one is
+      // changed, we need to update the other one as well.
+      page.qtyFieldBuy.value = String(adjQty)
+
+      this.previewTotalBuy()
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -1216,7 +1223,7 @@ export default class MarketsPage extends BasePage {
       quote: market.quote.id,
       qty: convertToAtoms(page.qtyFieldBuy.value || '', qtyConv),
       rate: convertToAtoms(page.rateFieldBuy.value || '', market.rateConversionFactor), // message-rate
-      tifnow: page.tifNowBuy.checked || false,
+      tifnow: false,
       options: {}
     }
   }
@@ -1239,7 +1246,7 @@ export default class MarketsPage extends BasePage {
       quote: market.quote.id,
       qty: convertToAtoms(page.qtyFieldSell.value || '', qtyConv),
       rate: convertToAtoms(page.rateFieldSell.value || '', market.rateConversionFactor), // message-rate
-      tifnow: page.tifNowSell.checked || false,
+      tifnow: false,
       options: {}
     }
   }
@@ -1258,7 +1265,7 @@ export default class MarketsPage extends BasePage {
       const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
       const total = Doc.formatCoinValue(quoteQty, market.quoteUnitInfo)
 
-      page.orderTotalPreviewBuy.textContent = intl.prep(intl.ID_LIMIT_ORDER_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
+      page.orderTotalPreviewBuy.textContent = intl.prep(intl.ID_LIMIT_ORDER_BUY_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
     }
 
     this.updateOrderBttnBuyState(order)
@@ -1278,7 +1285,7 @@ export default class MarketsPage extends BasePage {
       const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
       const total = Doc.formatCoinValue(quoteQty, market.quoteUnitInfo)
 
-      page.orderTotalPreviewSell.textContent = intl.prep(intl.ID_LIMIT_ORDER_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
+      page.orderTotalPreviewSell.textContent = intl.prep(intl.ID_LIMIT_ORDER_SELL_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
     }
 
     this.updateOrderBttnSellState(order)
@@ -1288,28 +1295,32 @@ export default class MarketsPage extends BasePage {
    * previewMaxBuy displays max available size for buy order.
    */
   previewMaxBuy () {
-    const page = this.page
+    // const page = this.page
     const mkt = this.market
 
     const rate = this.adjustedRateAtoms(this.page.rateFieldBuy.value)
     // There is no need to try calculating maxbuy if rate hasn't been set to a
     // meaningful value.
     if (isNaN(rate) || rate <= 0) {
-      Doc.hidePreservingLayout(page.maxOrdBuy)
+      // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+      // Doc.hidePreservingLayout(page.maxOrdBuy)
       return
     }
     const quoteWallet = app().assets[mkt.quote.id].wallet
     if (!quoteWallet) {
       console.warn('max order estimate not available, no quote wallet in app assets for:', mkt.quote.id)
-      Doc.hidePreservingLayout(page.maxOrdBuy)
+      // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+      // Doc.hidePreservingLayout(page.maxOrdBuy)
       return
     }
 
-    Doc.showPreservingLayout(page.maxOrdBuy)
+    // TODO slider - show slider ? maybe don't need to cause total takes care of it ??
+    // Doc.showPreservingLayout(page.maxOrdBuy)
 
     const aLot = mkt.cfg.lotsize * (rate / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLot) {
-      this.setMaxOrderBuy(null)
+      // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+      // this.setMaxOrderBuy(null)
       return
     }
     // scheduling with delay of 100ms to potentially deduplicate some requests
@@ -1333,7 +1344,8 @@ export default class MarketsPage extends BasePage {
     Doc.showPreservingLayout(page.maxOrdSell)
 
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
-      this.setMaxOrderSell(null)
+      // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+      // this.setMaxOrderSell(null)
       return
     }
     // scheduling with delay of 100ms to potentially deduplicate some requests
@@ -1346,16 +1358,17 @@ export default class MarketsPage extends BasePage {
    * this one is fired (after delay), this call will be canceled.
    */
   scheduleMaxBuyEstimate (rate: number, delay: number) {
-    const page = this.page
     const [bid, qid] = [this.market.base.id, this.market.quote.id]
     const [bWallet, qWallet] = [app().assets[bid].wallet, app().assets[qid].wallet]
     if (!bWallet || !bWallet.running || !qWallet || !qWallet.running) return
 
-    Doc.hide(page.maxQtyBoxBuy, page.maxZeroNoFeesBuy, page.maxZeroNoBalBuy)
+    // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+    // page.maxFromLotsBuy.textContent = intl.prep(intl.ID_CALCULATING)
+    // page.maxFromLotsLblBuy.textContent = ''
+    // if (!this.maxLoadedBuy) this.maxLoadedBuy = app().loading(page.maxOrdBuy)
 
-    page.maxFromLotsBuy.textContent = intl.prep(intl.ID_CALCULATING)
-    page.maxFromLotsLblBuy.textContent = ''
-    if (!this.maxLoadedBuy) this.maxLoadedBuy = app().loading(page.maxOrdBuy)
+    // TODO
+    console.log('scheduleMaxBuyEstimate')
 
     this.maxBuyLastReqID++
     const reqID = this.maxBuyLastReqID
@@ -1374,9 +1387,11 @@ export default class MarketsPage extends BasePage {
         this.maxLoadedBuy = null
       }
       if (res) {
-        this.setMaxOrderBuy(res.swap)
+        // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+        // this.setMaxOrderBuy(res.swap)
       } else {
-        this.setMaxOrderBuy(null)
+        // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+        // this.setMaxOrderBuy(null)
       }
     }, delay)
   }
@@ -1415,9 +1430,11 @@ export default class MarketsPage extends BasePage {
         this.maxLoadedSell = null
       }
       if (res) {
-        this.setMaxOrderSell(res.swap)
+        // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+        // this.setMaxOrderSell(res.swap)
       } else {
-        this.setMaxOrderSell(null)
+        // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+        // this.setMaxOrderSell(null)
       }
     }, delay)
   }
@@ -1479,106 +1496,106 @@ export default class MarketsPage extends BasePage {
     return res
   }
 
-  /* setMaxOrderBuy sets the max order text. */
-  setMaxOrderBuy (maxOrder: SwapEstimate | null) {
-    const page = this.page
+  // /* setMaxOrderBuy sets the max order text. */
+  // setMaxOrderBuy (maxOrder: SwapEstimate | null) {
+  //   const page = this.page
+  //
+  //   const lots = maxOrder ? maxOrder.lots : 0
+  //   if (lots !== 0) {
+  //     Doc.show(page.maxQtyBoxBuy)
+  //   } else {
+  //     // Don't display 0 quantity for simplicity.
+  //     Doc.hide(page.maxQtyBoxBuy)
+  //   }
+  //
+  //   page.maxFromLotsBuy.textContent = lots.toString()
+  //   // XXX add plural into format details, so we don't need this
+  //   page.maxFromLotsLblBuy.textContent = intl.prep(lots === 1 ? intl.ID_LOT : intl.ID_LOTS)
+  //   if (!maxOrder) return
+  //
+  //   const fromAsset = this.market.quote
+  //
+  //   if (lots === 0) {
+  //     // If we have a maxOrder, see if we can guess why we have no lots.
+  //     let lotSize = this.market.cfg.lotsize
+  //     const conversionRate = this.anyRate()[1]
+  //     if (conversionRate === 0) return
+  //     lotSize = lotSize * conversionRate
+  //     const haveQty = fromAsset.wallet.balance.available / lotSize > 0
+  //     if (haveQty) {
+  //       if (fromAsset.token) {
+  //         const { wallet: { balance: { available: feeAvail } }, unitInfo } = app().assets[fromAsset.token.parentID]
+  //         if (feeAvail < maxOrder.feeReservesPerLot) {
+  //           Doc.show(page.maxZeroNoFeesBuy)
+  //           page.maxZeroNoFeesTickerBuy.textContent = unitInfo.conventional.unit
+  //           page.maxZeroMinFeesBuy.textContent = Doc.formatCoinValue(maxOrder.feeReservesPerLot, unitInfo)
+  //         }
+  //         // It looks like we should be able to afford it, but maybe some fees we're not seeing.
+  //         // Show nothing.
+  //         return
+  //       }
+  //       // Not a token. Maybe we have enough for the swap but not for fees.
+  //       const fundedLots = fromAsset.wallet.balance.available / (lotSize + maxOrder.feeReservesPerLot)
+  //       if (fundedLots > 0) return // Not sure why. Could be split txs or utxos. Just show nothing.
+  //     }
+  //     Doc.show(page.maxZeroNoBalBuy)
+  //     page.maxZeroNoBalTickerBuy.textContent = fromAsset.unitInfo.conventional.unit
+  //     return
+  //   }
+  //   Doc.show(page.maxAboveZeroBuy)
+  //
+  //   page.maxFromAmtBuy.textContent = Doc.formatCoinValue(maxOrder.value || 0, fromAsset.unitInfo)
+  //   page.maxFromTickerBuy.textContent = fromAsset.unitInfo.conventional.unit
+  // }
 
-    const lots = maxOrder ? maxOrder.lots : 0
-    if (lots !== 0) {
-      Doc.show(page.maxQtyBoxBuy)
-    } else {
-      // Don't display 0 quantity for simplicity.
-      Doc.hide(page.maxQtyBoxBuy)
-    }
-
-    page.maxFromLotsBuy.textContent = lots.toString()
-    // XXX add plural into format details, so we don't need this
-    page.maxFromLotsLblBuy.textContent = intl.prep(lots === 1 ? intl.ID_LOT : intl.ID_LOTS)
-    if (!maxOrder) return
-
-    const fromAsset = this.market.quote
-
-    if (lots === 0) {
-      // If we have a maxOrder, see if we can guess why we have no lots.
-      let lotSize = this.market.cfg.lotsize
-      const conversionRate = this.anyRate()[1]
-      if (conversionRate === 0) return
-      lotSize = lotSize * conversionRate
-      const haveQty = fromAsset.wallet.balance.available / lotSize > 0
-      if (haveQty) {
-        if (fromAsset.token) {
-          const { wallet: { balance: { available: feeAvail } }, unitInfo } = app().assets[fromAsset.token.parentID]
-          if (feeAvail < maxOrder.feeReservesPerLot) {
-            Doc.show(page.maxZeroNoFeesBuy)
-            page.maxZeroNoFeesTickerBuy.textContent = unitInfo.conventional.unit
-            page.maxZeroMinFeesBuy.textContent = Doc.formatCoinValue(maxOrder.feeReservesPerLot, unitInfo)
-          }
-          // It looks like we should be able to afford it, but maybe some fees we're not seeing.
-          // Show nothing.
-          return
-        }
-        // Not a token. Maybe we have enough for the swap but not for fees.
-        const fundedLots = fromAsset.wallet.balance.available / (lotSize + maxOrder.feeReservesPerLot)
-        if (fundedLots > 0) return // Not sure why. Could be split txs or utxos. Just show nothing.
-      }
-      Doc.show(page.maxZeroNoBalBuy)
-      page.maxZeroNoBalTickerBuy.textContent = fromAsset.unitInfo.conventional.unit
-      return
-    }
-    Doc.show(page.maxAboveZeroBuy)
-
-    page.maxFromAmtBuy.textContent = Doc.formatCoinValue(maxOrder.value || 0, fromAsset.unitInfo)
-    page.maxFromTickerBuy.textContent = fromAsset.unitInfo.conventional.unit
-  }
-
-  /* setMaxOrderSell sets the max order text. */
-  setMaxOrderSell (maxOrder: SwapEstimate | null) {
-    const page = this.page
-
-    const lots = maxOrder ? maxOrder.lots : 0
-    if (lots !== 0) {
-      Doc.show(page.maxQtyBoxSell)
-    } else {
-      // Don't display 0 quantity for simplicity.
-      Doc.hide(page.maxQtyBoxSell)
-    }
-
-    page.maxFromLotsSell.textContent = lots.toString()
-    // XXX add plural into format details, so we don't need this
-    page.maxFromLotsLblSell.textContent = intl.prep(lots === 1 ? intl.ID_LOT : intl.ID_LOTS)
-    if (!maxOrder) return
-
-    const fromAsset = this.market.base
-
-    if (lots === 0) {
-      // If we have a maxOrder, see if we can guess why we have no lots.
-      const lotSize = this.market.cfg.lotsize
-      const haveQty = fromAsset.wallet.balance.available / lotSize > 0
-      if (haveQty) {
-        if (fromAsset.token) {
-          const { wallet: { balance: { available: feeAvail } }, unitInfo } = app().assets[fromAsset.token.parentID]
-          if (feeAvail < maxOrder.feeReservesPerLot) {
-            Doc.show(page.maxZeroNoFeesSell)
-            page.maxZeroNoFeesTickerSell.textContent = unitInfo.conventional.unit
-            page.maxZeroMinFeesSell.textContent = Doc.formatCoinValue(maxOrder.feeReservesPerLot, unitInfo)
-          }
-          // It looks like we should be able to afford it, but maybe some fees we're not seeing.
-          // Show nothing.
-          return
-        }
-        // Not a token. Maybe we have enough for the swap but not for fees.
-        const fundedLots = fromAsset.wallet.balance.available / (lotSize + maxOrder.feeReservesPerLot)
-        if (fundedLots > 0) return // Not sure why. Could be split txs or utxos. Just show nothing.
-      }
-      Doc.show(page.maxZeroNoBalSell)
-      page.maxZeroNoBalTickerSell.textContent = fromAsset.unitInfo.conventional.unit
-      return
-    }
-    Doc.show(page.maxAboveZeroSell)
-
-    page.maxFromAmtSell.textContent = Doc.formatCoinValue(maxOrder.value || 0, fromAsset.unitInfo)
-    page.maxFromTickerSell.textContent = fromAsset.unitInfo.conventional.unit
-  }
+  // /* setMaxOrderSell sets the max order text. */
+  // setMaxOrderSell (maxOrder: SwapEstimate | null) {
+  //   const page = this.page
+  //
+  //   const lots = maxOrder ? maxOrder.lots : 0
+  //   if (lots !== 0) {
+  //     Doc.show(page.maxQtyBoxSell)
+  //   } else {
+  //     // Don't display 0 quantity for simplicity.
+  //     Doc.hide(page.maxQtyBoxSell)
+  //   }
+  //
+  //   page.maxFromLotsSell.textContent = lots.toString()
+  //   // XXX add plural into format details, so we don't need this
+  //   page.maxFromLotsLblSell.textContent = intl.prep(lots === 1 ? intl.ID_LOT : intl.ID_LOTS)
+  //   if (!maxOrder) return
+  //
+  //   const fromAsset = this.market.base
+  //
+  //   if (lots === 0) {
+  //     // If we have a maxOrder, see if we can guess why we have no lots.
+  //     const lotSize = this.market.cfg.lotsize
+  //     const haveQty = fromAsset.wallet.balance.available / lotSize > 0
+  //     if (haveQty) {
+  //       if (fromAsset.token) {
+  //         const { wallet: { balance: { available: feeAvail } }, unitInfo } = app().assets[fromAsset.token.parentID]
+  //         if (feeAvail < maxOrder.feeReservesPerLot) {
+  //           Doc.show(page.maxZeroNoFeesSell)
+  //           page.maxZeroNoFeesTickerSell.textContent = unitInfo.conventional.unit
+  //           page.maxZeroMinFeesSell.textContent = Doc.formatCoinValue(maxOrder.feeReservesPerLot, unitInfo)
+  //         }
+  //         // It looks like we should be able to afford it, but maybe some fees we're not seeing.
+  //         // Show nothing.
+  //         return
+  //       }
+  //       // Not a token. Maybe we have enough for the swap but not for fees.
+  //       const fundedLots = fromAsset.wallet.balance.available / (lotSize + maxOrder.feeReservesPerLot)
+  //       if (fundedLots > 0) return // Not sure why. Could be split txs or utxos. Just show nothing.
+  //     }
+  //     Doc.show(page.maxZeroNoBalSell)
+  //     page.maxZeroNoBalTickerSell.textContent = fromAsset.unitInfo.conventional.unit
+  //     return
+  //   }
+  //   Doc.show(page.maxAboveZeroSell)
+  //
+  //   page.maxFromAmtSell.textContent = Doc.formatCoinValue(maxOrder.value || 0, fromAsset.unitInfo)
+  //   page.maxFromTickerSell.textContent = fromAsset.unitInfo.conventional.unit
+  // }
 
   /*
    * validateOrderBuy performs some basic order sanity checks, returning boolean
@@ -1612,8 +1629,9 @@ export default class MarketsPage extends BasePage {
     // the placement time, so we have this validation here just to provide snappy
     // feedback for the user.
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
-      // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightBackgroundRed(page.maxOrdBuy), highlightOutlineRed(page.lotFieldBuy))
+      // TODO slider - remove this animation ?
+      // // Hints to the user what inputs don't pass validation.
+      // this.animateErrors(highlightBackgroundRed(page.maxOrdBuy), highlightOutlineRed(page.lotFieldBuy))
       showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
@@ -2807,7 +2825,7 @@ export default class MarketsPage extends BasePage {
   lotFieldBuyInputHandler () {
     const page = this.page
 
-    const [inputValid,,, adjQty] = this.parseLotInput(page.lotFieldBuy.value)
+    const [inputValid,, adjLots, adjQty] = this.parseLotInput(page.lotFieldBuy.value)
     if (!inputValid) {
       page.orderTotalPreviewBuy.textContent = ''
       page.lotFieldBuy.value = ''
@@ -2817,6 +2835,13 @@ export default class MarketsPage extends BasePage {
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.qtyFieldBuy.value = String(adjQty)
+
+    // Update slider accordingly, assume max buy has already been fetched and rate has
+    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
+    const [,, adjRate] = this.parseRateInput(this.page.rateFieldBuy.value)
+    const maxBuy = this.market.maxBuys[adjRate]
+    const sliderValue = (adjLots / maxBuy.swap.lots)
+    this.qtySliderBuy.setValue(sliderValue)
 
     this.previewTotalBuy()
   }
@@ -2861,6 +2886,13 @@ export default class MarketsPage extends BasePage {
     // changed, we need to update the other one as well.
     page.lotFieldBuy.value = String(adjLots)
     page.qtyFieldBuy.value = String(adjQty)
+
+    // Update slider accordingly, assume max buy has already been fetched and rate has
+    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
+    const [,, adjRate] = this.parseRateInput(this.page.rateFieldBuy.value)
+    const maxBuy = this.market.maxBuys[adjRate]
+    const sliderValue = (adjLots / maxBuy.swap.lots)
+    this.qtySliderBuy.setValue(sliderValue)
 
     this.previewTotalBuy()
   }
@@ -2909,15 +2941,15 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrBuy)
     Doc.hide(page.orderErrSell)
 
-    const lotsAdj = parseInt(value || '')
-    if (isNaN(lotsAdj) || lotsAdj < 0) {
+    const adjLots = parseInt(value || '')
+    if (isNaN(adjLots) || adjLots < 0) {
       return [false, false, 0, 0]
     }
 
-    const rounded = String(lotsAdj) !== value
-    const adjQty = lotsAdj * lotSize / bui.conventional.conversionFactor
+    const rounded = String(adjLots) !== value
+    const adjQty = adjLots * lotSize / bui.conventional.conversionFactor
 
-    return [true, rounded, lotsAdj, adjQty]
+    return [true, rounded, adjLots, adjQty]
   }
 
   qtyFieldBuyInputHandler () {
@@ -2933,6 +2965,13 @@ export default class MarketsPage extends BasePage {
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.lotFieldBuy.value = String(adjLots)
+
+    // Update slider accordingly, assume max buy has already been fetched and rate has
+    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
+    const [,, adjRate] = this.parseRateInput(this.page.rateFieldBuy.value)
+    const maxBuy = this.market.maxBuys[adjRate]
+    const sliderValue = (adjLots / maxBuy.swap.lots)
+    this.qtySliderBuy.setValue(sliderValue)
 
     this.previewTotalBuy()
   }
@@ -2976,6 +3015,13 @@ export default class MarketsPage extends BasePage {
     // changed, we need to update the other one as well.
     page.lotFieldBuy.value = String(adjLots)
     page.qtyFieldBuy.value = String(adjQty)
+
+    // Update slider accordingly, assume max buy has already been fetched and rate has
+    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
+    const [,, adjRate] = this.parseRateInput(this.page.rateFieldBuy.value)
+    const maxBuy = this.market.maxBuys[adjRate]
+    const sliderValue = (adjLots / maxBuy.swap.lots)
+    this.qtySliderBuy.setValue(sliderValue)
 
     this.previewTotalBuy()
   }

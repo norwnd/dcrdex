@@ -69,8 +69,6 @@ var DeDE = map[string]*intl.Translation{
 	"Max":                            {T: "Max"},
 	"lot":                            {T: "Lot"},
 	"min trade is about":             {T: "min trade ist ungefähr"},
-	"immediate_explanation":          {T: "Wird der Auftrag im nächsten Matchingzyklus nicht vollständig gedeckt wird die ungedeckte Menge weder nachgebucht noch erneut gematcht. Nur-Käufer-Auftrag."},
-	"Immediate or cancel":            {T: "Sofort oder Abbrechen"},
 	"Balances":                       {T: "Guthaben"},
 	"outdated_tooltip":               {T: "Der Guthabenstand ist möglicherweise veraltet. Stell eine Verbindung zum Wallet her um ihn zu aktualisieren."},
 	"available":                      {T: "verfügbar"},
