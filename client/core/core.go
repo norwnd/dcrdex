@@ -6188,9 +6188,9 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 		return newError(walletErr, fmt.Sprintf("couldn't determine Bison rate "+
 			"for market: %s", market))
 	}
-	if math.Abs(float64(rate)-float64(bisonRate)) > (0.15 * float64(bisonRate)) {
+	if math.Abs(float64(rate)-float64(bisonRate)) > (0.25 * float64(bisonRate)) {
 		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
-			"that's diverging from Bison rate %d for more than 15 percent", rate, bisonRate))
+			"that's diverging from Bison rate %d for more than 25 percent", rate, bisonRate))
 	}
 
 	// additionally, prevent placing limit-orders that might result into slippage of 1% or more

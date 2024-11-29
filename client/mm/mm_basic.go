@@ -400,6 +400,9 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		basisRateDiffPercent = (float64(basisPrice) - float64(m.firstReliableBasisPrice)) / float64(m.firstReliableBasisPrice)
 	}
 
+	m.log.Tracef("bisonPrice = %d", bisonPrice)
+	m.log.Tracef("basisPrice = %d", basisPrice)
+
 	{
 		// check the confluence of Bison and Basis price
 		rateConfluenceDiffPercent := math.Abs((float64(bisonPrice) - float64(basisPrice)) / float64(bisonPrice))
@@ -439,7 +442,7 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		steppedRate(uint64(float64(bisonPrice)+0.04*float64(bisonPrice)), m.rateStep),
 		steppedRate(uint64(float64(basisPrice)+0.04*float64(basisPrice)), m.rateStep),
 	)
-	m.log.Tracef("(default 4%%) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
+	m.log.Tracef("(default 4%%) bestBuy = %d, bestSell = %d", bestBuy, bestSell)
 	bisonOrders, found, err := book.BestNOrders(1, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("find best buy order in Bison book: %v", err)
@@ -454,7 +457,7 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 	if found && bisonOrders[0].Rate < bestSell {
 		bestSell = bisonOrders[0].Rate
 	}
-	m.log.Tracef("(with Bison book) bestBuy: %d, bestSell: %d", bestBuy, bestSell)
+	m.log.Tracef("(with Bison book) bestBuy = %d, bestSell = %d", bestBuy, bestSell)
 
 	feeGap, err := m.calculator.feeGapStats(basisPrice)
 	if err != nil {
@@ -568,7 +571,15 @@ func (m *basicMarketMaker) rebalance(newEpoch uint64) {
 
 	// simple work-around for not competing with my own (bot's) orders in Bison book,
 	// every 4th epoch (happens every 60s) we simply revoke our orders so that we can
-	// re-book these with correct price (presumably on that very same epoch)
+	// re-book these with correct price (presumably on that very same epoch).
+	// Additionally, by canceling orders here we are also making sure no delinquent
+	// order of ours stays in Bison book for too long (e.g. when Binance price changes
+	// rapidly the orders we have in Bison book will stay there until we prepare next
+	// batch of order placements that are meant to replace them - which we won't be able
+	// to do since speedy price change completely prevents MM bot from preparing/placing
+	// any orders due to lack of price confluence between Bison and Oracle price; and
+	// inability to fetch oracle price also prevents MM bot from revising/updating his
+	// trades in the current implementation)
 	if newEpoch%4 == 0 {
 		m.tryCancelOrders(m.ctx, &newEpoch, false)
 	}
