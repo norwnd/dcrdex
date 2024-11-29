@@ -68,8 +68,6 @@ var PtBr = map[string]*intl.Translation{
 	"Max":                            {T: "Máximo"},
 	"lot":                            {T: "lote"},
 	"min trade is about":             {T: "troca mínima é sobre"},
-	"immediate_explanation":          {T: "Se o pedido não preencher completamente durante o próximo ciclo de encontros, qualquer quantia restante não será reservada ou combinada novamente nos próximos ciclos."}, // revisar
-	"Immediate or cancel":            {T: "Imediato ou cancelar"},
 	"Balances":                       {T: "Balanços"},
 	"outdated_tooltip":               {T: "Balanço pode está desatualizado. Conecte-se a carteira para atualizar."},
 	"available":                      {T: "disponível"},
