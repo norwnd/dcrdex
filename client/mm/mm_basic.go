@@ -548,11 +548,8 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 		return placements
 	}
 
-	// TODO - since MM bot doesn't support disable 1 side in UI we are temporarily
-	// hardcoding it here until the following issue is resolved:
-	// https://github.com/decred/dcrdex/issues/3101
 	buyOrders = orders(m.cfg().BuyPlacements, false)
-	//sellOrders = orders(m.cfg().SellPlacements, true)
+	sellOrders = orders(m.cfg().SellPlacements, true)
 	return buyOrders, sellOrders, nil
 }
 
@@ -570,7 +567,7 @@ func (m *basicMarketMaker) rebalance(newEpoch uint64) {
 	}
 
 	// simple work-around for not competing with my own (bot's) orders in Bison book,
-	// every 4th epoch (happens every 60s) we simply revoke our orders so that we can
+	// every 2nd epoch (happens every 60s) we simply revoke our orders so that we can
 	// re-book these with correct price (presumably on that very same epoch).
 	// Additionally, by canceling orders here we are also making sure no delinquent
 	// order of ours stays in Bison book for too long (e.g. when Binance price changes
@@ -580,7 +577,7 @@ func (m *basicMarketMaker) rebalance(newEpoch uint64) {
 	// any orders due to lack of price confluence between Bison and Oracle price; and
 	// inability to fetch oracle price also prevents MM bot from revising/updating his
 	// trades in the current implementation)
-	if newEpoch%4 == 0 {
+	if newEpoch%2 == 0 {
 		m.tryCancelOrders(m.ctx, &newEpoch, false)
 	}
 
