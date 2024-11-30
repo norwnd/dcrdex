@@ -161,6 +161,7 @@ export default class MarketsPage extends BasePage {
   // maxSellLastReqID same as maxBuyLastReqID but for /maxsell requests.
   maxSellLastReqID: number
   qtySliderBuy: MiniSlider
+  qtySliderSell: MiniSlider
   verifiedOrder: TradeForm
   market: CurrentMarket
   openAsset: SupportedAsset
@@ -294,6 +295,25 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldBuy.value = String(adjQty)
 
       this.previewTotalBuy()
+    })
+    this.qtySliderSell = new MiniSlider(page.qtySliderSell, (sliderValue: number) => {
+      const page = this.page
+
+      // Update lot/qty values accordingly, assume max sell has already been fetched (don't
+      // let user touch lot/qty/slider fields otherwise).
+      let maxSellLots = 0
+      if (this.market.maxSell) {
+        maxSellLots = this.market.maxSell.swap.lots
+      }
+      // Derive lot value (integer) from the value of slider and our wallet balance.
+      // No need to check for errors because only user can "produce" an invalid input.
+      page.lotFieldSell.value = String(Math.floor(maxSellLots * sliderValue))
+      const [,,, adjQty] = this.parseLotInput(page.lotFieldSell.value)
+      // Lots and quantity fields are tightly coupled to each other, when one is
+      // changed, we need to update the other one as well.
+      page.qtyFieldSell.value = String(adjQty)
+
+      this.previewTotalSell()
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -1262,10 +1282,17 @@ export default class MarketsPage extends BasePage {
     const order = this.parseOrderBuy()
 
     if (order.qty > 0 && order.rate > 0) {
-      const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
-      const total = Doc.formatCoinValue(quoteQty, market.quoteUnitInfo)
+      const totalOut = order.qty * order.rate / OrderUtil.RateEncodingFactor
+      const totalIn = order.qty
 
-      page.orderTotalPreviewBuy.textContent = intl.prep(intl.ID_LIMIT_ORDER_BUY_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
+      page.orderTotalPreviewBuyLeft.textContent = intl.prep(
+        intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
+        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+      )
+      page.orderTotalPreviewBuyRight.textContent = intl.prep(
+        intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
+        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+      )
     }
 
     this.updateOrderBttnBuyState(order)
@@ -1282,10 +1309,17 @@ export default class MarketsPage extends BasePage {
     const order = this.parseOrderSell()
 
     if (order.qty > 0 && order.rate > 0) {
-      const quoteQty = order.qty * order.rate / OrderUtil.RateEncodingFactor
-      const total = Doc.formatCoinValue(quoteQty, market.quoteUnitInfo)
+      const totalOut = order.qty
+      const totalIn = order.qty * order.rate / OrderUtil.RateEncodingFactor
 
-      page.orderTotalPreviewSell.textContent = intl.prep(intl.ID_LIMIT_ORDER_SELL_TOTAL_PREVIEW, { total, asset: market.quoteUnitInfo.conventional.unit })
+      page.orderTotalPreviewSellLeft.textContent = intl.prep(
+        intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
+        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+      )
+      page.orderTotalPreviewSellRight.textContent = intl.prep(
+        intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
+        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+      )
     }
 
     this.updateOrderBttnSellState(order)
@@ -1331,17 +1365,19 @@ export default class MarketsPage extends BasePage {
    * previewMaxSell displays max available size for sell order.
    */
   previewMaxSell () {
-    const page = this.page
+    // const page = this.page
     const mkt = this.market
 
     const baseWallet = app().assets[mkt.base.id].wallet
     if (!baseWallet) {
       console.warn('max order estimate not available, no base wallet in app assets for:', mkt.base.id)
-      Doc.hidePreservingLayout(page.maxOrdSell)
+      // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+      // Doc.hidePreservingLayout(page.maxOrdSell)
       return
     }
 
-    Doc.showPreservingLayout(page.maxOrdSell)
+    // TODO slider - show slider ? maybe don't need to cause total takes care of it ??
+    // Doc.showPreservingLayout(page.maxOrdSell)
 
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
       // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
@@ -1366,9 +1402,6 @@ export default class MarketsPage extends BasePage {
     // page.maxFromLotsBuy.textContent = intl.prep(intl.ID_CALCULATING)
     // page.maxFromLotsLblBuy.textContent = ''
     // if (!this.maxLoadedBuy) this.maxLoadedBuy = app().loading(page.maxOrdBuy)
-
-    // TODO
-    console.log('scheduleMaxBuyEstimate')
 
     this.maxBuyLastReqID++
     const reqID = this.maxBuyLastReqID
@@ -1402,16 +1435,15 @@ export default class MarketsPage extends BasePage {
    * this one is fired (after delay), this call will be canceled.
    */
   scheduleMaxSellEstimate (delay: number) {
-    const page = this.page
+    // const page = this.page
     const [bid, qid] = [this.market.base.id, this.market.quote.id]
     const [bWallet, qWallet] = [app().assets[bid].wallet, app().assets[qid].wallet]
     if (!bWallet || !bWallet.running || !qWallet || !qWallet.running) return
 
-    Doc.hide(page.maxQtyBoxSell, page.maxZeroNoFeesSell, page.maxZeroNoBalSell)
-
-    page.maxFromLotsSell.textContent = intl.prep(intl.ID_CALCULATING)
-    page.maxFromLotsLblSell.textContent = ''
-    if (!this.maxLoadedSell) this.maxLoadedSell = app().loading(page.maxOrdSell)
+    // TODO slider - grey out slider/form ? maybe don't need to cause total takes care of it ??
+    // page.maxFromLotsSell.textContent = intl.prep(intl.ID_CALCULATING)
+    // page.maxFromLotsLblSell.textContent = ''
+    // if (!this.maxLoadedSell) this.maxLoadedSell = app().loading(page.maxOrdSell)
 
     this.maxSellLastReqID++
     const reqID = this.maxSellLastReqID
@@ -1670,8 +1702,9 @@ export default class MarketsPage extends BasePage {
     // the placement time, so we have this validation here just to provide snappy
     // feedback for the user.
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
-      // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightBackgroundRed(page.maxOrdSell), highlightOutlineRed(page.lotFieldSell))
+      // TODO slider - remove this animation ?
+      // // Hints to the user what inputs don't pass validation.
+      // this.animateErrors(highlightBackgroundRed(page.maxOrdSell), highlightOutlineRed(page.lotFieldSell))
       showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
@@ -2827,7 +2860,8 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid,, adjLots, adjQty] = this.parseLotInput(page.lotFieldBuy.value)
     if (!inputValid) {
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       page.lotFieldBuy.value = ''
       page.qtyFieldBuy.value = ''
       return
@@ -2849,9 +2883,10 @@ export default class MarketsPage extends BasePage {
   lotFieldSellInputHandler () {
     const page = this.page
 
-    const [inputValid,,, adjQty] = this.parseLotInput(page.lotFieldSell.value)
+    const [inputValid,, adjLots, adjQty] = this.parseLotInput(page.lotFieldSell.value)
     if (!inputValid) {
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       page.lotFieldSell.value = ''
       page.qtyFieldSell.value = ''
       return
@@ -2859,6 +2894,15 @@ export default class MarketsPage extends BasePage {
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.qtyFieldSell.value = String(adjQty)
+
+    // Update slider accordingly, assume max sell has already been fetched (don't
+    // let user touch lot/qty/slider fields otherwise).
+    const maxSell = this.market.maxSell
+    let sliderValue = 0
+    if (maxSell) {
+      sliderValue = (adjLots / maxSell.swap.lots)
+    }
+    this.qtySliderSell.setValue(sliderValue)
 
     this.previewTotalSell()
   }
@@ -2877,7 +2921,8 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.lotFieldBuy), highlightBackgroundRed(page.lotSizeBoxBuy))
     }
     if (!inputValid) {
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       page.lotFieldBuy.value = ''
       page.qtyFieldBuy.value = ''
       return
@@ -2911,7 +2956,8 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.lotFieldSell), highlightBackgroundRed(page.lotSizeBoxSell))
     }
     if (!inputValid) {
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       page.lotFieldSell.value = ''
       page.qtyFieldSell.value = ''
       return
@@ -2920,6 +2966,15 @@ export default class MarketsPage extends BasePage {
     // changed, we need to update the other one as well.
     page.lotFieldSell.value = String(adjLots)
     page.qtyFieldSell.value = String(adjQty)
+
+    // Update slider accordingly, assume max sell has already been fetched (don't
+    // let user touch lot/qty/slider fields otherwise).
+    const maxSell = this.market.maxSell
+    let sliderValue = 0
+    if (maxSell) {
+      sliderValue = (adjLots / maxSell.swap.lots)
+    }
+    this.qtySliderSell.setValue(sliderValue)
 
     this.previewTotalSell()
   }
@@ -2957,7 +3012,8 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid,, adjLots] = this.parseQtyInput(page.qtyFieldBuy.value)
     if (!inputValid) {
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       page.lotFieldBuy.value = ''
       page.qtyFieldBuy.value = ''
       return
@@ -2981,7 +3037,8 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid,, adjLots] = this.parseQtyInput(page.qtyFieldSell.value)
     if (!inputValid) {
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       page.lotFieldSell.value = ''
       page.qtyFieldSell.value = ''
       return
@@ -2989,6 +3046,15 @@ export default class MarketsPage extends BasePage {
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.lotFieldSell.value = String(adjLots)
+
+    // Update slider accordingly, assume max sell has already been fetched (don't
+    // let user touch lot/qty/slider fields otherwise).
+    const maxSell = this.market.maxSell
+    let sliderValue = 0
+    if (maxSell) {
+      sliderValue = (adjLots / maxSell.swap.lots)
+    }
+    this.qtySliderSell.setValue(sliderValue)
 
     this.previewTotalSell()
   }
@@ -3006,7 +3072,8 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.qtyFieldBuy), highlightBackgroundRed(page.lotSizeBoxBuy))
     }
     if (!inputValid) {
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       page.lotFieldBuy.value = ''
       page.qtyFieldBuy.value = ''
       return
@@ -3039,7 +3106,8 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.qtyFieldSell), highlightBackgroundRed(page.lotSizeBoxSell))
     }
     if (!inputValid) {
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       page.lotFieldSell.value = ''
       page.qtyFieldSell.value = ''
       return
@@ -3048,6 +3116,15 @@ export default class MarketsPage extends BasePage {
     // changed, we need to update the other one as well.
     page.lotFieldSell.value = String(adjLots)
     page.qtyFieldSell.value = String(adjQty)
+
+    // Update slider accordingly, assume max sell has already been fetched (don't
+    // let user touch lot/qty/slider fields otherwise).
+    const maxSell = this.market.maxSell
+    let sliderValue = 0
+    if (maxSell) {
+      sliderValue = (adjLots / maxSell.swap.lots)
+    }
+    this.qtySliderSell.setValue(sliderValue)
 
     this.previewTotalSell()
   }
@@ -3088,7 +3165,8 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid] = this.parseRateInput(this.page.rateFieldBuy.value)
     if (!inputValid) {
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       this.previewMaxBuy()
       return
     }
@@ -3102,7 +3180,8 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid] = this.parseRateInput(this.page.rateFieldSell.value)
     if (!inputValid) {
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       this.previewMaxSell()
       return
     }
@@ -3125,7 +3204,8 @@ export default class MarketsPage extends BasePage {
     }
     if (!inputValid) {
       page.rateFieldBuy.value = ''
-      page.orderTotalPreviewBuy.textContent = ''
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
       this.previewMaxBuy()
       return
     }
@@ -3149,7 +3229,8 @@ export default class MarketsPage extends BasePage {
     }
     if (!inputValid) {
       page.rateFieldSell.value = ''
-      page.orderTotalPreviewSell.textContent = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
       this.previewMaxSell()
       return
     }
