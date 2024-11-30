@@ -56,7 +56,7 @@ var PtBr = map[string]*intl.Translation{
 	"buys":                           {T: "compras"},
 	"sells":                          {T: "vendas"},
 	"Buy Orders":                     {T: "Pedidos de Compras"},
-	"Quantity":                       {T: "Quantidade"},
+	"Quantity":                       {T: "Quantidade:"},
 	"Rate":                           {T: "Câmbio"},
 	"Limit Order":                    {T: "Ordem Limite"},
 	"Market Order":                   {T: "Ordem de Mercado"},
