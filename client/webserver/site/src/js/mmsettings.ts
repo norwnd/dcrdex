@@ -107,10 +107,10 @@ const defaultOrderPersistence = {
 }
 const defaultProfit = {
   prec: 3,
-  value: 0.04,
+  value: 0.08,
   minV: 0.001,
   maxV: 0.1,
-  range: 0.04 - 0.001
+  range: 0.08 - 0.001
 }
 const defaultLevelSpacing = {
   prec: 3,
