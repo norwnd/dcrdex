@@ -274,84 +274,79 @@
                     </div>
                     <div class="d-flex mt-4" id="qtyBoxBuy">
                       <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
-                      <div class="col-6 p-0 position-relative">
+                      <div class="col-6 p-0 position-relative d-hide">
                         <input type="number" class="form-control select bg1" id="lotFieldBuy">
                         <span class="unit unitbox">[[[:title:lots]]]</span>
                       </div>
-                      <div class="col-1 p-0"></div> {{/* spacer */}}
                       <div class="col-11 p-0 position-relative">
                         <input type="number" class="form-control select bg1" id="qtyFieldBuy">
                         <span class="unit unitbox" data-base-ticker></span>
                       </div>
                     </div>
-                    <div id="qtySliderBuy" class="mini-slider flex-grow-1 mt-2"></div>
+                    <div id="qtySliderBuy" class="mini-slider flex-stretch-column mt-2"></div>
                   </div>
 
                   {{- /* SUBMIT ORDER BOX */ -}}
                   <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
-                    <div id="orderTotalPreviewBuyLeft" class="m-2"></div>
-                    <span class="m-2 fs14">⇄</span>
-                    <div id="orderTotalPreviewBuyRight" class="m-2"></div>
+                    <div id="orderTotalPreviewBuyLeft" class="m-2 fs18"></div>
+                    <span class="m-2 fs24">⇄</span>
+                    <div id="orderTotalPreviewBuyRight" class="m-2 fs18"></div>
                   </div>
                   <div>
-                    <button id="submitBttnBuy" type="button" class="m-2 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
+                    <button id="submitBttnBuy" type="button" class="submit flex-stretch-column m-2 fs18 text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   </div>
 
                 </div>
-                <div class="fs15 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
+                <div class="fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
               </div>
 
               {{- /* SELL ORDER FORM */ -}}
               <div id="orderFormSell" class="p-3 d-hide">
-                <div class="p-0 w-100">
-                  <div id="limitOrderBoxSell">
-                    <div class="d-flex justify-content-between my-2 fs14">
-                      <div id="lotSizeBoxSell">
-                        [[[:title:lot_size]]]:
-                        <span id="lotSizeSell"></span>
-                        <span data-base-ticker></span>
-                      </div>
-                      <div id="rateStepBoxSell">
-                        [[[Rate Step]]]:
-                        <span id="rateStepSell"></span>
-                        <span data-unit="quote"></span>
-                      </div>
+                <div id="limitOrderBoxSell" class="d-flex flex-stretch-column">
+                  <div class="d-flex justify-content-between m-1 fs14">
+                    <div id="lotSizeBoxSell">
+                      [[[:title:lot_size]]]:
+                      <span id="lotSizeSell"></span>
+                      <span data-base-ticker></span>
                     </div>
-                    {{- /* RATE AND QUANTITY INPUTS */ -}}
-                    <div class="d-flex mt-3" id="priceBoxSell">
-                      <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
-                      <div class="col-18 p-0 position-relative">
-                        <input type="number" class="form-control select bg1" id="rateFieldSell">
-                        <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
-                      </div>
+                    <div id="rateStepBoxSell">
+                      [[[Rate Step]]]:
+                      <span id="rateStepSell"></span>
+                      <span data-unit="quote"></span>
                     </div>
-                    <div class="d-flex mt-4" id="qtyBoxSell">
-                      <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
-                      <div class="col-6 p-0 position-relative">
-                        <input type="number" class="form-control select bg1" id="lotFieldSell">
-                        <span class="unit unitbox">[[[:title:lots]]]</span>
-                      </div>
-                      <div class="col-1 p-0"></div> {{/* spacer */}}
-                      <div class="col-11 p-0 position-relative">
-                        <input type="number" class="form-control select bg1" id="qtyFieldSell">
-                        <span class="unit unitbox" data-base-ticker></span>
-                      </div>
-                    </div>
-                    <div id="qtySliderSell" class="mini-slider flex-grow-1 mt-2"></div>
                   </div>
+                  {{- /* RATE AND QUANTITY INPUTS */ -}}
+                  <div class="d-flex justify-content-between m-1" id="priceBoxSell">
+                    <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
+                    <div class="col-18 p-0 position-relative">
+                      <input type="number" class="form-control select bg1" id="rateFieldSell">
+                      <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
+                    </div>
+                  </div>
+                  <div class="d-flex justify-content-between m-1" id="qtyBoxSell">
+                    <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">[[[Quantity]]]</label>
+                    <div class="col-6 p-0 position-relative d-hide">
+                      <input type="number" class="form-control select bg1" id="lotFieldSell">
+                      <span class="unit unitbox">[[[:title:lots]]]</span>
+                    </div>
+                    <div class="col-11 p-0 position-relative">
+                      <input type="number" class="form-control select bg1" id="qtyFieldSell">
+                      <span class="unit unitbox" data-base-ticker></span>
+                    </div>
+                  </div>
+                  <div id="qtySliderSell" class="mini-slider mt-1 mx-1"></div>
 
                   {{- /* SUBMIT ORDER BOX */ -}}
-                  <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
-                    <div id="orderTotalPreviewSellLeft" class="m-2"></div>
-                    <span class="m-2 fs14">⇄</span>
-                    <div id="orderTotalPreviewSellRight" class="m-2"></div>
+                  <div class="d-flex justify-content-between m-1" id="submitOrderBox">
+                    <div id="orderTotalPreviewSellLeft" class="flex-center text-center fs18"></div>
+                    <span class="flex-center text-center fs24">⇄</span>
+                    <div id="orderTotalPreviewSellRight" class="flex-center text-center fs18"></div>
                   </div>
-                  <div>
-                    <button id="submitBttnSell" type="button" class="m-2 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
-                  </div>
+                  <button id="submitBttnSell" type="button" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center sellred-bg"></button> {{/* textContent set by script */}}
 
+                  {{- /* SUBMIT ORDER ERRORS */ -}}
+                  <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>
                 </div>
-                <div class="fs15 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>
               </div>
 
               {{- /* WALLET RELATED ERRORS */ -}}
