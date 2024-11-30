@@ -289,10 +289,12 @@
 
                   {{- /* SUBMIT ORDER BOX */ -}}
                   <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
-                    <div id="orderTotalPreviewBuy"></div>
-                    <div>
-                      <button id="submitBttnBuy" type="button" class="m-2 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
-                    </div>
+                    <div id="orderTotalPreviewBuyLeft" class="m-2"></div>
+                    <span class="m-2 fs14">⇄</span>
+                    <div id="orderTotalPreviewBuyRight" class="m-2"></div>
+                  </div>
+                  <div>
+                    <button id="submitBttnBuy" type="button" class="m-2 fs14 submit text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   </div>
 
                 </div>
@@ -315,26 +317,6 @@
                         <span data-unit="quote"></span>
                       </div>
                     </div>
-                    <div id="maxOrdSell" class="position-relative pointer">
-                      <span id="maxLotBoxSell">
-                        <span class="underline">[[[Max]]] <span id="maxLblSell">[[[Sell]]]</span></span>:
-                        <span id="maxFromLotsSell"></span>
-                        <span id="maxFromLotsLblSell">[[[lot]]]</span>
-                      </span>
-                      <span id="maxQtyBoxSell" class="d-hide">
-                        =
-                        <span id="maxAboveZeroSell">
-                          <span id="maxFromAmtSell"></span>
-                          <span id="maxFromTickerSell"></span>
-                        </span>
-                      </span>
-                      <span id="maxZeroNoFeesSell">
-                        , [[[max_zero_no_fees_sell]]]
-                      </span>
-                      <span id="maxZeroNoBalSell">
-                        , [[[max_zero_no_bal_sell]]]
-                      </span>
-                    </div>
                     {{- /* RATE AND QUANTITY INPUTS */ -}}
                     <div class="d-flex mt-3" id="priceBoxSell">
                       <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">[[[:title:price]]]</label>
@@ -355,14 +337,17 @@
                         <span class="unit unitbox" data-base-ticker></span>
                       </div>
                     </div>
+                    <div id="qtySliderSell" class="mini-slider flex-grow-1 mt-2"></div>
                   </div>
 
                   {{- /* SUBMIT ORDER BOX */ -}}
                   <div class="d-flex align-items-center justify-content-between mt-2" id="submitOrderBox">
-                    <div id="orderTotalPreviewSell"></div>
-                    <div>
-                      <button id="submitBttnSell" type="button" class="m-2 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
-                    </div>
+                    <div id="orderTotalPreviewSellLeft" class="m-2"></div>
+                    <span class="m-2 fs14">⇄</span>
+                    <div id="orderTotalPreviewSellRight" class="m-2"></div>
+                  </div>
+                  <div>
+                    <button id="submitBttnSell" type="button" class="m-2 fs14 submit text-center sellred-bg"></button> {{/* textContent set by script */}}
                   </div>
 
                 </div>
