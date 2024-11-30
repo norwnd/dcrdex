@@ -3,8 +3,8 @@ package webserver
 import "decred.org/dcrdex/client/intl"
 
 const (
-	limitOrderBuyTotalPreview        = "LIMIT_ORDER_BUY_TOTAL_PREVIEW"
-	limitOrderSellTotalPreview       = "LIMIT_ORDER_SELL_TOTAL_PREVIEW"
+	limitOrderBuySellOutTotalPreview = "LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW"
+	limitOrderBuySellInTotalPreview  = "LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW"
 	noQuantityExceedsMax             = "NO_QUANTITY_EXCEEDS_MAX"
 	noPassErrMsgID                   = "NO_PASS_ERROR_MSG"
 	noAppPassErrMsgID                = "NO_APP_PASS_ERROR_MSG"
@@ -225,8 +225,8 @@ const (
 )
 
 var enUS = map[string]*intl.Translation{
-	limitOrderBuyTotalPreview:        {T: "-{{ total }} {{ asset }}"},
-	limitOrderSellTotalPreview:       {T: "+{{ total }} {{ asset }}"},
+	limitOrderBuySellOutTotalPreview: {T: "+{{ total }} {{ asset }}"},
+	limitOrderBuySellInTotalPreview:  {T: "-{{ total }} {{ asset }}"},
 	noQuantityExceedsMax:             {T: "not enough funds"},
 	noPassErrMsgID:                   {T: "password cannot be empty"},
 	noAppPassErrMsgID:                {T: "app password cannot be empty"},
