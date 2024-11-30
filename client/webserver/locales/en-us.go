@@ -71,7 +71,7 @@ var EnUS = map[string]*intl.Translation{
 	"buys":                           {T: "buys"},
 	"sells":                          {T: "sells"},
 	"Buy Orders":                     {T: "Buy Orders"},
-	"Quantity":                       {T: "Quantity"},
+	"Quantity":                       {T: "Quantity:"},
 	"Rate":                           {T: "Rate"},
 	"Limit Order":                    {T: "Limit Order"},
 	"Market Order":                   {T: "Market Order"},
@@ -476,7 +476,7 @@ var EnUS = map[string]*intl.Translation{
 	"Instructions:":               {T: "Instructions:"},
 	"URL":                         {T: "URL"},
 	// Staking UI
-	"Price":                       {T: "Price"},
+	"Price":                       {T: "Price:"},
 	"Ticket":                      {T: "Ticket"},
 	"Staking":                     {T: "Staking"},
 	"Active tickets":              {T: "Active tickets"},
