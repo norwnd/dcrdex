@@ -751,7 +751,7 @@ export default class MarketsPage extends BasePage {
       // Reset limit-order buy form inputs to defaults.
       page.lotFieldBuy.min = lot // improves up/down key-press handling, and hover-message
       page.lotFieldBuy.step = lot // improves up/down key-press handling, and hover-message
-      page.lotFieldBuy.value = '1'
+      page.lotFieldBuy.value = '0'
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)

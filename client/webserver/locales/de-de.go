@@ -57,7 +57,7 @@ var DeDE = map[string]*intl.Translation{
 	"buys":                           {T: "Käufe"},
 	"sells":                          {T: "Verkäufe"},
 	"Buy Orders":                     {T: "Kaufaufträge"},
-	"Quantity":                       {T: "Menge"},
+	"Quantity":                       {T: "Menge:"},
 	"Rate":                           {T: "Kurs"},
 	"Limit Order":                    {T: "Limit-Auftrag"},
 	"Market Order":                   {T: "Markt-Auftrag"},
