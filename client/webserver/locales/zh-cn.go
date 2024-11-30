@@ -57,7 +57,7 @@ var ZhCN = map[string]*intl.Translation{
 	"buys":                           {T: "买入"},
 	"sells":                          {T: "卖出"},
 	"Buy Orders":                     {T: "买单"},
-	"Quantity":                       {T: "数量"},
+	"Quantity":                       {T: "数量:"},
 	"Rate":                           {T: "汇率"},
 	"Limit Order":                    {T: "限价单"},
 	"Market Order":                   {T: "市价单"},
