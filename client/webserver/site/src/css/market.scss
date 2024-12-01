@@ -469,22 +469,6 @@ div[data-handler=markets] {
     }
   }
 
-  #vDetailPane {
-    max-width: 425px;
-
-    .indent {
-      border-left: 2px solid var(--border-color);
-    }
-
-    table.fee-breakout {
-      td {
-        text-align: center;
-        padding: 2px 5px;
-      }
-    }
-  }
-
-
   #marketReopener {
     display: none;
     padding: 10px 0;
