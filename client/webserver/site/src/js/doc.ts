@@ -386,12 +386,6 @@ export default class Doc {
    * associated with the conventional unit's conversion factor.
    */
   static formatFullPrecision (vAtomic: number, unitInfo?: UnitInfo): string {
-    // TODO
-    console.log('formatFullPrecision -> vAtomic:')
-    console.log(vAtomic)
-    console.log('formatFullPrecision -> unitInfo:')
-    console.log(unitInfo)
-
     const [v, prec] = convertToConventional(vAtomic, unitInfo)
     return fullPrecisionFormatter(prec).format(v)
   }
