@@ -23,7 +23,6 @@ const (
 	notSupportedID                   = "NOT_SUPPORTED"
 	versionNotSupportedID            = "VERSION_NOT_SUPPORTED"
 	connectionFailedID               = "CONNECTION_FAILED"
-	orderPreviewID                   = "ORDER_PREVIEW"
 	calculatingID                    = "CALCULATING"
 	estimateUnavailableID            = "ESTIMATE_UNAVAILABLE"
 	noZeroRateID                     = "NO_ZERO_RATE"
@@ -249,7 +248,6 @@ var enUS = map[string]*intl.Translation{
 	notSupportedID:                   {T: "{{ asset }} is not supported"},
 	versionNotSupportedID:            {T: "{{ asset }} (v{{version}}) is not supported"},
 	connectionFailedID:               {T: "Connection to dex server failed. You can close bisonw and try again later or wait for it to reconnect."},
-	orderPreviewID:                   {T: "Total: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "calculating..."},
 	estimateUnavailableID:            {T: "estimate unavailable"},
 	noZeroRateID:                     {T: "zero rate not allowed"},
@@ -462,7 +460,6 @@ var ptBR = map[string]*intl.Translation{
 	sellID:                   {T: "Vender"},
 	notSupportedID:           {T: "{{ asset }} não tem suporte"},
 	connectionFailedID:       {T: "Conexão ao server dex falhou. Pode fechar bisonw e tentar novamente depois ou esperar para tentar se reconectar."},
-	orderPreviewID:           {T: "Total: {{ total }} {{ asset }}"},
 	calculatingID:            {T: "calculando..."},
 	estimateUnavailableID:    {T: "estimativa indisponível"},
 	noZeroRateID:             {T: "taxa não pode ser zero"},
@@ -516,7 +513,6 @@ var zhCN = map[string]*intl.Translation{
 	sellID:                   {T: "卖出"},
 	notSupportedID:           {T: "{{ asset }}不受支持"},
 	connectionFailedID:       {T: "连接到服务器 dex 失败。您可以关闭 bisonw 并稍后重试或等待尝试重新连接。"},
-	orderPreviewID:           {T: "总计： {{ total }} {{ asset }}"},
 	calculatingID:            {T: "计算中..."},
 	estimateUnavailableID:    {T: "估计不可用"},
 	noZeroRateID:             {T: "汇率不能为零"},
@@ -559,7 +555,6 @@ var plPL = map[string]*intl.Translation{
 	sellID:                           {T: "Sprzedaj"},
 	notSupportedID:                   {T: "{{ asset }} nie jest wspierany"},
 	connectionFailedID:               {T: "Połączenie z serwerem dex nie powiodło się. Możesz zamknąć bisonw i spróbować ponownie później, lub poczekać na wznowienie połączenia."},
-	orderPreviewID:                   {T: "W sumie: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "obliczanie..."},
 	estimateUnavailableID:            {T: "brak szacunkowego wyliczenia"},
 	noZeroRateID:                     {T: "zero nie może być ceną"},
@@ -743,7 +738,6 @@ var deDE = map[string]*intl.Translation{
 	sellID:                   {T: "Verkaufen"},
 	notSupportedID:           {T: "{{ asset }} wird nicht unterstützt"},
 	connectionFailedID:       {T: "Die Verbindung zum Dex-Server fehlgeschlagen. Du kannst bisonw schließen und es später erneut versuchen oder warten bis die Verbindung wiederhergestellt ist."},
-	orderPreviewID:           {T: "Insgesamt: {{ total }} {{ asset }}"},
 	calculatingID:            {T: "kalkuliere..."},
 	estimateUnavailableID:    {T: "Schätzung nicht verfügbar"},
 	noZeroRateID:             {T: "Null-Satz nicht erlaubt"},
@@ -800,7 +794,6 @@ var ar = map[string]*intl.Translation{
 	sellID:                           {T: "بيع"},
 	notSupportedID:                   {T: "{{ asset }} غير مدعوم"},
 	connectionFailedID:               {T: "فشل الاتصال بخادم dex. يمكنك إغلاق dexc والمحاولة مرة أخرى لاحقًا أو انتظار إعادة الاتصال."},
-	orderPreviewID:                   {T: "إجمالي: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "جاري الحساب ..."},
 	estimateUnavailableID:            {T: "التقديرات غير متاحة"},
 	noZeroRateID:                     {T: "معدل الصفر غير مسموح به"},
