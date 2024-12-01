@@ -586,7 +586,7 @@
       </div>
 
       <div class="flex-stretch-column">
-        <button id="vSubmit" class="justify-content-center fs15 go sellred-bg">
+        <button id="vSubmit" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center go sellred-bg">
           <span id="vSideSubmit"></span>
           <span data-base-ticker></span>
         </button>
@@ -594,138 +594,17 @@
           <div class="ico-spinner spinner"></div>
         </div>
       </div>
+
       <div class="fs15 p-3 text-center d-hide text-danger text-break" id="vErr"></div>{{- /* End Auth Section */ -}}
 
-      <div id="vPreorder">
-        <div id="vPreorderEstimates">
-          <hr class="dashed mb-2 mt-3">
-
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="grey fs18">
-              [[[Fee Projection]]]
-              <span class="ico-info fs12" data-tooltip="[[[fee_projection_tooltip]]]"></span>
-            </span>
-            <span class="grey fs14 underline pointer hoverbg" id="vFeeDetails">[[[details]]]</span>
-          </div>
-
-          <div class="py-1 d-flex align-items-center justify-content-center fs18" id="vFeeSummaryPct">
-            <span id="vFeeSummaryLow"></span>
-            <span class="fs15">%</span>
-            <span class="fs15 px-2">[[[to]]]</span>
-            <span id="vFeeSummaryHigh"></span>
-            <span class="fs15">%</span>
-          </div>
-
-          <div class="py-1 flex-column align-items-center justify-content-center fs18" id="vFeeSummary">
-            <div class="d-flex flex-row align-items-center justify-content-center">
-              <img class="micro-icon mx-1" data-icon="from">
-              <span id="summarySwapFeesLow"></span>
-              <span class="px-1">&ndash;</span>
-              <span id="summarySwapFeesHigh"></span>
-            </div>
-            <div class="d-flex flex-row align-items-center justify-content-center">
-              <img class="micro-icon mx-1" data-icon="to">
-              <span id="summaryRedeemFeesLow"></span>
-              <span class="px-1">&ndash;</span>
-              <span id="summaryRedeemFeesHigh"></span>
-            </div>
-          </div>
-        </div>
-
-        <hr class="dashed mb-2 mt-3">
-
-        <div class="grey fs18 d-flex justify-content-between align-items-center">
-          [[[Options]]]
-          <span class="grey fs14 underline pointer hoverbg" id="showAdvancedOptions">
-            [[[show advanced options]]]
-          </span>
-          <span class="grey fs14 underline pointer hoverbg d-hide" id="hideAdvancedOptions">
-            [[[hide advanced options]]]
-          </span>
-        </div>
-
-        <div id="vDefaultOrderOpts">
-          {{template "orderOptionTemplates"}}
-        </div>
-        <div id="vOtherOrderOpts" class="d-hide"></div>
-      </div> {{- /* END id="vPreorder" */ -}}
-
-      <div id="vPreorderErr">
-        [[[estimate_unavailable]]]
-        <span class="ico-info text-danger fs12" id="vPreorderErrTip" data-tooltip=" "></span>
-      </div>
-
-      <div id="disclaimer" class="disclaimer fs14 pt-3 mt-3 border-top">
+      <div id="disclaimer" class="d-flex align-items-center text-center disclaimer fs16 pt-3 mt-3 border-top">
         [[[order_disclaimer]]]
       </div>
-      <div id="disclaimerAck" class="grey text-start pointer hoverbg fs14 lh1">
+      <div id="disclaimerAck" class="d-flex align-items-center grey text-center pointer hoverbg fs16 lh1">
         <span class="ico-check fs12"></span> [[[acknowledge_and_hide]]]
       </div>
-      <div id="showDisclaimer" class="d-flex align-items-center grey text-start pointer hoverbg fs14 lh1 d-hide">
+      <div id="showDisclaimer" class="d-flex align-items-center grey text-center pointer hoverbg fs16 lh1 d-hide">
         <span class="fs8 ico-plus me-1 mt-1"></span> [[[show_disclaimer]]]
-      </div>
-    </form>
-
-    {{- /* FEE DETAIL BREAKDOWN */ -}}
-    <form id="vDetailPane" class="d-hide">
-      <div id="closeDetailPane" class="form-closer-unbound"><span class="ico-cross"></span></div>
-      <header>
-        [[[Fee Details]]]
-      </header>
-      <div>
-        <div class="mb-3">
-          [[[estimate_market_conditions]]]
-        </div>
-
-        <div class="fs18 demi">[[[Best Case Fees]]]</div>
-        <div class="ps-3 mb-3 indent">
-          <div>
-            [[[best_case_conditions]]]
-          </div>
-          <div class="d-flex">
-            <table class="fee-breakout cell-border my-1">
-              <tr>
-                <td><img class="micro-icon" data-icon="from"> [[[Swap]]]</td>
-                <td><img class="micro-icon" data-icon="to"> [[[Redeem]]]</td>
-              </tr>
-              <tr>
-                <td><span id="vSwapFeesLow"></span> <span id="vSwapFeesLowPct"></span></td>
-                <td><span id="vRedeemFeesLow"></span> <span id="vRedeemFeesLowPct"></span></td>
-              </tr>
-            </table>
-          </div>
-        </div>
-
-        <div class="fs18 demi">[[[Worst Case Fees]]]</div>
-        <div class="ps-3 mb-3 indent">
-          <div>
-            [[[worst_case_conditions]]]
-          </div>
-          <div class="d-flex">
-            <table class="fee-breakout cell-border my-1">
-              <tr>
-                <td><img class="micro-icon" data-icon="from"> [[[Swap]]]</td>
-                <td><img class="micro-icon" data-icon="to"> [[[Redeem]]]</td>
-              </tr>
-              <tr>
-                <td><span id="vSwapFeesHigh"></span> <span id="vSwapFeesHighPct"></span></td>
-                <td><span id="vRedeemFeesHigh"></span> <span id="vRedeemFeesHighPct"></span></td>
-              </tr>
-            </table>
-          </div>
-        </div>
-
-        <div class="fs18 demi">[[[Maximum Possible Swap Fees]]]</div>
-        <div class="ps-3 indent">
-          <div>
-            [[[max_fee_conditions]]]
-          </div>
-          <div>
-            <img class="micro-icon me-1" data-icon="from">
-            <span id="vSwapFeesMax"></span>  <span id="vSwapFeesMaxPct"></span>
-          </div>
-        </div>
-
       </div>
     </form>
 
