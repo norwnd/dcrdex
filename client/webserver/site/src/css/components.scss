@@ -200,9 +200,14 @@ table.reg-asset-markets {
 
 .form-check-label {
   cursor: pointer;
+
+  &:hover {
+    font-weight: bold;
+  }
 }
 
 .form-check-input[type=checkbox] {
+  background-color: #ebebeb;
   border: 1px solid var(--form-input-border);
   cursor: pointer;
 
