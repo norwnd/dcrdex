@@ -157,9 +157,9 @@ export default class MarketsPage extends BasePage {
   // chosenRateSellAtom is same as chosenRateBuyAtom for sell-order.
   chosenRateSellAtom: number
   // chosenQtyBuy is same as chosenRateBuyAtom for order quantity for buy-order (adjusted
-  // for lot size).
+  // for lot size). Always in Base asset units.
   chosenQtyBuyAtom: number
-  // chosenQtySell is same as chosenQtyBuy for sell-order.
+  // chosenQtySell is same as chosenQtyBuy for sell-order. Always in Base asset units.
   chosenQtySellAtom: number
   // maxBuyLastReqID helps us track the IDs of /maxbuy requests issued, it's
   // hard to prevent our app (and the user) from sending multiple of these
@@ -289,7 +289,7 @@ export default class MarketsPage extends BasePage {
 
     this.qtySliderBuy = new MiniSlider(page.qtySliderBuy, (sliderValue: number) => {
       const page = this.page
-      const qtyConv = this.market.quoteUnitInfo.conventional.conversionFactor
+      const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
       // Update lot/qty values accordingly, assume max buy has already been fetched and rate has
       // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise).
@@ -2902,7 +2902,7 @@ export default class MarketsPage extends BasePage {
 
   qtyFieldBuyChangeHandler () {
     const page = this.page
-    const qtyConv = this.market.quoteUnitInfo.conventional.conversionFactor
+    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(page.qtyFieldBuy.value)
     if (!inputValid || adjusted) {
@@ -3054,7 +3054,7 @@ export default class MarketsPage extends BasePage {
 
   rateFieldBuyChangeHandler () {
     const page = this.page
-    const qtyConv = this.market.quoteUnitInfo.conventional.conversionFactor
+    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(this.page.rateFieldBuy.value)
     if (!inputValid || adjusted) {
