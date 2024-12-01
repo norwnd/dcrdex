@@ -98,7 +98,6 @@ export interface Market {
   buybuffer: number
   orders: Order[]
   spot: Spot | undefined
-  atomToConv: number
   inflight: InFlightOrder[]
   minimumRate: number
 }
