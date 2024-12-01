@@ -42,6 +42,13 @@ div[data-handler=markets] {
         height: 30px;
         border-radius: 0;
         font-size: 14px;
+        font-weight: bold;
+        background-color: #ebebeb;
+
+        &:hover,
+        &.selected {
+          border: 1px solid #6a6a6a;
+        }
       }
 
       span.unitbox {
@@ -55,11 +62,16 @@ div[data-handler=markets] {
       }
 
       button {
+        opacity: 0.8;
         padding: 5px 25px;
-        border: 1px solid #78787877;
         border-radius: 3px;
         background-color: var(--section-bg);
         color: var(--market-btn-color);
+
+        &:hover {
+          opacity: 1;
+          color: black;
+        }
 
         &:disabled {
           opacity: 0.4;
