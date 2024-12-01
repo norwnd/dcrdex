@@ -117,7 +117,7 @@ interface CurrentMarket {
   // buyBalance helps to track when we want to update our maxBuys estimates, for example
   // when wallet balance updates
   buyBalance: number
-  // maxBuys is cached max order estimates, these depend on user-chosen rate
+  // maxBuys is cached max order estimates (rateAtom -> estimateAtom), these depend on user-chosen rate
   maxBuys: Record<number, MaxOrderEstimate>
   candleCaches: Record<string, CandlesPayload>
   baseCfg: Asset
@@ -304,7 +304,7 @@ export default class MarketsPage extends BasePage {
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldBuy.value = String(adjQty)
-      this.chosenQtyBuyAtom = convertToAtoms(adjQty, qtyConv)
+      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
       this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
     })
@@ -328,7 +328,7 @@ export default class MarketsPage extends BasePage {
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldSell.value = String(adjQty)
-      this.chosenQtySellAtom = convertToAtoms(adjQty, qtyConv)
+      this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
       this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
     })
@@ -575,11 +575,11 @@ export default class MarketsPage extends BasePage {
   /* setCurrMarketPrice updates the current market price on the stats displays
      and the orderbook display. */
   setCurrMarketPrice (): void {
-    const selected = this.market
-    if (!selected) return
+    const selectedMkt = this.market
+    if (!selectedMkt) return
     // Get an up-to-date Market.
-    const xc = app().exchanges[selected.dex.host]
-    const mkt = xc.markets[selected.cfg.name]
+    const xc = app().exchanges[selectedMkt.dex.host]
+    const mkt = xc.markets[selectedMkt.cfg.name]
     if (!mkt.spot) return
 
     for (const s of this.stats) {
@@ -595,7 +595,7 @@ export default class MarketsPage extends BasePage {
       setPriceAndChange(s.tmpl, xc, mkt)
     }
 
-    this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / this.market.rateConversionFactor)
+    this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
     this.page.obPrice.classList.remove('sellcolor', 'buycolor')
     this.page.obPrice.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
     Doc.setVis(mkt.spot.change24 >= 0, this.page.obUp)
@@ -641,9 +641,9 @@ export default class MarketsPage extends BasePage {
    * returns 0 in case it cannot estimate it.
    */
   async calcMaxOrderQtyAtoms (sell: boolean): Promise<number> {
-    const lotSize = this.market.cfg.lotsize
+    const lotSizeAtom = this.market.cfg.lotsize
     const maxOrderLots = await this.calcMaxOrderLots(sell)
-    return maxOrderLots * lotSize
+    return maxOrderLots * lotSizeAtom
   }
 
   /* setHighLow calculates the high and low rates over the last 24 hours. */
@@ -757,7 +757,7 @@ export default class MarketsPage extends BasePage {
       const lotSize = String(this.market.cfg.lotsize / qtyConvSell)
       const rateStep = String(this.market.cfg.ratestep / this.market.rateConversionFactor)
       // see if we can fetch & set up a default rate value
-      const midGapRateAtom = this.midGapAtoms()
+      const midGapRateAtom = this.midGapRateAtom()
 
       // TODO
       console.log('midGapRateAtom:')
@@ -773,14 +773,14 @@ export default class MarketsPage extends BasePage {
         const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)
         page.qtyFieldBuy.min = lotSize // improves up/down key-press handling, and hover-message
         page.qtyFieldBuy.step = lotSize // improves up/down key-press handling, and hover-message
-        this.chosenQtyBuyAtom = convertToAtoms(adjQtyBuy, qtyConvBuy)
+        this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConvBuy)
         page.qtyFieldBuy.value = String(adjQtyBuy)
         this.qtySliderBuy.setValue(0)
         page.rateFieldBuy.min = rateStep // improves up/down key-press handling, and hover-message
         page.rateFieldBuy.step = rateStep // improves up/down key-press handling, and hover-message
         if (midGapRateAtom) {
           this.chosenRateBuyAtom = midGapRateAtom
-          page.rateFieldBuy.value = String(midGapRateAtom / OrderUtil.RateEncodingFactor)
+          page.rateFieldBuy.value = String(convertNumberFromAtoms(midGapRateAtom, this.market.rateConversionFactor))
           // we'll eventually need to fetch max estimate for slider to work, plus to
           // do validation on user inputs, might as well do it now, scheduling with
           // delay of 100ms to potentially deduplicate some requests
@@ -806,14 +806,14 @@ export default class MarketsPage extends BasePage {
         const [,,, adjQtySell] = this.parseLotInput(page.lotFieldSell.value)
         page.qtyFieldSell.min = lotSize // improves up/down key-press handling, and hover-message
         page.qtyFieldSell.step = lotSize // improves up/down key-press handling, and hover-message
-        this.chosenQtySellAtom = convertToAtoms(adjQtySell, qtyConvSell)
+        this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConvSell)
         page.qtyFieldSell.value = String(adjQtySell)
         this.qtySliderSell.setValue(0)
         page.rateFieldSell.min = rateStep // improves up/down key-press handling, and hover-message
         page.rateFieldSell.step = rateStep // improves up/down key-press handling, and hover-message
         if (midGapRateAtom) {
           this.chosenRateSellAtom = midGapRateAtom
-          page.rateFieldSell.value = String(midGapRateAtom / OrderUtil.RateEncodingFactor)
+          page.rateFieldSell.value = String(convertNumberFromAtoms(midGapRateAtom, this.market.rateConversionFactor))
           // we'll eventually need to fetch max estimate for slider to work, plus to
           // do validation on user inputs, might as well do it now, scheduling with
           // delay of 100ms to potentially deduplicate some requests
@@ -1055,20 +1055,20 @@ export default class MarketsPage extends BasePage {
     }
   }
 
-  async updateOrderBttnBuyState (orderRateAtom: number, orderQty: number) {
+  async updateOrderBttnBuyState (orderRateAtom: number, orderQtyAtom: number) {
     const mkt = this.market
     const baseWallet = app().assets[this.market.base.id].wallet
     const quoteWallet = app().assets[mkt.quote.id].wallet
     if (!baseWallet || !quoteWallet) return
 
-    if (orderQty <= 0 || orderQty < mkt.cfg.lotsize) {
+    if (orderQtyAtom <= 0 || orderQtyAtom < mkt.cfg.lotsize) {
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
       return
     }
 
     // Limit buy
-    const aLot = mkt.cfg.lotsize * (orderRateAtom / OrderUtil.RateEncodingFactor)
-    if (quoteWallet.balance.available < aLot) {
+    const aLotAtom = mkt.cfg.lotsize * (orderRateAtom / OrderUtil.RateEncodingFactor)
+    if (quoteWallet.balance.available < aLotAtom) {
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
@@ -1077,17 +1077,17 @@ export default class MarketsPage extends BasePage {
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ESTIMATE_UNAVAILABLE))
       return
     }
-    const enable = orderQty <= res.swap.lots * mkt.cfg.lotsize
+    const enable = orderQtyAtom <= res.swap.lots * mkt.cfg.lotsize
     this.setOrderBttnBuyEnabled(enable, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
   }
 
-  async updateOrderBttnSellState (orderQty: number) {
+  async updateOrderBttnSellState (orderQtyAtom: number) {
     const mkt = this.market
     const baseWallet = app().assets[this.market.base.id].wallet
     const quoteWallet = app().assets[mkt.quote.id].wallet
     if (!baseWallet || !quoteWallet) return
 
-    if (orderQty <= 0 || orderQty < mkt.cfg.lotsize) {
+    if (orderQtyAtom <= 0 || orderQtyAtom < mkt.cfg.lotsize) {
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_QTY_ERROR))
       return
     }
@@ -1102,7 +1102,7 @@ export default class MarketsPage extends BasePage {
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ESTIMATE_UNAVAILABLE))
       return
     }
-    this.setOrderBttnSellEnabled(orderQty <= res.swap.value, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+    this.setOrderBttnSellEnabled(orderQtyAtom <= res.swap.value, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
   }
 
   setCandleDurBttns () {
@@ -1304,13 +1304,13 @@ export default class MarketsPage extends BasePage {
    * previewTotalBuy calculates and displays Total value (in quote asset) for the order.
    * It also updates order button state based on the values in the order form.
    */
-  previewTotalBuy (orderRateAtom: number, orderQty: number) {
+  previewTotalBuy (orderRateAtom: number, orderQtyAtom: number) {
     const page = this.page
     const market = this.market
 
-    if (orderQty > 0 && orderRateAtom > 0) {
-      const totalOut = orderQty * orderRateAtom / OrderUtil.RateEncodingFactor
-      const totalIn = orderQty
+    if (orderQtyAtom > 0 && orderRateAtom > 0) {
+      const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
+      const totalIn = orderQtyAtom
 
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
@@ -1325,7 +1325,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewBuyRight.textContent = '?'
     }
 
-    this.updateOrderBttnBuyState(orderRateAtom, orderQty)
+    this.updateOrderBttnBuyState(orderRateAtom, orderQtyAtom)
   }
 
   /**
@@ -1387,7 +1387,7 @@ export default class MarketsPage extends BasePage {
    * estimate api endpoint. If another call to scheduleMaxBuyEstimate is made before
    * this one is fired (after delay), this call will be canceled.
    */
-  scheduleMaxBuyEstimate (rate: number, delay: number) {
+  scheduleMaxBuyEstimate (rateAtom: number, delay: number) {
     const [bid, qid] = [this.market.base.id, this.market.quote.id]
     const [bWallet, qWallet] = [app().assets[bid].wallet, app().assets[qid].wallet]
     if (!bWallet || !bWallet.running || !qWallet || !qWallet.running) return
@@ -1399,7 +1399,7 @@ export default class MarketsPage extends BasePage {
         // a fresher request has been issued, no need to execute this one
         return
       }
-      await this.requestMaxBuyEstimateCached(rate)
+      await this.requestMaxBuyEstimateCached(rateAtom)
     }, delay)
   }
 
@@ -1424,18 +1424,18 @@ export default class MarketsPage extends BasePage {
     }, delay)
   }
 
-  async requestMaxBuyEstimateCached (rate: number): Promise<any> {
-    const maxBuy = this.market.maxBuys[rate]
+  async requestMaxBuyEstimateCached (rateAtom: number): Promise<any> {
+    const maxBuy = this.market.maxBuys[rateAtom]
     if (maxBuy) {
       return maxBuy
     }
 
-    const res = await this.requestMaxEstimate('/api/maxbuy', { rate })
+    const res = await this.requestMaxEstimate('/api/maxbuy', { rate: rateAtom })
     if (!res) {
       return null
     }
 
-    this.market.maxBuys[rate] = res.maxBuy
+    this.market.maxBuys[rateAtom] = res.maxBuy
     // see buyBalance desc for why we are doing this
     this.market.buyBalance = app().assets[this.market.quote.id].wallet.balance.available
 
@@ -1554,36 +1554,36 @@ export default class MarketsPage extends BasePage {
   }
 
   /*
-   * midGapConventional is the same as midGap, but returns the mid-gap rate as
+   * midGapRateConventional is the same as midGap, but returns the mid-gap rate as
    * the conventional ratio. This is used to convert from a conventional
    * quantity from base to quote or vice-versa, or for display purposes.
    */
-  midGapConventional () {
-    const gap = this.midGapAtoms()
-    if (!gap) return gap
+  midGapRateConventional (): number | null {
+    const gapAtom = this.midGapRateAtom()
+    if (!gapAtom) return null
     const { baseUnitInfo: b, quoteUnitInfo: q } = this.market
-    return gap * b.conventional.conversionFactor / q.conventional.conversionFactor
+    return (gapAtom / OrderUtil.RateEncodingFactor) * (b.conventional.conversionFactor / q.conventional.conversionFactor)
   }
 
   /*
-   * midGap returns the value in the middle of the best buy and best sell. If
+   * midGapRateAtom returns the value in the middle of the best buy and best sell. If
    * either one of the buy or sell sides are empty, midGap returns the best rate
    * from the other side. If both sides are empty, midGap returns the value
    * null. The rate returned is the atomic ratio, used for conversion. For a
    * conventional rate for display or to convert conventional units, use
    * midGapConventional
    */
-  midGapAtoms () {
+  midGapRateAtom (): number | null {
     const book = this.book
-    if (!book) return
+    if (!book) return null
     if (book.buys && book.buys.length) {
       if (book.sells && book.sells.length) {
-        return (book.buys[0].msgRate + book.sells[0].msgRate) / 2 / OrderUtil.RateEncodingFactor
+        return (book.buys[0].msgRate + book.sells[0].msgRate) / 2
       }
-      return book.buys[0].msgRate / OrderUtil.RateEncodingFactor
+      return book.buys[0].msgRate
     }
     if (book.sells && book.sells.length) {
-      return book.sells[0].msgRate / OrderUtil.RateEncodingFactor
+      return book.sells[0].msgRate
     }
     return null
   }
@@ -1807,7 +1807,7 @@ export default class MarketsPage extends BasePage {
   updateTitle () {
     // gets first price value from buy or from sell, so we can show it on
     // title.
-    const midGapValue = this.midGapConventional()
+    const midGapValue = this.midGapRateConventional()
     const { baseUnitInfo: { conventional: { unit: bUnit } }, quoteUnitInfo: { conventional: { unit: qUnit } } } = this.market
     if (!midGapValue) document.title = `${bUnit}${qUnit} | ${this.ogTitle}`
     else document.title = `${Doc.formatCoinValue(midGapValue)} | ${bUnit}${qUnit} | ${this.ogTitle}` // more than 6 numbers it gets too big for the title.
@@ -2231,9 +2231,10 @@ export default class MarketsPage extends BasePage {
     page.vSwapFeesMax.textContent = Doc.formatCoinValue(swap.estimate.maxFees, fromFeeAssetUI)
 
     // Set redemption fee estimates in the details pane.
-    const midGap = this.midGapAtoms()
-    const estRate = midGap || order.rate / rateConversionFactor
-    const received = order.sell ? swapped * estRate : swapped / estRate
+    const midGapAtom = this.midGapRateAtom()
+    const estRateAtom = midGapAtom || order.rate
+    const estRateConventional = estRateAtom / rateConversionFactor
+    const received = order.sell ? swapped * estRateConventional : swapped / estRateConventional
     const receivedInParentUnits = toExchangeRate > 0 ? received / toExchangeRate : received
 
     const bestRedeemPct = redeem.estimate.realisticBestCase / receivedInParentUnits * 100
@@ -2458,8 +2459,8 @@ export default class MarketsPage extends BasePage {
     page.marketLimitQuoteUnit.textContent = qui.conventional.unit
     const conversionRate = this.anyRate()[1]
     if (conversionRate) {
-      const quoteLot = mkt.lotsize * conversionRate
-      page.marketLimitQuote.textContent = Doc.formatFourSigFigs(mkt.parcelsize * quoteLot / qui.conventional.conversionFactor)
+      const qty = mkt.lotsize * conversionRate
+      page.marketLimitQuote.textContent = Doc.formatFourSigFigs(mkt.parcelsize * qty / qui.conventional.conversionFactor)
     } else page.marketLimitQuote.textContent = '-'
 
     const tier = strongTier(auth)
@@ -2483,8 +2484,8 @@ export default class MarketsPage extends BasePage {
   anyRate (): [number, number, number] {
     const { cfg: { spot }, baseCfg: { id: baseID }, quoteCfg: { id: quoteID }, rateConversionFactor, bookLoaded } = this.market
     if (bookLoaded) {
-      const midGap = this.midGapAtoms()
-      if (midGap) return [midGap * OrderUtil.RateEncodingFactor, midGap, this.midGapConventional() || 0]
+      const midGapAtom = this.midGapRateAtom()
+      if (midGapAtom) return [midGapAtom, midGapAtom / OrderUtil.RateEncodingFactor, midGapAtom / rateConversionFactor || 0]
     }
     if (spot && spot.rate) return [spot.rate, spot.rate / OrderUtil.RateEncodingFactor, spot.rate / rateConversionFactor]
     const [baseUSD, quoteUSD] = [app().fiatRatesMap[baseID], app().fiatRatesMap[quoteID]]
@@ -2918,7 +2919,7 @@ export default class MarketsPage extends BasePage {
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)
-      this.chosenQtyBuyAtom = convertToAtoms(adjQtyBuy, qtyConv)
+      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
       page.orderTotalPreviewBuyLeft.textContent = ''
       page.orderTotalPreviewBuyRight.textContent = ''
@@ -2926,7 +2927,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    this.chosenQtyBuyAtom = convertToAtoms(adjQty, qtyConv)
+    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.lotFieldBuy.value = String(adjLots)
@@ -2960,7 +2961,7 @@ export default class MarketsPage extends BasePage {
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtySell] = this.parseLotInput(page.lotFieldSell.value)
-      this.chosenQtySellAtom = convertToAtoms(adjQtySell, qtyConv)
+      this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
       page.orderTotalPreviewSellLeft.textContent = ''
       page.orderTotalPreviewSellRight.textContent = ''
@@ -2968,7 +2969,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    this.chosenQtySellAtom = convertToAtoms(adjQty, qtyConv)
+    this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
     // Lots and quantity fields are tightly coupled to each other, when one is
     // changed, we need to update the other one as well.
     page.lotFieldSell.value = String(adjLots)
@@ -3085,7 +3086,7 @@ export default class MarketsPage extends BasePage {
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)
-      this.chosenQtyBuyAtom = convertToAtoms(adjQtyBuy, qtyConv)
+      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
       this.qtySliderBuy.setValue(0)
 
@@ -3346,8 +3347,6 @@ export default class MarketsPage extends BasePage {
     const { candleCaches, cfg, baseUnitInfo, quoteUnitInfo } = this.market
     const cache = candleCaches[this.candleDur]
     if (cache) {
-      // this.depthChart.hide()
-      // this.candleChart.show()
       this.candleChart.setCandles(cache, cfg, baseUnitInfo, quoteUnitInfo)
       return
     }
@@ -3436,10 +3435,7 @@ class MarketList {
     this.markets = []
 
     const addMarket = (mkt: ExchangeMarket) => {
-      const bui = app().unitInfo(mkt.baseid, mkt.xc)
-      const qui = app().unitInfo(mkt.quoteid, mkt.xc)
-      const rateConversionFactor = OrderUtil.RateEncodingFactor / bui.conventional.conversionFactor * qui.conventional.conversionFactor
-      const row = new MarketRow(this.rowTmpl, mkt, rateConversionFactor)
+      const row = new MarketRow(this.rowTmpl, mkt)
       this.div.appendChild(row.node)
       return row
     }
@@ -3508,15 +3504,13 @@ class MarketRow {
   quoteID: number
   lotSize: number
   tmpl: Record<string, PageElement>
-  rateConversionFactor: number
 
-  constructor (template: HTMLElement, mkt: ExchangeMarket, rateConversionFactor: number) {
+  constructor (template: HTMLElement, mkt: ExchangeMarket) {
     this.mkt = mkt
     this.name = mkt.name
     this.baseID = mkt.baseid
     this.quoteID = mkt.quoteid
     this.lotSize = mkt.lotsize
-    this.rateConversionFactor = rateConversionFactor
     this.node = template.cloneNode(true) as HTMLElement
     const tmpl = this.tmpl = Doc.parseTemplate(this.node)
     tmpl.baseIcon.src = Doc.logoPath(mkt.basesymbol)
@@ -3544,15 +3538,20 @@ function makeMarket (host: string, base?: number, quote?: number) {
 /* marketID creates a DEX-compatible market name from the ticker symbols. */
 export function marketID (b: string, q: string) { return `${b}_${q}` }
 
-/* convertStrToAtoms converts the float string to the basic unit of a coin. */
+/* convertStrToAtoms converts the float string to atoms. */
 function convertStrToAtoms (s: string, conversionFactor: number) {
   if (!s) return 0
-  return convertToAtoms(parseFloat(s), conversionFactor)
+  return convertNumberToAtoms(parseFloat(s), conversionFactor)
 }
 
-/* convertToAtoms converts the float string to the basic unit of a coin. */
-function convertToAtoms (v: number, conversionFactor: number) {
+/* convertNumberToAtoms converts the float string to atoms. */
+function convertNumberToAtoms (v: number, conversionFactor: number) {
   return Math.round(v * conversionFactor)
+}
+
+/* convertNumberToAtoms converts the float string to the basic unit of a coin. */
+function convertNumberFromAtoms (v: number, conversionFactor: number) {
+  return Math.round(v / conversionFactor)
 }
 
 /*
