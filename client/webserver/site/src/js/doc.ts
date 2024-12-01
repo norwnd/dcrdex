@@ -341,11 +341,17 @@ export default class Doc {
    * formatCoinValue formats the value in atomic units into a string
    * representation in conventional units. If the value happens to be an
    * integer, no decimals are displayed. Trailing zeros may be truncated.
+   * By default full precision of unitInfo will be used, but `precision`
+   * parameter allows for specifying the desired one (note, `precision` is
+   * max number of significant digits after decimal point).
    */
-  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo): string {
-    const [v, prec] = convertToConventional(vAtomic, unitInfo)
+  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo, precision?: number): string {
+    const [v, precisionFull] = convertToConventional(vAtomic, unitInfo)
     if (Number.isInteger(v)) return intFormatter.format(v)
-    return decimalFormatter(prec).format(v)
+    if (!precision) {
+      precision = precisionFull
+    }
+    return decimalFormatter(precision).format(v)
   }
 
   static conventionalCoinValue (vAtomic: number, unitInfo?: UnitInfo): number {
