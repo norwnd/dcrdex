@@ -1309,7 +1309,7 @@ export default class MarketsPage extends BasePage {
     const market = this.market
 
     if (orderQtyAtom > 0 && orderRateAtom > 0) {
-      const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
+      const totalOut = orderQtyAtom * (orderRateAtom / this.market.rateConversionFactor)
       const totalIn = orderQtyAtom
 
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
@@ -1332,19 +1332,19 @@ export default class MarketsPage extends BasePage {
    * previewTotalSell calculates and displays Total value (in quote asset) for the order.
    * It also updates order button state based on the values in the order form.
    */
-  previewTotalSell (orderRateAtom: number, orderQty: number) {
+  previewTotalSell (orderRateAtom: number, orderQtyAtom: number) {
     // TODO
     console.log('previewTotalSell -> orderRateAtom:')
     console.log(orderRateAtom)
-    console.log('previewTotalSell -> orderQty:')
-    console.log(orderQty)
+    console.log('previewTotalSell -> orderQtyAtom:')
+    console.log(orderQtyAtom)
 
     const page = this.page
     const market = this.market
 
-    if (orderQty > 0 && orderRateAtom > 0) {
-      const totalOut = orderQty * orderRateAtom / OrderUtil.RateEncodingFactor
-      const totalIn = orderQty
+    if (orderQtyAtom > 0 && orderRateAtom > 0) {
+      const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
+      const totalIn = orderQtyAtom
 
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
@@ -1359,7 +1359,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewSellRight.textContent = '?'
     }
 
-    this.updateOrderBttnSellState(orderQty)
+    this.updateOrderBttnSellState(orderQtyAtom)
   }
 
   canTradeBuy (): boolean {
@@ -3172,8 +3172,8 @@ export default class MarketsPage extends BasePage {
    */
   parseAdjustedRateAtoms (rateStr: string | undefined): number {
     const rate = this.parseRateAtoms(rateStr)
-    const rateStep = this.market.cfg.ratestep
-    return rate - (rate % rateStep)
+    const rateStepAtom = this.market.cfg.ratestep
+    return rate - (rate % rateStepAtom)
   }
 
   /* loadTable reloads the table from the current order book information. */
@@ -3578,7 +3578,7 @@ class OrderTableRowManager {
   baseUnitInfo: UnitInfo
 
   constructor (tableRow: HTMLElement, orderBin: MiniOrder[], market: CurrentMarket) {
-    const { baseUnitInfo, quoteUnitInfo, cfg: { ratestep: rateStep } } = market
+    const { baseUnitInfo, quoteUnitInfo, cfg: { ratestep: rateStepAtom } } = market
 
     this.tableRow = tableRow
     const page = this.page = Doc.parseTemplate(tableRow)
@@ -3588,7 +3588,7 @@ class OrderTableRowManager {
     this.msgRate = orderBin[0].msgRate
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
-    const rateText = Doc.formatRateFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStep)
+    const rateText = Doc.formatRateFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
     Doc.setVis(this.isEpoch(), this.page.epoch)
 
     if (this.msgRate === 0) {
