@@ -43,11 +43,11 @@ div[data-handler=markets] {
         border-radius: 0;
         font-size: 14px;
         font-weight: bold;
-        background-color: #ebebeb;
+        background-color: var(--section-bg);
 
         &:hover,
         &.selected {
-          border: 1px solid #6a6a6a;
+          border: 1px solid var(--border-color);
         }
       }
 
@@ -228,16 +228,6 @@ div[data-handler=markets] {
           grid-column: 1 / -1;
         }
       }
-    }
-  }
-
-  .markettab {
-    height: 30px;
-    border-style: none;
-    background-color: var(--section-bg);
-
-    &.selected {
-      background-color: var(--market-markettab-selected-bg);
     }
   }
 
