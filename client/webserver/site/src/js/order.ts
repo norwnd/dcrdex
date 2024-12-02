@@ -410,17 +410,6 @@ export default class OrderPage extends BasePage {
     order.matches.forEach((match) => this.addNewMatchCard(match))
   }
 
-  /* showCancel shows a form to confirm submission of a cancel order. */
-  showCancel () {
-    const order = this.order
-    const page = this.page
-    const remaining = order.qty - order.filled
-    const asset = OrderUtil.isMarketBuy(order) ? app().assets[order.quoteID] : app().assets[order.baseID]
-    page.cancelRemain.textContent = Doc.formatCoinValue(remaining, asset.unitInfo)
-    page.cancelUnit.textContent = asset.unitInfo.conventional.unit.toUpperCase()
-    this.showForm(page.cancelForm)
-  }
-
   /* showForm shows a modal form with a little animation. */
   async showForm (form: HTMLElement) {
     this.currentForm = form

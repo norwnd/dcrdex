@@ -451,21 +451,12 @@ div[data-handler=markets] {
       height: 40px;
     }
 
-    .order-opt {
-      opacity: 0.7;
+    #youSpend {
+      color: var(--sell-color);
+    }
 
-      &:not(.selected) {
-        cursor: pointer;
-      }
-
-      &.selected {
-        opacity: 1;
-        background-color: var(--form-opt-selected-bg);
-
-        div.opt-check {
-          background-color: $success;
-        }
-      }
+    #youGet {
+      color: var(--buy-color);
     }
   }
 
