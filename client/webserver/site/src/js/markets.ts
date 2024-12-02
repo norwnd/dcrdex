@@ -730,8 +730,8 @@ export default class MarketsPage extends BasePage {
 
       const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
       const lot = '1'
-      const lotSize = String(this.market.cfg.lotsize)
-      const rateStep = String(this.market.cfg.ratestep)
+      const lotSize = Doc.formatCoinValue(this.market.cfg.lotsize, this.market.baseUnitInfo)
+      const rateStep = Doc.formatCoinValue(this.market.cfg.ratestep / this.market.rateConversionFactor)
       // see if we can fetch & set up a default rate value
       const midGapRateAtom = this.midGapRateAtom()
 
@@ -1237,13 +1237,7 @@ export default class MarketsPage extends BasePage {
   buildOrderBuy (): TradeForm {
     const market = this.market
 
-    // note, we must set order.qty to quote asset for buy-order (and base asset
-    // for sell-order) because this is the way Golang client code expects it,
-    // hence we need these additional conversions here for buy-order
-    const [bFactor] = [market.baseUnitInfo.conventional.conversionFactor]
-    const [qFactor] = [market.quoteUnitInfo.conventional.conversionFactor]
-    const qty = (this.chosenQtyBuyAtom / bFactor) * (this.chosenRateBuyAtom / market.rateConversionFactor)
-    const qtyAtom = convertNumberToAtoms(qty, qFactor)
+    const qtyAtom = this.chosenQtyBuyAtom
 
     return {
       host: market.dex.host,
@@ -1265,8 +1259,6 @@ export default class MarketsPage extends BasePage {
   buildOrderSell (): TradeForm {
     const market = this.market
 
-    // can already set order.qty in base asset (without additional conversions),
-    // as Golang client code expects it to be
     const qtyAtom = this.chosenQtySellAtom
 
     return {
@@ -1942,22 +1934,9 @@ export default class MarketsPage extends BasePage {
     page.vOrderType.textContent = order.tifnow ? orderDesc + ' (immediate)' : orderDesc
     page.vRate.textContent = Doc.formatCoinValue(order.rate / this.market.rateConversionFactor)
 
-    // TODO
-    console.log('=============')
-    console.log('order.qty:')
-    console.log(order.qty)
-    console.log('=============')
-
-    // note, order.qty we get here is in quote asset for buy-order (and base asset
-    // for sell-order), hence we need these additional conversions here for buy-order
-    let youSpendTotal = order.qty
     let youSpendAsset = quoteAsset
-    const qFactor = quoteAsset.unitInfo.conventional.conversionFactor
-    const bFactor = baseAsset.unitInfo.conventional.conversionFactor
-    let youGetTotal = convertNumberToAtoms(
-      (order.qty / qFactor) / (order.rate / this.market.rateConversionFactor),
-      bFactor
-    )
+    let youSpendTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
+    let youGetTotal = order.qty
     let youGetAsset = baseAsset
     if (isSell) {
       youSpendTotal = order.qty
