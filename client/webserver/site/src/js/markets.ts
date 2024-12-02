@@ -247,8 +247,7 @@ export default class MarketsPage extends BasePage {
     setOptionTemplates(page)
 
     Doc.cleanTemplates(
-      page.orderRowTmpl, page.durBttnTemplate, page.booleanOptTmpl, page.rangeOptTmpl,
-      page.orderOptTmpl, page.userOrderTmpl, page.recentMatchesTemplate
+      page.orderRowTmpl, page.durBttnTemplate, page.userOrderTmpl, page.recentMatchesTemplate
     )
 
     // Buttons to show token approval form
@@ -729,12 +728,10 @@ export default class MarketsPage extends BasePage {
 
       // re-initialize limit order forms
 
-      const qtyConvBuy = this.market.quoteUnitInfo.conventional.conversionFactor
-      const qtyConvSell = this.market.baseUnitInfo.conventional.conversionFactor
-
+      const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
       const lot = '1'
-      const lotSize = String(this.market.cfg.lotsize / qtyConvSell)
-      const rateStep = String(this.market.cfg.ratestep / this.market.rateConversionFactor)
+      const lotSize = String(this.market.cfg.lotsize)
+      const rateStep = String(this.market.cfg.ratestep)
       // see if we can fetch & set up a default rate value
       const midGapRateAtom = this.midGapRateAtom()
 
@@ -752,7 +749,7 @@ export default class MarketsPage extends BasePage {
         const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)
         page.qtyFieldBuy.min = lotSize // improves up/down key-press handling, and hover-message
         page.qtyFieldBuy.step = lotSize // improves up/down key-press handling, and hover-message
-        this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConvBuy)
+        this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
         page.qtyFieldBuy.value = String(adjQtyBuy)
         this.qtySliderBuy.setValue(0)
         page.rateFieldBuy.min = rateStep // improves up/down key-press handling, and hover-message
@@ -785,7 +782,7 @@ export default class MarketsPage extends BasePage {
         const [,,, adjQtySell] = this.parseLotInput(page.lotFieldSell.value)
         page.qtyFieldSell.min = lotSize // improves up/down key-press handling, and hover-message
         page.qtyFieldSell.step = lotSize // improves up/down key-press handling, and hover-message
-        this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConvSell)
+        this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
         page.qtyFieldSell.value = String(adjQtySell)
         this.qtySliderSell.setValue(0)
         page.rateFieldSell.min = rateStep // improves up/down key-press handling, and hover-message
@@ -1234,14 +1231,19 @@ export default class MarketsPage extends BasePage {
   }
 
   /*
-   * parseOrderBuy pulls the order information from the form fields. Data is not
-   * validated in any way.
+   * buildOrderSell builds a TradeForm wire-representation that will be sent to
+   * Golang client side. Data is not validated in any way (assumes done previously).
    */
-  parseOrderBuy (): TradeForm {
-    const page = this.page
+  buildOrderBuy (): TradeForm {
     const market = this.market
 
-    const qtyConv = market.quoteUnitInfo.conventional.conversionFactor
+    // note, we must set order.qty to quote asset for buy-order (and base asset
+    // for sell-order) because this is the way Golang client code expects it,
+    // hence we need these additional conversions here for buy-order
+    const [bFactor] = [market.baseUnitInfo.conventional.conversionFactor]
+    const [qFactor] = [market.quoteUnitInfo.conventional.conversionFactor]
+    const qty = (this.chosenQtyBuyAtom / bFactor) * (this.chosenRateBuyAtom / market.rateConversionFactor)
+    const qtyAtom = convertNumberToAtoms(qty, qFactor)
 
     return {
       host: market.dex.host,
@@ -1249,22 +1251,23 @@ export default class MarketsPage extends BasePage {
       sell: false,
       base: market.base.id,
       quote: market.quote.id,
-      qty: convertStrToAtoms(page.qtyFieldBuy.value || '', qtyConv),
-      rate: convertStrToAtoms(page.rateFieldBuy.value || '', market.rateConversionFactor), // message-rate
+      qty: qtyAtom,
+      rate: this.chosenRateBuyAtom,
       tifnow: false,
       options: {}
     }
   }
 
   /*
- * parseOrderSell pulls the order information from the form fields. Data is not
- * validated in any way.
+ * buildOrderSell builds a TradeForm wire-representation that will be sent to
+ * Golang client side. Data is not validated in any way (assumes done previously).
  */
-  parseOrderSell (): TradeForm {
-    const page = this.page
+  buildOrderSell (): TradeForm {
     const market = this.market
 
-    const qtyConv = market.baseUnitInfo.conventional.conversionFactor
+    // can already set order.qty in base asset (without additional conversions),
+    // as Golang client code expects it to be
+    const qtyAtom = this.chosenQtySellAtom
 
     return {
       host: market.dex.host,
@@ -1272,8 +1275,8 @@ export default class MarketsPage extends BasePage {
       sell: true,
       base: market.base.id,
       quote: market.quote.id,
-      qty: convertStrToAtoms(page.qtyFieldSell.value || '', qtyConv),
-      rate: convertStrToAtoms(page.rateFieldSell.value || '', market.rateConversionFactor), // message-rate
+      qty: qtyAtom,
+      rate: this.chosenRateSellAtom,
       tifnow: false,
       options: {}
     }
@@ -1322,16 +1325,16 @@ export default class MarketsPage extends BasePage {
     const market = this.market
 
     if (orderQtyAtom > 0 && orderRateAtom > 0) {
-      const totalOut = orderQtyAtom
-      const totalIn = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
+      const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
+      const totalIn = orderQtyAtom
 
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
       )
       page.orderTotalPreviewSellRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
       )
     } else {
       page.orderTotalPreviewSellLeft.textContent = '?'
@@ -1935,15 +1938,40 @@ export default class MarketsPage extends BasePage {
     page.vSideSubmit.textContent = buySellStr
     page.vOrderHost.textContent = order.host
     Doc.show(page.verifyLimit)
-    Doc.hide(page.verifyMarket)
     const orderDesc = `Limit ${buySellStr} Order`
     page.vOrderType.textContent = order.tifnow ? orderDesc + ' (immediate)' : orderDesc
     page.vRate.textContent = Doc.formatCoinValue(order.rate / this.market.rateConversionFactor)
-    page.vQty.textContent = Doc.formatCoinValue(order.qty, baseAsset.unitInfo)
-    const total = order.rate / OrderUtil.RateEncodingFactor * order.qty
-    page.vTotal.textContent = Doc.formatCoinValue(total, quoteAsset.unitInfo)
+
+    // TODO
+    console.log('=============')
+    console.log('order.qty:')
+    console.log(order.qty)
+    console.log('=============')
+
+    // note, order.qty we get here is in quote asset for buy-order (and base asset
+    // for sell-order), hence we need these additional conversions here for buy-order
+    let youSpendTotal = order.qty
+    let youSpendAsset = quoteAsset
+    const qFactor = quoteAsset.unitInfo.conventional.conversionFactor
+    const bFactor = baseAsset.unitInfo.conventional.conversionFactor
+    let youGetTotal = convertNumberToAtoms(
+      (order.qty / qFactor) / (order.rate / this.market.rateConversionFactor),
+      bFactor
+    )
+    let youGetAsset = baseAsset
+    if (isSell) {
+      youSpendTotal = order.qty
+      youSpendAsset = baseAsset
+      youGetTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
+      youGetAsset = quoteAsset
+    }
+    page.youSpend.textContent = '-' + Doc.formatCoinValue(youSpendTotal, youSpendAsset.unitInfo)
+    page.youSpendTicker.textContent = youSpendAsset.unitInfo.conventional.unit
+    page.youGet.textContent = '+' + Doc.formatCoinValue(youGetTotal, youGetAsset.unitInfo)
+    page.youGetTicker.textContent = youGetAsset.unitInfo.conventional.unit
     // Format total fiat value.
-    this.showFiatValue(quoteAsset.id, total, page.vFiatTotal)
+    this.showFiatValue(youGetAsset.id, youGetTotal, page.vFiatTotal)
+
     // Visually differentiate between buy/sell orders.
     if (isSell) {
       page.vHeader.classList.add(sellBtnClass)
@@ -2085,7 +2113,7 @@ export default class MarketsPage extends BasePage {
       Doc.show(page.orderErrBuy)
     }
 
-    const order = this.parseOrderBuy()
+    const order = this.buildOrderBuy()
     if (!this.validateOrderBuy(order)) {
       return
     }
@@ -2128,7 +2156,7 @@ export default class MarketsPage extends BasePage {
       Doc.show(page.orderErrSell)
     }
 
-    const order = this.parseOrderSell()
+    const order = this.buildOrderSell()
     if (!this.validateOrderSell(order)) {
       return
     }
@@ -2723,10 +2751,6 @@ export default class MarketsPage extends BasePage {
     // changed, we need to update the other one as well.
     page.lotFieldSell.value = String(adjLots)
     page.qtyFieldSell.value = String(adjQty)
-
-    // TODO
-    console.log('this.chosenQtySell:')
-    console.log(this.chosenQtySellAtom)
 
     // Update slider accordingly, assume max sell has already been fetched (don't
     // let user touch lot/qty/slider fields otherwise).
