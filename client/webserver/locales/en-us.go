@@ -182,7 +182,6 @@ var EnUS = map[string]*intl.Translation{
 	"Show more options":           {T: "Show more options"},
 	"seed_implore_msg":            {T: "You should carefully write down your application seed and save a copy. Should you lose access to this machine or the critical application files, the seed can be used to restore your DEX accounts and native wallets. Some older accounts cannot be restored from seed, and whether old or new, it's good practice to backup the account keys separately from the seed."},
 	"View Application Seed":       {T: "View Application Seed"},
-	"Remember my password":        {T: "Remember my password"},
 	"pw_for_seed":                 {T: "Enter your app password to show your seed. Make sure nobody else can see your screen."},
 	"Asset":                       {T: "Asset"},
 	"Balance":                     {T: "Balance"},
@@ -477,7 +476,7 @@ var EnUS = map[string]*intl.Translation{
 	"Instructions:":               {T: "Instructions:"},
 	"URL":                         {T: "URL"},
 	// Staking UI
-	"Price":                       {T: "Price:"},
+	"Price":                       {T: "Price"},
 	"Ticket":                      {T: "Ticket"},
 	"Staking":                     {T: "Staking"},
 	"Active tickets":              {T: "Active tickets"},
