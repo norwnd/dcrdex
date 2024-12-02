@@ -36,15 +36,19 @@ div[data-handler=markets] {
   .order-panel {
     min-width: 375px;
 
-    #orderForm {
+    #orderFormBuy,
+    #orderFormSell {
       input[type=number] {
         height: 30px;
         border-radius: 0;
         font-size: 14px;
-      }
+        font-weight: bold;
+        background-color: var(--section-bg);
 
-      input:focus {
-        outline: none;
+        &:hover,
+        &.selected {
+          border: 1px solid var(--border-color);
+        }
       }
 
       span.unitbox {
@@ -58,11 +62,16 @@ div[data-handler=markets] {
       }
 
       button {
+        opacity: 0.8;
         padding: 5px 25px;
-        border: 1px solid #78787877;
         border-radius: 3px;
         background-color: var(--section-bg);
         color: var(--market-btn-color);
+
+        &:hover {
+          opacity: 1;
+          color: black;
+        }
 
         &:disabled {
           opacity: 0.4;
@@ -89,9 +98,20 @@ div[data-handler=markets] {
         }
       }
 
-      #orderPreview,
-      .h21 {
-        height: 21px;
+      #orderTotalPreviewBuyLeft {
+        color: var(--sell-color);
+      }
+
+      #orderTotalPreviewBuyRight {
+        color: var(--buy-color);
+      }
+
+      #orderTotalPreviewSellLeft {
+        color: var(--sell-color);
+      }
+
+      #orderTotalPreviewSellRight {
+        color: var(--buy-color);
       }
     }
 
@@ -208,16 +228,6 @@ div[data-handler=markets] {
           grid-column: 1 / -1;
         }
       }
-    }
-  }
-
-  .markettab {
-    height: 30px;
-    border-style: none;
-    background-color: var(--section-bg);
-
-    &.selected {
-      background-color: var(--market-markettab-selected-bg);
     }
   }
 
@@ -431,39 +441,14 @@ div[data-handler=markets] {
       height: 40px;
     }
 
-    .order-opt {
-      opacity: 0.7;
+    #youSpend {
+      color: var(--sell-color);
+    }
 
-      &:not(.selected) {
-        cursor: pointer;
-      }
-
-      &.selected {
-        opacity: 1;
-        background-color: var(--form-opt-selected-bg);
-
-        div.opt-check {
-          background-color: $success;
-        }
-      }
+    #youGet {
+      color: var(--buy-color);
     }
   }
-
-  #vDetailPane {
-    max-width: 425px;
-
-    .indent {
-      border-left: 2px solid var(--border-color);
-    }
-
-    table.fee-breakout {
-      td {
-        text-align: center;
-        padding: 2px 5px;
-      }
-    }
-  }
-
 
   #marketReopener {
     display: none;
