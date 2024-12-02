@@ -540,53 +540,32 @@
         <span id="vOrderHost" class="grey"></span>
       </div>
 
-      {{- /* Price, Quantity, Total Section */ -}}
+      {{- /* Price, Spend, Get Section */ -}}
       <div id="verifyLimit">
         <div class="d-flex align-items-center justify-content-between">
-          <span class="grey fs17 flex-grow-1 text-start">[[[:title:price]]]</span>
+          <span class="grey fs18 flex-grow-1 text-start">[[[:title:price]]]</span>
           <span id="vRate" class="fs18 demi"></span>
-          <span class="grey fs14 ms-2">
+          <span class="grey fs18 ms-2">
             <sup data-quote-ticker></sup>/<sub data-base-ticker></sub>
           </span>
         </div>
         <div class="d-flex align-items-center mt-1">
-          <span class="grey fs17 flex-grow-1 text-start">[[[Quantity]]]</span>
-          <span id="vQty" class="fs18 demi"></span>
-          <span data-base-ticker class="grey fs14 ms-2"></span>
+          <span class="grey fs18 flex-grow-1 text-start">[[[You Spend]]]</span>
+          <span id="youSpend" class="fs18 demi"></span>
+          <span id="youSpendTicker" class="grey fs18 ms-2"></span>
         </div>
         <div class="d-flex align-items-center mt-1">
-          <span class="grey fs17 flex-grow-1 text-start">[[[Total]]]</span>
-          <span id="vTotal" class="fs18 demi"></span>
-          <span data-quote-ticker class="grey fs14 ms-2"></span>
+          <span class="grey fs18 flex-grow-1 text-start">[[[You Get]]]</span>
+          <span id="youGet" class="fs18 demi"></span>
+          <span id="youGetTicker" class="grey fs18 ms-2"></span>
         </div>
         <span class="d-flex d-hide justify-content-end grey fs14">
         ~<span id="vFiatTotal" class="mx-1"></span>USD
         </span>
       </div>
-      <div id="verifyMarket">
-        <div class="d-flex align-items-center justify-content-between">
-          <span class="grey fs17 flex-grow-1 text-start">[[[Trading]]]</span>
-          <span id="vmFromTotal" class="fs18 demi"></span>
-          <span id="vmFromAsset" class="grey fs14 ms-2"></span>
-        </div>
-        <span class="d-flex d-hide justify-content-end grey fs14">
-          ~<span id="vmFromTotalFiat" class="mx-1"></span>USD
-        </span>
-        <div id="vMarketEstimate" class="d-flex align-items-center justify-content-between">
-          <span class="grey fs17 flex-grow-1 text-start">
-            [[[Receiving Approximately]]]
-            <span class="ico-info fs12" data-tooltip="[[[verify_market]]]"></span>
-          </span>
-          <span id="vmToTotal" class="fs18 demi"></span>
-          <span id="vmToAsset" class="grey fs14 ms-2"></span>
-        </div>
-        <span class="d-flex d-hide justify-content-end grey fs14">
-          ~<span id="vmTotalFiat" class="mx-1"></span>USD
-        </span>
-      </div>
 
       <div class="flex-stretch-column">
-        <button id="vSubmit" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center go sellred-bg">
+        <button id="vSubmit" class="justify-content-center fs18 go sellred-bg">
           <span id="vSideSubmit"></span>
           <span data-base-ticker></span>
         </button>
@@ -595,16 +574,18 @@
         </div>
       </div>
 
-      <div class="fs15 p-3 text-center d-hide text-danger text-break" id="vErr"></div>{{- /* End Auth Section */ -}}
+      <div class="fs16 p-3 text-center d-hide text-danger text-break" id="vErr"></div>{{- /* End Auth Section */ -}}
 
-      <div id="disclaimer" class="d-flex align-items-center text-center disclaimer fs16 pt-3 mt-3 border-top">
+      <div id="disclaimer" class="disclaimer fs16 pt-3 mt-3 border-top">
         [[[order_disclaimer]]]
       </div>
       <div id="disclaimerAck" class="d-flex align-items-center grey text-center pointer hoverbg fs16 lh1">
-        <span class="ico-check fs12"></span> [[[acknowledge_and_hide]]]
+        <span class="ico-check fs12"></span>
+        <span>[[[acknowledge_and_hide]]]</span>
       </div>
       <div id="showDisclaimer" class="d-flex align-items-center grey text-center pointer hoverbg fs16 lh1 d-hide">
-        <span class="fs8 ico-plus me-1 mt-1"></span> [[[show_disclaimer]]]
+        <span class="fs8 ico-plus me-1 mt-1"></span>
+        <span>[[[show_disclaimer]]]</span>
       </div>
     </form>
 
