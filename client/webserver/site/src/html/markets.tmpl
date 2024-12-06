@@ -243,7 +243,7 @@
               </div>
 
               {{- /* BUY ORDER FORM */ -}}
-              <div id="orderFormBuy" class="p-3 d-hide">
+              <form id="orderFormBuy" class="p-3 d-hide" autocomplete="off">
                 <div id="limitOrderBoxBuy" class="d-flex flex-stretch-column">
                   <div class="d-flex justify-content-between m-1 fs14">
                     <div id="lotSizeBoxBuy">
@@ -287,10 +287,10 @@
                   {{- /* SUBMIT ORDER ERRORS */ -}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
                 </div>
-              </div>
+              </form>
 
               {{- /* SELL ORDER FORM */ -}}
-              <div id="orderFormSell" class="p-3 d-hide">
+              <form id="orderFormSell" class="p-3 d-hide" autocomplete="off">
                 <div id="limitOrderBoxSell" class="d-flex flex-stretch-column">
                   <div class="d-flex justify-content-between m-1 fs14">
                     <div id="lotSizeBoxSell">
@@ -334,7 +334,7 @@
                   {{- /* SUBMIT ORDER ERRORS */ -}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>
                 </div>
-              </div>
+              </form>
 
               {{- /* WALLET RELATED ERRORS */ -}}
               <div id="noWallet" class="p-3 border-bottom flex-center fs16 grey d-hide"></div>
