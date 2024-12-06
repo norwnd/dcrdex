@@ -79,7 +79,7 @@ div[data-handler=markets] {
         }
 
         &:disabled {
-          pointer-events: none;
+          pointer-events: auto; // can't use none because it will not show "title" message
           opacity: 0.4;
         }
       }
