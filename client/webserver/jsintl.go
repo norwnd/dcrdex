@@ -157,6 +157,7 @@ const (
 	orderBttnSellBalErrID            = "ORDER_BUTTON_SELL_BALANCE_ERROR"
 	orderBttnQtyErrID                = "ORDER_BUTTON_QTY_ERROR"
 	orderBttnQtyRateErrID            = "ORDER_BUTTON_QTY_RATE_ERROR"
+	enableAssetWalletMsgID           = "ENABLE_ASSET_WALLET_MSG"
 	createAssetWalletMsgID           = "CREATE_ASSET_WALLET_MSG"
 	noWalletMsgID                    = "NO_WALLET_MSG"
 	tradingTierUpdateddID            = "TRADING_TIER_UPDATED"
@@ -376,6 +377,7 @@ var enUS = map[string]*intl.Translation{
 	browserNtfnMatchesID:             {T: "Matches"},
 	browserNtfnBondsID:               {T: "Bonds"},
 	browserNtfnConnectionsID:         {T: "Server connections"},
+	enableAssetWalletMsgID:           {T: "Enable / Activate a {{ asset }} wallet to trade"},
 	createAssetWalletMsgID:           {T: "Create a {{ asset }} wallet to trade"},
 	noWalletMsgID:                    {T: "Create {{ asset1 }} and {{ asset2 }} wallet to trade"},
 	tradingTierUpdateddID:            {T: "Trading Tier Updated"},

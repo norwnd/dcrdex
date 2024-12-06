@@ -245,7 +245,7 @@ export interface WalletState {
   version: number
   type: string
   traits: number
-  open: boolean
+  open: boolean // no longer used in UI
   running: boolean
   disabled: boolean
   balance: WalletBalance
