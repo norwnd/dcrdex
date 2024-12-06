@@ -354,16 +354,11 @@ export default class Doc {
     return decimalFormatter(precision).format(v)
   }
 
-  static conventionalCoinValue (vAtomic: number, unitInfo?: UnitInfo): number {
-    const [v] = convertToConventional(vAtomic, unitInfo)
-    return v
-  }
-
   /*
    * formatRateFullPrecision formats rate to represent it exactly at rate step
    * precision, trimming non-effectual zeros if there are any.
    */
-  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number) {
+  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
     const convRate = encRate * r / RateEncodingFactor
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
@@ -809,28 +804,6 @@ export class WalletIcons {
       return
     }
     Doc.hide(syncIcon)
-  }
-
-  /* reads the core.Wallet state and sets the icon visibility. */
-  readWallet (wallet: WalletState | null) {
-    this.setSyncing(wallet)
-    if (!wallet) return this.nowallet()
-    switch (true) {
-      case (wallet.disabled):
-        this.disabled()
-        break
-      case (!wallet.running):
-        this.sleeping()
-        break
-      case (!wallet.open):
-        this.locked()
-        break
-      case (wallet.open):
-        this.unlocked()
-        break
-      default:
-        console.error('wallet in unknown state', wallet)
-    }
   }
 }
 
