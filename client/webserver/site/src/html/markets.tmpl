@@ -258,14 +258,14 @@
                     </div>
                   </div>
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex justify-content-between m-1 fs18" id="priceBoxBuy">
+                  <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxBuy">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
                       <input type="number" class="form-control select bg1" id="rateFieldBuy">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
-                  <div class="d-flex justify-content-between m-1 fs18" id="qtyBoxBuy">
+                  <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxBuy">
                     <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-6 p-0 position-relative d-hide">
                       <input type="number" class="form-control select bg1" id="lotFieldBuy">
@@ -276,10 +276,8 @@
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
-                  <div id="qtySliderBuy" class="mini-slider mt-1 mx-1"></div>
-
-                  {{- /* SUBMIT ORDER BOX */ -}}
-                  <div class="d-flex justify-content-center m-1" id="submitOrderBox">
+                  <div id="qtySliderBuy" class="mini-slider mt-1 mx-1 disabled"></div>
+                  <div class="d-flex justify-content-center m-1 disabled" id="previewTotalBuy">
                     <div id="orderTotalPreviewBuyLeft" class="flex-center text-center mx-2 fs18"></div>
                     <span class="flex-center text-center mx-2 fs24">⇄</span>
                     <div id="orderTotalPreviewBuyRight" class="flex-center text-center mx-2 fs18"></div>
@@ -307,14 +305,14 @@
                     </div>
                   </div>
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex justify-content-between m-1 fs18" id="priceBoxSell">
+                  <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxSell">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
                       <input type="number" class="form-control select bg1" id="rateFieldSell">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
-                  <div class="d-flex justify-content-between m-1 fs18" id="qtyBoxSell">
+                  <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxSell">
                     <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-6 p-0 position-relative d-hide">
                       <input type="number" class="form-control select bg1" id="lotFieldSell">
@@ -325,10 +323,8 @@
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
-                  <div id="qtySliderSell" class="mini-slider mt-1 mx-1"></div>
-
-                  {{- /* SUBMIT ORDER BOX */ -}}
-                  <div class="d-flex justify-content-center m-1" id="submitOrderBox">
+                  <div id="qtySliderSell" class="mini-slider mt-1 mx-1 disabled"></div>
+                  <div class="d-flex justify-content-center m-1 disabled" id="previewTotalSell">
                     <div id="orderTotalPreviewSellLeft" class="flex-center text-center mx-2 fs18"></div>
                     <span class="flex-center text-center mx-2 fs24">⇄</span>
                     <div id="orderTotalPreviewSellRight" class="flex-center text-center mx-2 fs18"></div>

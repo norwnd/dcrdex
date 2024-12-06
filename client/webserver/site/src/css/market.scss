@@ -38,6 +38,11 @@ div[data-handler=markets] {
 
     #orderFormBuy,
     #orderFormSell {
+      .disabled {
+        pointer-events: none;
+        opacity: 0.4;
+      }
+
       input[type=number] {
         height: 30px;
         border-radius: 0;
@@ -62,7 +67,7 @@ div[data-handler=markets] {
       }
 
       button {
-        opacity: 0.8;
+        opacity: 0.9;
         padding: 5px 25px;
         border-radius: 3px;
         background-color: var(--section-bg);
@@ -74,6 +79,7 @@ div[data-handler=markets] {
         }
 
         &:disabled {
+          pointer-events: none;
           opacity: 0.4;
         }
       }
