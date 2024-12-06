@@ -6176,19 +6176,13 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 	}
 
 	// sanity check we are placing a trade that doesn't significantly diverge from the price
-	// on Bison market (10% seems like a worrisome divergence we don't want to permit)
-	bisonRate, err := dc.midGapMkt(market)
-	if err != nil {
-		return newError(walletErr, fmt.Sprintf("couldn't fetch mid-gap rate for %s market: %v", market, err))
-	}
-	// Note, we can't use "spot price" here because its value reflects the price of last
-	// trade which might have happened hours/days ago - and hence is too stale to rely on.
+	// on Bison market (10% seems like a worrisome divergence we don't want to permit),
+	// but we can only check this if order-book isn't empty (skip this check otherwise),
+	// note, we can't use "spot price" here because its value reflects the price of last
+	// trade which might have happened hours/days ago - and hence is too stale to rely on
 	//bisonRate := dc.coreMarket(market).SpotPrice.Rate
-	if bisonRate == 0 {
-		return newError(walletErr, fmt.Sprintf("couldn't determine Bison rate "+
-			"for market: %s", market))
-	}
-	if math.Abs(float64(rate)-float64(bisonRate)) > (0.25 * float64(bisonRate)) {
+	bisonRate, err := dc.midGapMkt(market)
+	if err == nil && math.Abs(float64(rate)-float64(bisonRate)) > (0.25*float64(bisonRate)) {
 		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
 			"that's diverging from Bison rate %d for more than 25 percent", rate, bisonRate))
 	}
