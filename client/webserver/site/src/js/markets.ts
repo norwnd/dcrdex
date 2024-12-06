@@ -810,25 +810,16 @@ export default class MarketsPage extends BasePage {
     console.log(defaultRateAtom)
 
     const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
-    const lot = '1'
-    const lotSize = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
-    const rateStep = Doc.formatCoinValue(mkt.cfg.ratestep / mkt.rateConversionFactor)
 
     if (this.canTradeBuy()) {
       // Reset limit-order buy form inputs to defaults.
-      page.lotFieldBuy.min = lot // improves up/down key-press handling, and hover-message
-      page.lotFieldBuy.step = lot // improves up/down key-press handling, and hover-message
       page.lotFieldBuy.value = '1'
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtyBuy] = this.parseLotInput(page.lotFieldBuy.value)
-      page.qtyFieldBuy.min = lotSize // improves up/down key-press handling, and hover-message
-      page.qtyFieldBuy.step = lotSize // improves up/down key-press handling, and hover-message
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
       this.qtySliderBuy.setValue(0)
-      page.rateFieldBuy.min = rateStep // improves up/down key-press handling, and hover-message
-      page.rateFieldBuy.step = rateStep // improves up/down key-press handling, and hover-message
       if (defaultRateAtom !== 0) {
         this.chosenRateBuyAtom = defaultRateAtom
         page.rateFieldBuy.value = String(defaultRateAtom / mkt.rateConversionFactor)
@@ -851,19 +842,13 @@ export default class MarketsPage extends BasePage {
 
     if (this.canTradeSell()) {
       // Reset limit-order sell form inputs to defaults.
-      page.lotFieldSell.min = lot // improves up/down key-press handling, and hover-message
-      page.lotFieldSell.step = lot // improves up/down key-press handling, and hover-message
       page.lotFieldSell.value = '1'
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       const [,,, adjQtySell] = this.parseLotInput(page.lotFieldSell.value)
-      page.qtyFieldSell.min = lotSize // improves up/down key-press handling, and hover-message
-      page.qtyFieldSell.step = lotSize // improves up/down key-press handling, and hover-message
       this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
       this.qtySliderSell.setValue(0)
-      page.rateFieldSell.min = rateStep // improves up/down key-press handling, and hover-message
-      page.rateFieldSell.step = rateStep // improves up/down key-press handling, and hover-message
       if (defaultRateAtom !== 0) {
         this.chosenRateSellAtom = defaultRateAtom
         page.rateFieldSell.value = String(defaultRateAtom / mkt.rateConversionFactor)
@@ -1488,7 +1473,6 @@ export default class MarketsPage extends BasePage {
 
     const res = await this.requestMaxEstimate('/api/maxbuy', { rate: rateAtom })
     if (!res) {
-      console.log('got null from /api/maxbuy')
       return null
     }
 
@@ -2531,7 +2515,16 @@ export default class MarketsPage extends BasePage {
   rateFieldBuyChangeHandler () {
     const page = this.page
 
-    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(this.page.rateFieldBuy.value)
+    const rateFieldValue = this.page.rateFieldBuy.value
+
+    // allow a '.' that's typical for decimals
+    if (rateFieldValue && rateFieldValue.length > 0 &&
+        rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+        rateFieldValue.indexOf('.') === rateFieldValue.length - 1) {
+      return
+    }
+
+    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Disable submit button temporarily (that additionally draws his
       // attention to order-form) to prevent user clicking on it while input
@@ -2570,7 +2563,16 @@ export default class MarketsPage extends BasePage {
   rateFieldSellChangeHandler () {
     const page = this.page
 
-    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(this.page.rateFieldSell.value)
+    const rateFieldValue = this.page.rateFieldSell.value
+
+    // allow a '.' that's typical for decimals
+    if (rateFieldValue && rateFieldValue.length > 0 &&
+        rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+        rateFieldValue.indexOf('.') === rateFieldValue.length - 1) {
+      return
+    }
+
+    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Disable submit button temporarily (that additionally draws his
       // attention to order-form) to prevent user clicking on it while input
@@ -2688,7 +2690,16 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(page.qtyFieldBuy.value)
+    const qtyFieldValue = page.qtyFieldBuy.value
+
+    // allow a '.' that's typical for decimals
+    if (qtyFieldValue && qtyFieldValue.length > 0 &&
+        qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+        qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) {
+      return
+    }
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Disable submit button temporarily (that additionally draws his
       // attention to order-form) to prevent user clicking on it while input
@@ -2733,7 +2744,16 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(page.qtyFieldSell.value)
+    const qtyFieldValue = page.qtyFieldSell.value
+
+    // allow a '.' that's typical for decimals
+    if (qtyFieldValue && qtyFieldValue.length > 0 &&
+        qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+        qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) {
+      return
+    }
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Disable submit button temporarily (that additionally draws user
       // attention to order-form) to prevent user clicking on it while input
