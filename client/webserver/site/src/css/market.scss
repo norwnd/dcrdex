@@ -428,27 +428,6 @@ div[data-handler=markets] {
       color: var(--buy-color);
     }
   }
-
-  #marketReopener {
-    display: none;
-    padding: 10px 0;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-color: var(--section-bg);
-    z-index: 10;
-
-    .ico-arrowleft,
-    .ico-arrowright {
-      transform: scaleX(0.5);
-      opacity: 0.5;
-    }
-
-    &:hover .ico-arrowleft,
-    &:hover .ico-arrowright {
-      opacity: 1;
-    }
-  }
 }
 
 .market-stats {
@@ -557,10 +536,6 @@ div[data-handler=markets] {
         height: 100%;
         overflow-x: hidden;
       }
-    }
-
-    #leftMarketDock.stashed + #marketReopener {
-      display: block;
     }
   }
 
