@@ -558,15 +558,24 @@ export default class MarketsPage extends BasePage {
 
     for (const s of this.stats) {
       const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
-      const fiatRate = app().fiatRatesMap[mkt.baseid]
-      if (fiatRate) {
-        s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * fiatRate)
+      const baseFiatRate = app().fiatRatesMap[mkt.baseid]
+      const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
+      if (baseFiatRate) {
+        s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
         s.tmpl.volUnit.textContent = 'USD'
       } else {
         s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
         s.tmpl.volUnit.textContent = unit
       }
-      setPriceAndChange(s.tmpl, xc, mkt)
+
+      s.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
+      const sign = mkt.spot.change24 > 0 ? '+' : ''
+      s.tmpl.change.classList.remove('buycolor', 'sellcolor')
+      s.tmpl.change.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
+      s.tmpl.change.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
+
+      const priceText = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
+      s.tmpl.fiatPrice.textContent = '(' + priceText + ')'
     }
 
     this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
@@ -3315,15 +3324,6 @@ function sortedMarkets (): ExchangeMarket[] {
     return bLots - aLots // whoever has more volume by lot count
   })
   return mkts
-}
-
-function setPriceAndChange (tmpl: Record<string, PageElement>, xc: Exchange, mkt: Market) {
-  if (!mkt.spot) return
-  tmpl.price.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
-  const sign = mkt.spot.change24 > 0 ? '+' : ''
-  tmpl.change.classList.remove('buycolor', 'sellcolor')
-  tmpl.change.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
-  tmpl.change.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 }
 
 const hues = [1 / 2, 1 / 4, 3 / 4, 1 / 8, 5 / 8, 3 / 8, 7 / 8]
