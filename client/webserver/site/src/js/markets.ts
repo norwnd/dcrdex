@@ -447,7 +447,6 @@ export default class MarketsPage extends BasePage {
       for (const s of this.stats) s.row.classList.add('listopen')
       Doc.show(page.leftMarketDock)
     }
-    Doc.bind(page.marketReopener, 'click', () => openMarketsList())
     for (const s of this.stats) {
       Doc.bind(s.tmpl.marketSelect, 'click', () => {
         if (page.leftMarketDock.clientWidth === 0) openMarketsList()
@@ -570,6 +569,7 @@ export default class MarketsPage extends BasePage {
         s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
         s.tmpl.volUnit.textContent = unit
       }
+      setPriceAndChange(s.tmpl, xc, mkt)
     }
 
     this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
@@ -3318,6 +3318,15 @@ function sortedMarkets (): ExchangeMarket[] {
     return bLots - aLots // whoever has more volume by lot count
   })
   return mkts
+}
+
+function setPriceAndChange (tmpl: Record<string, PageElement>, xc: Exchange, mkt: Market) {
+  if (!mkt.spot) return
+  tmpl.price.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
+  const sign = mkt.spot.change24 > 0 ? '+' : ''
+  tmpl.change.classList.remove('buycolor', 'sellcolor')
+  tmpl.change.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
+  tmpl.change.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 }
 
 const hues = [1 / 2, 1 / 4, 3 / 4, 1 / 8, 5 / 8, 3 / 8, 7 / 8]
