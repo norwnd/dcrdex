@@ -45,7 +45,7 @@ header#header {
 
 section {
   background-color: var(--section-bg);
-  margin: 0.5rem 0;
+  margin: 0.15rem 0;
   border: 1px solid var(--border-color);
   border-radius: 0.25rem;
 }
@@ -299,7 +299,7 @@ z-index: 1000;
 
 @include media-breakpoint-up(sm) {
   section {
-    margin: 0.5rem;
+    margin: 0.15rem;
   }
 }
 
