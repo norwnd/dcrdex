@@ -30,8 +30,9 @@
         <div class="d-flex flex-column">
           <span class="fs15 grey">[[[:title:price]]]</span>
           <div class="flex-center me-2">
-            <span data-tmpl="price"></span>
+            <span data-tmpl="bisonPrice"></span>
             <div data-tmpl="change" class="ms-2"></div>
+            <span id="fiatPrice" data-tmpl="fiatPrice" class="ms-2"></span>
           </div>
         </div>
 
@@ -90,7 +91,6 @@
               </div>
 
               <div class="d-flex justify-content-between py-1 px-4 fs16">
-                <div class="flex-center">Last Trade</div>
                 <div class="flex-center">
                   <span id="obUp" class="ico-arrowup buycolor fs13"></span>
                   <span id="obDown" class="ico-arrowdown sellcolor fs13 d-hide"></span>
