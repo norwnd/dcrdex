@@ -11,49 +11,6 @@
 {{define "markets"}}
 {{template "top" .}}
 <div id="main" data-handler="markets" class="main m-0 flex-nowrap">
-  {{- /* MARKET LIST */ -}}
-  <section id="leftMarketDock" class="section flex-column align-items-end default">
-    <div class="h-100 flex-stretch-column">
-
-      <div class="d-flex align-items-stretch border-bottom" id="searchBoxV1">
-        <div class="flex-grow-1 p-1 position-relative">
-          <input type="text" id="marketSearchV1"  placeholder=" " spellcheck="false" class="my-1">
-          <div class="ico-search fs22"></div>
-        </div>
-        <div id="leftHider" class="flex-center pointer hoverbg border-start px-2">
-          <span class="ico-arrowleft d-inline-block fs24">
-        </div>
-      </div>
-
-      <div class="flex-grow-1 overflow-y-hidden">
-        <div id="marketListV1" class="stylish-overflow hoveronly overflow-x-hidden flex-stretch-column">
-
-          <div id="marketTmplV1" class="d-flex align-items-stretch p-2 border-bottom lh1 pointer hoverbg">
-            <div class="d-flex flex-column">
-              <div class="d-flex align-items-start justify-content-start flex-grow-1">
-                <img data-tmpl="baseIcon" class="mini-icon">
-                <img data-tmpl="quoteIcon" class="mini-icon ms-1">
-                <span class="text-danger ico-disconnected d-hide ps-1" data-tmpl="disconnectedIco"></span>
-              </div>
-              <div class="fs10 demi text-start text-nowrap dexname" data-tmpl="host"></div>
-            </div>
-            <div class="d-flex flex-column pe-4 ps-2 flex-grow-1">
-              <span class="fs17 demi">
-                <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
-              </span>
-              <span class="fs15 grey" data-tmpl="baseName"></span>
-            </div>
-            <div class="d-flex flex-column align-items-end ps-3">
-              <span data-tmpl="price" class="fs17">-</span>
-              <span data-tmpl="change" class="fs15">-</span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </section>
-
   <div id="marketReopener" class="flex-center pointer hoverbg border-bottom border-end border-top">
     <span class="ico-arrowright d-inline-block fs24">
   </div>
@@ -97,56 +54,84 @@
         </div>
       </div>
 
-      <div class="flex-grow-1 position-relative">
-        <div id="mainContent">
-
-          {{- /* ORDER BOOK */ -}}
-          <section class="d-flex flex-column orderbook">
-            <div class="stylish-overflow hoveronly overflow-x-hidden flex-grow-1 ordertable-wrap reversible">
-
+      {{- /* MAIN CONTENT */ -}}
+      <div>
+        <div id="mainContent" class="d-flex flex-stretch-row">
+          <section class="d-flex align-items-center">
+            {{- /* MARKET LIST */ -}}
+            <div id="leftMarketDock" class="d-flex flex-stretch-column d-hide">
+              <div class="d-flex flex-stretch-column align-items-stretch border-bottom" id="searchBoxV1">
+                <form class="flex-grow-1 p-1 position-relative" autocomplete="off">
+                  <input type="text" id="marketSearchV1" placeholder=" " spellcheck="false" class="my-1 fs17">
+                  <div class="ico-search fs22"></div>
+                </form>
+              </div>
+              <div class="flex-stretch-column overflow-y-hidden">
+                <div id="marketListV1" class="d-flex hoveronly overflow-x-hidden flex-stretch-column">
+                  <div id="marketTmplV1" class="d-flex align-items-stretch p-2 border-bottom lh1 pointer hoverbg">
+                    <div class="d-flex flex-column">
+                      <div class="d-flex align-items-center justify-content-start flex-grow-1">
+                        <img data-tmpl="baseIcon" class="mini-icon">
+                        <img data-tmpl="quoteIcon" class="mini-icon ms-1">
+                        <span class="text-danger ico-disconnected d-hide ps-1" data-tmpl="disconnectedIco"></span>
+                      </div>
+                      <div class="fs10 demi text-start text-nowrap dexname" data-tmpl="host"></div>
+                    </div>
+                    <div class="d-flex flex-column flex-grow-1">
+                      <span class="fs17 demi">
+                        <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {{- /* ORDER BOOK */ -}}
+            <div id="orderBook" class="d-flex flex-stretch-column">
               {{- /* SELL ORDER LIST */ -}}
-              <table class="compact row-hover lh1 fs15">
-                <tbody id="sellRows"></tbody>
-              </table>
-            </div>
+              <div class="hoveronly overflow-x-hidden flex-stretch-column ordertable-wrap reversible">
+                <table class="compact row-hover lh1 fs16">
+                  <tbody id="sellRows"></tbody>
+                </table>
+              </div>
 
-            <div class="border-top border-bottom p-2 flex-center fs15">
-              <span class="flex-grow-1">Order Book</span>
-              <span class="flex-center">
-                <span id="obUp" class="ico-arrowup buycolor fs11"></span>
-                <span id="obDown" class="ico-arrowdown sellcolor fs11 d-hide"></span>
-                <span id="obPrice" class="buycolor ms-1"></span>
-              </span>
-            </div>
-
-            <div class="stylish-overflow hoveronly overflow-x-hidden flex-grow-1 ordertable-wrap">
+              <div class="d-flex justify-content-between py-1 px-4 fs16">
+                <div class="flex-center">Last Trade</div>
+                <div class="flex-center">
+                  <span id="obUp" class="ico-arrowup buycolor fs13"></span>
+                  <span id="obDown" class="ico-arrowdown sellcolor fs13 d-hide"></span>
+                  <span id="obPrice" class="buycolor ms-1"></span>
+                </div>
+              </div>
 
               {{- /* BUY ORDER LIST */ -}}
-              <table class="compact row-hover buys lh1 fs15">
-                <tbody id="buyRows">
-                  {{- /* This row is used by the app as a template. */ -}}
-                  <tr id="orderRowTmpl" class="px-2 w-100">
-                    <td class="pe-2 w-100">
-                      <div class="d-flex justify-content-start align-items-center">
-                        <div data-tmpl="qty">-</div>
-                        <small class="numorders lh1 rounded3 text-center ms-2" data-tmpl="numOrders">-</small>
-                      </div>
-                    </td>
-                    <td class="text-end text-nowrap ps-2">
-                      <span class="text-end ico-check fs13 pe-1 d-hide" data-tmpl="epoch"></span>
-                      <span class="text-end ico-own-book-order fs13 pe-1 d-hide" data-tmpl="ownBookOrder"></span>
-                      <span data-tmpl="rate">-</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table> {{- /* END BUY ORDER LIST */ -}}
+              <div class="hoveronly overflow-x-hidden flex-stretch-column ordertable-wrap">
+                <table class="compact row-hover buys lh1 fs16">
+                  <tbody id="buyRows">
+                    {{- /* This row is used by the app as a template. */ -}}
+                    <tr id="orderRowTmpl" class="px-2 w-100">
+                      <td class="pe-2 w-100">
+                        <div class="d-flex justify-content-start align-items-center">
+                          <div data-tmpl="qty">-</div>
+                          <small class="numorders lh1 rounded3 text-center ms-2" data-tmpl="numOrders">-</small>
+                        </div>
+                      </td>
+                      <td class="text-end text-nowrap ps-2">
+                        <span class="text-end ico-check fs14 pe-1 d-hide" data-tmpl="epoch"></span>
+                        <span class="text-end ico-own-book-order fs14 pe-1 d-hide" data-tmpl="ownBookOrder"></span>
+                        <span data-tmpl="rate">-</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </section> {{- /* END ORDER BOOK */ -}}
+          </section>
 
-          {{- /* CHARTS */ -}}
-          <div class="d-flex flex-grow-1 position-relative w-100 w-lg-auto">
+          {{- /* CANDLE CHART */ -}}
+          <section class="d-flex flex-grow-1 position-relative w-lg-auto">
             <div class="fill-abs flex-stretch-column">
-              <section class="flex-grow-1 flex-stretch-column position-relative">
+              <div class="flex-grow-1 flex-stretch-column position-relative">
                 <div id="candlesChart" class="market-chart">
                   <div id="durBttnBox"><button class="candle-dur-bttn border rounded3" id="durBttnTemplate"></button></div>
                 </div>
@@ -165,9 +150,9 @@
                     </div>
                   </div>
                 </div>
-              </section>
+              </div>
             </div>
-          </div>
+          </section>
 
           {{- /* ORDER FORM */ -}}
           <section class="order-panel pb-3 position-relative">
@@ -491,7 +476,7 @@
         </div>
       </div>
     </div>
-  </div>{{- /* END CONTENT */ -}}
+  </div>{{- /* END MAIN CONTENT */ -}}
 
   {{- /* POP-UP FORMS */ -}}
   <div id="forms" class="d-hide">
