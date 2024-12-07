@@ -439,14 +439,6 @@ div[data-handler=markets] {
     display: grid;
     grid-template-columns: auto auto auto;
   }
-
-  &.listopen .ico-arrowdown {
-    display: none;
-  }
-
-  &:not(.listopen) .ico-arrowup {
-    display: none;
-  }
 }
 
 #headerSpace .market-stats {
