@@ -439,12 +439,15 @@ div[data-handler=markets] {
     display: grid;
     grid-template-columns: auto auto auto;
   }
+
+  #fiatPrice {
+    color: var(--text-warning);
+  }
 }
 
 #headerSpace .market-stats {
   display: none;
 }
-
 
 #recentMatchesBox {
   @extend .stylish-overflow;
