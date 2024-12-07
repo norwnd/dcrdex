@@ -436,17 +436,17 @@ export default class MarketsPage extends BasePage {
     this.stats = [{ row: stats0, tmpl: Doc.parseTemplate(stats0) }, { row: stats1, tmpl: Doc.parseTemplate(stats1) }]
 
     const closeMarketsList = () => {
+      Doc.hide(page.leftMarketDock)
       State.storeLocal(State.leftMarketDockLK, '0')
-      page.leftMarketDock.classList.remove('default')
-      page.leftMarketDock.classList.add('stashed')
       for (const s of this.stats) s.row.classList.remove('listopen')
+      Doc.show(page.orderBook)
     }
     const openMarketsList = () => {
+      Doc.hide(page.orderBook)
       State.storeLocal(State.leftMarketDockLK, '1')
-      page.leftMarketDock.classList.remove('default', 'stashed')
       for (const s of this.stats) s.row.classList.add('listopen')
+      Doc.show(page.leftMarketDock)
     }
-    Doc.bind(page.leftHider, 'click', () => closeMarketsList())
     Doc.bind(page.marketReopener, 'click', () => openMarketsList())
     for (const s of this.stats) {
       Doc.bind(s.tmpl.marketSelect, 'click', () => {
@@ -570,7 +570,6 @@ export default class MarketsPage extends BasePage {
         s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
         s.tmpl.volUnit.textContent = unit
       }
-      setPriceAndChange(s.tmpl, xc, mkt)
     }
 
     this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
@@ -1440,8 +1439,15 @@ export default class MarketsPage extends BasePage {
       return maxBuy
     }
 
+    const marketBefore = this.market.sid
     const res = await this.requestMaxEstimate('/api/maxbuy', { rate: rateAtom })
     if (!res) {
+      return null
+    }
+    const marketAfter = this.market.sid
+
+    // see if user has switched to another market while we were waiting on reply
+    if (marketBefore !== marketAfter) {
       return null
     }
 
@@ -1458,8 +1464,15 @@ export default class MarketsPage extends BasePage {
       return maxSell
     }
 
+    const marketBefore = this.market.sid
     const res = await this.requestMaxEstimate('/api/maxsell', {})
     if (!res) {
+      return null
+    }
+    const marketAfter = this.market.sid
+
+    // see if user has switched to another market while we were waiting on reply
+    if (marketBefore !== marketAfter) {
       return null
     }
 
@@ -2178,7 +2191,6 @@ export default class MarketsPage extends BasePage {
     if (note.host === this.market.dex.host && note.spots[this.market.cfg.name]) {
       this.setCurrMarketPrice()
     }
-    this.marketList.updateSpots(note)
   }
 
   handleWalletState (note: WalletStateNote) {
@@ -2978,15 +2990,6 @@ class MarketList {
     this.reloadMarketsPane()
   }
 
-  updateSpots (note: SpotPriceNote) {
-    for (const row of this.markets) {
-      if (row.mkt.xc.host !== note.host) continue
-      const xc = app().exchanges[row.mkt.xc.host]
-      const mkt = xc.markets[row.mkt.name]
-      setPriceAndChange(row.tmpl, xc, mkt)
-    }
-  }
-
   reloadMarketsPane (): void {
     Doc.empty(this.div)
     this.markets = []
@@ -3074,11 +3077,9 @@ class MarketRow {
     tmpl.quoteIcon.src = Doc.logoPath(mkt.quotesymbol)
     tmpl.baseSymbol.appendChild(Doc.symbolize(mkt.xc.assets[mkt.baseid], true))
     tmpl.quoteSymbol.appendChild(Doc.symbolize(mkt.xc.assets[mkt.quoteid], true))
-    tmpl.baseName.textContent = mkt.baseName
     tmpl.host.textContent = mkt.xc.host
     tmpl.host.style.color = hostColor(mkt.xc.host)
     tmpl.host.dataset.tooltip = mkt.xc.host
-    setPriceAndChange(tmpl, mkt.xc, mkt)
     if (this.mkt.xc.connectionStatus !== ConnectionStatus.Connected) Doc.show(tmpl.disconnectedIco)
   }
 }
@@ -3317,15 +3318,6 @@ function sortedMarkets (): ExchangeMarket[] {
     return bLots - aLots // whoever has more volume by lot count
   })
   return mkts
-}
-
-function setPriceAndChange (tmpl: Record<string, PageElement>, xc: Exchange, mkt: Market) {
-  if (!mkt.spot) return
-  tmpl.price.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
-  const sign = mkt.spot.change24 > 0 ? '+' : ''
-  tmpl.change.classList.remove('buycolor', 'sellcolor')
-  tmpl.change.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
-  tmpl.change.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 }
 
 const hues = [1 / 2, 1 / 4, 3 / 4, 1 / 8, 5 / 8, 3 / 8, 7 / 8]
