@@ -429,7 +429,6 @@ export default class MarketsPage extends BasePage {
 
     const stats0 = page.marketStats
     const stats1 = stats0.cloneNode(true) as PageElement
-    stats1.classList.add('listopen')
     Doc.hide(stats0, stats1)
     stats1.removeAttribute('id')
     app().headerSpace.appendChild(stats1)
@@ -438,13 +437,11 @@ export default class MarketsPage extends BasePage {
     const closeMarketsList = () => {
       Doc.hide(page.leftMarketDock)
       State.storeLocal(State.leftMarketDockLK, '0')
-      for (const s of this.stats) s.row.classList.remove('listopen')
       Doc.show(page.orderBook)
     }
     const openMarketsList = () => {
       Doc.hide(page.orderBook)
       State.storeLocal(State.leftMarketDockLK, '1')
-      for (const s of this.stats) s.row.classList.add('listopen')
       Doc.show(page.leftMarketDock)
     }
     for (const s of this.stats) {
