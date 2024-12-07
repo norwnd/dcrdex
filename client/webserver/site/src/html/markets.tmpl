@@ -16,17 +16,15 @@
     <div class="stylish-overflow h-100 w-100 overflow-x-hidden flex-stretch-column">
 
       {{- /* MARKET STATS - SMALL SCREENS */ -}}
-      <div id="marketStats" class="market-stats align-items-center justify-content-center p-2 flex-wrap border-bottom">
+      <div id="marketStats" class="market-stats align-items-center justify-content-center flex-wrap border-bottom">
         <div class="flex-center p-2 pointer hoverbg" data-tmpl="marketSelect">
           <div class="flex-center">
             <img class="medium-icon" data-tmpl="baseIcon">
             <img class="medium-icon ms-1" data-tmpl="quoteIcon">
           </div>
-          <div class="flex-center fs24 demi ms-2">
+          <div class="flex-center fs22 demi ms-2">
             <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
           </div>
-          <span class="ico-arrowdown fs18 grey ms-1"></span>
-          <span class="ico-arrowup fs18 grey ms-1"></span>
         </div>
   
         <div class="d-flex flex-column">
@@ -58,8 +56,8 @@
             <div id="leftMarketDock" class="d-flex flex-stretch-column d-hide">
               <div class="d-flex flex-stretch-column align-items-stretch border-bottom" id="searchBoxV1">
                 <form class="flex-grow-1 p-1 position-relative" autocomplete="off">
-                  <input type="text" id="marketSearchV1" placeholder=" " spellcheck="false" class="my-1 fs17">
-                  <div class="ico-search fs22"></div>
+                  <input type="text" id="marketSearchV1" placeholder=" " spellcheck="false" class="my-1 fs18">
+                  <div class="ico-search fs24"></div>
                 </form>
               </div>
               <div class="flex-stretch-column overflow-y-hidden">
@@ -74,7 +72,7 @@
                       <div class="fs10 demi text-start text-nowrap dexname" data-tmpl="host"></div>
                     </div>
                     <div class="d-flex flex-column flex-grow-1">
-                      <span class="fs17 demi">
+                      <span class="fs18 demi">
                         <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
                       </span>
                     </div>
