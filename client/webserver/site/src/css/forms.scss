@@ -158,6 +158,10 @@ select {
 
 .form-check-label {
   user-select: none;
+
+  &:hover {
+    font-weight: bold;
+  }
 }
 
 #forms {
@@ -320,8 +324,6 @@ a[data-tmpl=walletCfgGuide] {
     background-color: #7777;
     position: relative;
     overflow: visible;
-
-    
 
     & > div[data-tmpl=track] {
       position: absolute;
