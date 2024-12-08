@@ -103,8 +103,6 @@ div[data-handler=markets] {
   }
 
   .order-panel {
-    min-width: 375px;
-
     .ico-unlocked {
       color: $success;
     }
@@ -120,7 +118,6 @@ div[data-handler=markets] {
     flex-grow: 1;
     position: relative;
     min-width: 100px; // Letting it go to zero can be problematic, causing some major cpu during chart calcs
-    min-height: 250px;
 
     canvas {
       position: absolute;
@@ -285,36 +282,39 @@ div[data-handler=markets] {
 
   #mainContent {
     & > section {
-      min-height: 700px;
-
       &:first-child { // markets list & order book
         order: 1;
-        width: 18%;
+        flex-basis: 18%; /* width/height - depending on flex-direction */
       }
 
       &:nth-child(2) { // middle section
         order: 2;
-        width: 67%;
+        // width: 67%;
+        flex-basis: 60%; /* width/height - depending on flex-direction */
 
         & > section {
           &:first-child { // candle chart
             order: 1;
-            height: 78%;
+            // height: 78%;
+            flex-basis: 68%; /* width/height - depending on flex-direction */
           }
 
           &:last-child { // order forms
             order: 2;
-            height: 32%;
+            // height: 32%;
+            flex-basis: 32%; /* width/height - depending on flex-direction */
 
             & > section {
               &:first-child { // buy form
                 order: 1;
-                width: 50%;
+                // width: 50%;
+                flex-basis: 50%; /* width/height - depending on flex-direction */
               }
 
               &:last-child { // sell form
                 order: 2;
-                width: 50%;
+                // width: 50%;
+                flex-basis: 50%; /* width/height - depending on flex-direction */
               }
             }
           }
@@ -323,7 +323,8 @@ div[data-handler=markets] {
 
       &:last-child { // user orders, recent matches
         order: 3;
-        width: 15%;
+        // width: 15%;
+        flex-basis: 22%; /* width/height - depending on flex-direction */
       }
     }
 

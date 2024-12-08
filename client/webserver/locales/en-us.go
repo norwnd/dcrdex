@@ -72,6 +72,7 @@ var EnUS = map[string]*intl.Translation{
 	"sells":                          {T: "sells"},
 	"Buy Orders":                     {T: "Buy Orders"},
 	"Quantity":                       {T: "Quantity:"},
+	"Size":                           {T: "Size"},
 	"Rate":                           {T: "Rate"},
 	"Limit Order":                    {T: "Limit Order"},
 	"Market Order":                   {T: "Market Order"},
