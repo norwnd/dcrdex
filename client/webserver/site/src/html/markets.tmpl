@@ -49,9 +49,8 @@
         </div>
       </div>
 
-      {{- /* MAIN CONTENT */ -}}
-      <div>
-        <div id="mainContent" class="d-flex flex-stretch-row">
+        {{- /* MAIN CONTENT */ -}}
+        <div id="mainContent" class="d-flex flex-grow-1 flex-stretch-row">
           <section class="d-flex align-items-center">
             {{- /* MARKET LIST */ -}}
             <div id="leftMarketDock" class="d-flex flex-stretch-column d-hide">
@@ -232,7 +231,7 @@
 
           {{- /* ORDER FORM */ -}}
           <section class="order-panel pb-3 position-relative">
-            <div id="orderScroller" class="flex-stretch-column w-100">
+            <div id="orderScroller" class="flex-stretch-column">
               {{- /* TOKEN APPROVAL */ -}}
               <div class="fs15 pt-1 pb-3 text-center border-bottom d-hide" id="tokenApproval">
                 <span class="p-3 flex-center fs16 grey d-hide" id="approvalRequiredBuy">[[[approval_required_buy]]]</span>
@@ -437,7 +436,7 @@
                     <tr class="pointer">
                       <th data-ordercol="age" class="text-nowrap">[[[Age]]] <span class="ico-arrowdown"></span></th>
                       <th data-ordercol="rate" class="text-end pe-2 text-nowrap"><span class="ico-arrowdown"></span> [[[Rate]]]</th>
-                      <th data-ordercol="qty" class="text-end text-nowrap"><span class="ico-arrowdown"></span> [[[Quantity]]]</th>
+                      <th data-ordercol="qty" class="text-end text-nowrap"><span class="ico-arrowdown"></span> [[[Size]]]</th>
                     </tr>
                   </thead>
                   <tbody id="recentMatchesLiveList">
@@ -453,7 +452,6 @@
             </div>
           </section>
         </div>
-      </div>
     </div>
   </div>{{- /* END MAIN CONTENT */ -}}
 
