@@ -43,6 +43,7 @@ body:not(.dark) {
   --form-input-bg: #fff;
   --form-input-border: #999;
   --form-input-border-focus: #555;
+  --form-input-bg-passive: #ebebeb;
   --form-input-bg-active: #3095db;
   --form-opt-selected-bg: #0001;
   --form-selected-tab-bg: white;
@@ -56,7 +57,6 @@ body:not(.dark) {
   --market-sell-color: #99302b;
   --market-btn-color: #555;
   --market-btn-selected-color: black;
-  --market-markettab-selected-bg: #7773;
   --market-orderopt-bg: #fff1;
   --market-numorders-bg: #c5c5e6;
 
@@ -110,6 +110,7 @@ body.dark {
   --form-input-bg: #0009;
   --form-input-border: #555;
   --form-input-border-focus: #4271ce;
+  --form-input-bg-passive: black;
   --form-input-bg-active: #27278d;
   --form-opt-selected-bg: #fff1;
   --form-selected-tab-bg: #39447c;
@@ -123,7 +124,6 @@ body.dark {
   --market-sell-color: #e95e5e;
   --market-btn-color: #aaa;
   --market-btn-selected-color: #eee;
-  --market-markettab-selected-bg: #fff1;
   --market-orderopt-bg: #0001;
   --market-numorders-bg: #141488;
 
