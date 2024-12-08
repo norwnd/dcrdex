@@ -7242,6 +7242,11 @@ func (c *Core) initialize() error {
 	wg.Wait()
 	c.log.Infof("Connected to %d of %d DEX servers", liveConns, len(accts))
 
+	// TODO - work-around for annoying bug that Bison wallet doesn't recover from
+	if liveConns == 0 {
+		os.Exit(1)
+	}
+
 	for _, dbWallet := range dbWallets {
 		if asset.Asset(dbWallet.AssetID) == nil && asset.TokenInfo(dbWallet.AssetID) == nil {
 			c.log.Infof("Wallet for asset %s no longer supported", dex.BipIDSymbol(dbWallet.AssetID))
