@@ -375,7 +375,7 @@ export default class MarketsPage extends BasePage {
     bind(document, 'keyup', this.keyup)
 
     page.forms.querySelectorAll('.form-closer').forEach(el => {
-      Doc.bind(el, 'click', () => { closePopups() })
+      bind(el, 'click', () => { closePopups() })
     })
 
     // Limit order buy: event listeners for handling user interactions.
@@ -429,20 +429,27 @@ export default class MarketsPage extends BasePage {
       Doc.show(page.leftMarketDock)
     }
     for (const s of this.stats) {
-      Doc.bind(s.tmpl.marketSelect, 'click', () => {
+      bind(s.tmpl.marketSelect, 'click', () => {
         if (page.leftMarketDock.clientWidth === 0) openMarketsList()
         else closeMarketsList()
       })
     }
-    this.marketList = new MarketList(page.marketListV1)
+    const loadMarket = (mkt: ExchangeMarket) => {
+      // nothing to do if this market is already set/chosen
+      const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
+      if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
+      this.startLoadingAnimations()
+      this.setMarket(host, baseID, quoteID)
+    }
     // Prepare the list of markets.
+    this.marketList = new MarketList(page.marketListV1)
     for (const row of this.marketList.markets) {
       bind(row.node, 'click', () => {
-        // return early if the market is already set
-        const { quoteid: quoteID, baseid: baseID, xc: { host } } = row.mkt
-        if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
-        this.startLoadingAnimations()
-        this.setMarket(host, baseID, quoteID)
+        loadMarket(row.mkt)
+      })
+      bind(row.node, 'dblclick', () => {
+        loadMarket(row.mkt)
+        closeMarketsList()
       })
     }
     if (State.fetchLocal(State.leftMarketDockLK) !== '1') { // It is shown by default, hiding if necessary.
@@ -1050,7 +1057,7 @@ export default class MarketsPage extends BasePage {
     for (const dur of market.dex.candleDurs) {
       const bttn = page.durBttnTemplate.cloneNode(true)
       bttn.textContent = dur
-      Doc.bind(bttn, 'click', () => this.candleDurationSelected(dur))
+      bind(bttn, 'click', () => this.candleDurationSelected(dur))
       page.durBttnBox.appendChild(bttn)
     }
 
@@ -1703,7 +1710,7 @@ export default class MarketsPage extends BasePage {
         app().bindInternalNavigation(div)
       }
       let currentFloater: (PageElement | null)
-      Doc.bind(tmpl.header, 'click', () => {
+      bind(tmpl.header, 'click', () => {
         if (Doc.isDisplayed(tmpl.details)) {
           Doc.hide(tmpl.details)
           return
@@ -1716,7 +1723,7 @@ export default class MarketsPage extends BasePage {
        * pushing the layout around, we'll show the buttons as an absolutely
        * positioned copy of the button menu.
        */
-      Doc.bind(tmpl.header, 'mouseenter', () => {
+      bind(tmpl.header, 'mouseenter', () => {
         // Don't show the copy if the details are already displayed.
         if (Doc.isDisplayed(tmpl.details)) return
         if (currentFloater) currentFloater.remove()
@@ -1737,7 +1744,7 @@ export default class MarketsPage extends BasePage {
           const icon = baseBttn.cloneNode(true) as PageElement
           floater.appendChild(icon)
           Doc.show(icon)
-          Doc.bind(icon, 'click', (e: Event) => { cb(e) })
+          bind(icon, 'click', (e: Event) => { cb(e) })
         }
 
         if (OrderUtil.isCancellable(ord)) addButton(details.cancelBttn, (e: Event) => { showCancel(e) })
@@ -2062,6 +2069,9 @@ export default class MarketsPage extends BasePage {
   stepSubmitBuy () {
     const page = this.page
     const market = this.market
+
+    // TODO
+    console.log('stepSubmitBuy')
 
     Doc.hide(page.orderErrBuy)
 
@@ -3039,9 +3049,6 @@ class MarketRow {
     tmpl.quoteIcon.src = Doc.logoPath(mkt.quotesymbol)
     tmpl.baseSymbol.appendChild(Doc.symbolize(mkt.xc.assets[mkt.baseid], true))
     tmpl.quoteSymbol.appendChild(Doc.symbolize(mkt.xc.assets[mkt.quoteid], true))
-    tmpl.host.textContent = mkt.xc.host
-    tmpl.host.style.color = hostColor(mkt.xc.host)
-    tmpl.host.dataset.tooltip = mkt.xc.host
     if (this.mkt.xc.connectionStatus !== ConnectionStatus.Connected) Doc.show(tmpl.disconnectedIco)
   }
 }
@@ -3280,19 +3287,6 @@ function sortedMarkets (): ExchangeMarket[] {
     return bLots - aLots // whoever has more volume by lot count
   })
   return mkts
-}
-
-const hues = [1 / 2, 1 / 4, 3 / 4, 1 / 8, 5 / 8, 3 / 8, 7 / 8]
-
-function generateHue (idx: number): string {
-  const h = hues[idx % hues.length]
-  return `hsl(${h * 360}, 35%, 50%)`
-}
-
-function hostColor (host: string): string {
-  const hosts = Object.keys(app().exchanges)
-  hosts.sort()
-  return generateHue(hosts.indexOf(host))
 }
 
 /**
