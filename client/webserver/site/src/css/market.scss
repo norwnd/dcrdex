@@ -276,12 +276,6 @@ div[data-handler=markets] {
       height: 100%;
 
       & > div {
-        .dexname {
-          max-width: 60px; // to trim extra text that's not fitting
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
         &.selected {
           background-color: #7773;
         }
