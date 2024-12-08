@@ -1,12 +1,12 @@
-build:
-	./build.sh
-
 a:
 	make build
 	./a.sh
 
 l:
 	./a.sh
+
+build:
+	./build.sh
 
 server_build:
 	./build_server.sh
