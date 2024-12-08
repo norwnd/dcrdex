@@ -22,32 +22,32 @@ import ws from './ws'
 import * as intl from './locales'
 import {
   app,
-  SupportedAsset,
-  PageElement,
-  Order,
-  Market,
-  MaxOrderEstimate,
-  Exchange,
-  UnitInfo,
+  ApprovalStatus,
   Asset,
+  BalanceNote,
+  BondNote,
+  BookUpdate,
   Candle,
   CandlesPayload,
-  TradeForm,
-  BookUpdate,
-  WalletStateNote,
-  SpotPriceNote,
-  BondNote,
-  OrderNote,
-  EpochNote,
-  BalanceNote,
-  MiniOrder,
-  RemainderUpdate,
-  ConnEventNote,
   ConnectionStatus,
-  RecentMatch,
+  ConnEventNote,
+  EpochNote,
+  Exchange,
+  Market,
   MatchNote,
-  ApprovalStatus,
-  OrderFilter
+  MaxOrderEstimate,
+  MiniOrder,
+  Order,
+  OrderFilter,
+  OrderNote,
+  PageElement,
+  RecentMatch,
+  RemainderUpdate,
+  SpotPriceNote,
+  SupportedAsset,
+  TradeForm,
+  UnitInfo,
+  WalletStateNote
 } from './registry'
 import { setOptionTemplates } from './opts'
 
@@ -273,7 +273,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldBuy.value = String(adjQty)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+      this.finalizeTotalBuy(0)
     })
     this.qtySliderSell = new MiniSlider(page.qtySliderSell, (sliderValue: number) => {
       const page = this.page
@@ -295,7 +295,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldSell.value = String(adjQty)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
+      this.finalizeTotalSell(0)
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -487,9 +487,6 @@ export default class MarketsPage extends BasePage {
 
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
-      for (const mord of Object.values(this.metaOrders)) {
-        mord.details.age.textContent = Doc.timeSince(mord.ord.submitTime)
-      }
       for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=age]')) {
         td.textContent = Doc.timeSince(parseFloat(td.dataset.sinceStamp ?? '0'))
       }
@@ -793,7 +790,7 @@ export default class MarketsPage extends BasePage {
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now, scheduling with
         // delay of 100ms to potentially deduplicate some requests
-        this.resolveMaxBuy(this.chosenRateBuyAtom, 100)
+        this.finalizeTotalBuy(100)
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, true)
         this.setPageElementEnabled(this.page.qtySliderBuy, true)
@@ -819,7 +816,7 @@ export default class MarketsPage extends BasePage {
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now, scheduling with
         // delay of 100ms to potentially deduplicate some requests
-        this.resolveMaxSell(100)
+        this.finalizeTotalSell(100)
         this.setPageElementEnabled(this.page.priceBoxSell, true)
         this.setPageElementEnabled(this.page.qtyBoxSell, true)
         this.setPageElementEnabled(this.page.qtySliderSell, true)
@@ -1281,8 +1278,8 @@ export default class MarketsPage extends BasePage {
         { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
       )
     } else {
-      page.orderTotalPreviewBuyLeft.textContent = '?'
-      page.orderTotalPreviewBuyRight.textContent = '?'
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
     }
   }
 
@@ -1307,8 +1304,8 @@ export default class MarketsPage extends BasePage {
         { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
       )
     } else {
-      page.orderTotalPreviewSellLeft.textContent = '?'
-      page.orderTotalPreviewSellRight.textContent = '?'
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
     }
   }
 
@@ -1333,12 +1330,15 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * resolveMaxBuy recalculates new max buy estimate (that depends on rateAtom value),
+   * finalizeTotalBuy recalculates new max buy estimate (that depends on rateAtom value),
    * as well as validates whether currently chosen quantity (on buy order form) can be
    * purchased - and if not, it displays error on buy order form.
    */
-  resolveMaxBuy (rateAtom: number, delay: number) {
+  finalizeTotalBuy (delay: number) {
     const mkt = this.market
+
+    // preview total regardless of whether we can afford it
+    this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
 
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
@@ -1357,25 +1357,26 @@ export default class MarketsPage extends BasePage {
         // it will also update order button state as needed
         return
       }
-      const maxBuy = await this.requestMaxBuyEstimateCached(rateAtom)
+      const maxBuy = await this.requestMaxBuyEstimateCached(this.chosenRateBuyAtom)
       if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
         this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
         return
       }
-
-      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
 
       this.setOrderBttnBuyEnabled(true)
     }, delay)
   }
 
   /**
-   * resolveMaxSell recalculates new max Sell estimate (that depends on rateAtom value),
+   * finalizeTotalSell recalculates new max Sell estimate (that depends on rateAtom value),
    * as well as validates whether currently chosen quantity (on Sell order form) can be
    * purchased - and if not, it displays error on Sell order form.
    */
-  resolveMaxSell (delay: number) {
+  finalizeTotalSell (delay: number) {
     const mkt = this.market
+
+    // preview total regardless of whether we can afford it
+    this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
@@ -1398,8 +1399,6 @@ export default class MarketsPage extends BasePage {
         this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
         return
       }
-
-      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
 
       this.setOrderBttnSellEnabled(true)
     }, delay)
@@ -1669,16 +1668,14 @@ export default class MarketsPage extends BasePage {
       }
       header.sideLight.classList.add(ord.sell ? 'sell' : 'buy')
       if (!isActive) header.sideLight.classList.add('inactive')
-      details.side.textContent = mord.header.side.textContent = OrderUtil.sellString(ord)
-      details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
+      mord.header.side.textContent = OrderUtil.sellString(ord)
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
-      details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
+      mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
       let rateStr: string
       if (ord.type === OrderUtil.Market) rateStr = this.marketOrderRateString(ord, market)
       else rateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      details.rate.textContent = mord.header.rate.textContent = rateStr
+      mord.header.rate.textContent = rateStr
       header.baseSymbol.textContent = market.baseUnitInfo.conventional.unit
-      details.type.textContent = OrderUtil.orderTypeText(ord.type)
       this.updateMetaOrder(mord)
 
       const showCancel = (e: Event) => {
@@ -1787,13 +1784,10 @@ export default class MarketsPage extends BasePage {
   * updateMetaOrder sets the td contents of the user's order table row.
   */
   updateMetaOrder (mord: MetaOrder) {
-    const { header, details, ord } = mord
+    const { header, ord } = mord
     if (ord.status <= OrderUtil.StatusBooked || OrderUtil.hasActiveMatches(ord)) header.activeLight.classList.add('active')
     else header.activeLight.classList.remove('active')
-    details.status.textContent = header.status.textContent = OrderUtil.statusString(ord)
-    details.age.textContent = Doc.timeSince(ord.submitTime)
-    details.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
-    details.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
+    header.status.textContent = OrderUtil.statusString(ord)
   }
 
   /* updateTitle update the browser title based on the midgap value and the
@@ -2249,7 +2243,7 @@ export default class MarketsPage extends BasePage {
     else if (mord.ord.type === OrderUtil.Market && match.status === OrderUtil.NewlyMatched) { // Update the average market rate display.
       // Fetch and use the updated order.
       const ord = app().order(note.orderID)
-      if (ord) mord.details.rate.textContent = mord.header.rate.textContent = this.marketOrderRateString(ord, this.market)
+      if (ord) mord.header.rate.textContent = this.marketOrderRateString(ord, this.market)
     }
     if (
       (match.side === OrderUtil.MatchSideMaker && match.status === OrderUtil.MakerRedeemed) ||
@@ -2305,18 +2299,17 @@ export default class MarketsPage extends BasePage {
     }
 
     this.clearOrderTableEpochs()
-    for (const { ord, details, header } of Object.values(this.metaOrders)) {
+    for (const { ord, header } of Object.values(this.metaOrders)) {
       const alreadyMatched = note.epoch > ord.epoch
       switch (true) {
         case ord.type === OrderUtil.Limit && ord.status === OrderUtil.StatusEpoch && alreadyMatched: {
-          const status = ord.tif === OrderUtil.ImmediateTiF ? intl.prep(intl.ID_EXECUTED) : intl.prep(intl.ID_BOOKED)
-          details.status.textContent = header.status.textContent = status
+          header.status.textContent = ord.tif === OrderUtil.ImmediateTiF ? intl.prep(intl.ID_EXECUTED) : intl.prep(intl.ID_BOOKED)
           ord.status = ord.tif === OrderUtil.ImmediateTiF ? OrderUtil.StatusExecuted : OrderUtil.StatusBooked
           break
         }
         case ord.type === OrderUtil.Market && ord.status === OrderUtil.StatusEpoch:
           // Technically don't know if this should be 'executed' or 'settling'.
-          details.status.textContent = header.status.textContent = intl.prep(intl.ID_EXECUTED)
+          header.status.textContent = intl.prep(intl.ID_EXECUTED)
           ord.status = OrderUtil.StatusExecuted
           break
       }
@@ -2379,7 +2372,7 @@ export default class MarketsPage extends BasePage {
         mkt.maxBuys = {}
       }
       if (this.chosenRateBuyAtom) { // can only fetch max buy estimate if we have some chosen rate
-        this.resolveMaxBuy(this.chosenRateBuyAtom, 0)
+        this.finalizeTotalBuy(0)
       }
     }
     if (note.assetID === mkt.baseCfg.id) {
@@ -2388,7 +2381,7 @@ export default class MarketsPage extends BasePage {
         // it is WRONG, we should flush cache with old value here
         mkt.maxSell = null
       }
-      this.resolveMaxSell(0)
+      this.finalizeTotalSell(0)
     }
   }
 
@@ -2473,7 +2466,7 @@ export default class MarketsPage extends BasePage {
 
     // recalculate maxbuy value because it does change with every rate change,
     // scheduling with delay of 100ms to potentially deduplicate some requests
-    this.resolveMaxBuy(this.chosenRateBuyAtom, 100)
+    this.finalizeTotalBuy(100)
   }
 
   rateFieldSellChangeHandler () {
@@ -2513,7 +2506,7 @@ export default class MarketsPage extends BasePage {
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.resolveMaxSell(100)
+    this.finalizeTotalSell(100)
   }
 
   /**
@@ -2616,7 +2609,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewBuyRight.textContent = ''
       this.qtySliderBuy.setValue(0)
 
-      this.resolveMaxBuy(this.chosenRateBuyAtom, 100) // resolve button enabled/disabled for default values
+      this.finalizeTotalBuy(100) // resolve button enabled/disabled for default values
 
       return
     }
@@ -2635,7 +2628,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderBuy.setValue(sliderValue)
     }
 
-    this.resolveMaxBuy(this.chosenRateBuyAtom, 100) // just to update preview and button
+    this.finalizeTotalBuy(100) // just to update preview and button
   }
 
   qtyFieldSellChangeHandler () {
@@ -2664,7 +2657,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewSellRight.textContent = ''
       this.qtySliderSell.setValue(0)
 
-      this.resolveMaxSell(100) // resolve button enabled/disabled for default values
+      this.finalizeTotalSell(100) // resolve button enabled/disabled for default values
 
       return
     }
@@ -2683,7 +2676,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderSell.setValue(sliderValue)
     }
 
-    this.resolveMaxSell(100) // just to update preview and button
+    this.finalizeTotalSell(100) // just to update preview and button
   }
 
   /**

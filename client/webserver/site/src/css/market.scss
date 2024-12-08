@@ -289,31 +289,26 @@ div[data-handler=markets] {
 
       &:nth-child(2) { // middle section
         order: 2;
-        // width: 67%;
-        flex-basis: 60%; /* width/height - depending on flex-direction */
+        flex-basis: 57%; /* width/height - depending on flex-direction */
 
         & > section {
           &:first-child { // candle chart
             order: 1;
-            // height: 78%;
             flex-basis: 68%; /* width/height - depending on flex-direction */
           }
 
           &:last-child { // order forms
             order: 2;
-            // height: 32%;
             flex-basis: 32%; /* width/height - depending on flex-direction */
 
             & > section {
               &:first-child { // buy form
                 order: 1;
-                // width: 50%;
                 flex-basis: 50%; /* width/height - depending on flex-direction */
               }
 
               &:last-child { // sell form
                 order: 2;
-                // width: 50%;
                 flex-basis: 50%; /* width/height - depending on flex-direction */
               }
             }
@@ -323,8 +318,7 @@ div[data-handler=markets] {
 
       &:last-child { // user orders, recent matches
         order: 3;
-        // width: 15%;
-        flex-basis: 22%; /* width/height - depending on flex-direction */
+        flex-basis: 25%; /* width/height - depending on flex-direction */
       }
     }
 
