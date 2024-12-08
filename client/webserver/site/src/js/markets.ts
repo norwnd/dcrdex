@@ -47,14 +47,9 @@ import {
   RecentMatch,
   MatchNote,
   ApprovalStatus,
-  OrderFilter,
-  RunStatsNote,
-  RunEventNote,
-  EpochReportNote,
-  CEXProblemsNote
+  OrderFilter
 } from './registry'
 import { setOptionTemplates } from './opts'
-import { RunningMarketMakerDisplay, RunningMMDisplayElements } from './mmutil'
 
 const bind = Doc.bind
 
@@ -171,7 +166,6 @@ export default class MarketsPage extends BasePage {
   ogTitle: string
   candleChart: CandleChart
   candleDur: string
-  mm: RunningMarketMakerDisplay
   marketList: MarketList
   newWalletForm: NewWalletForm
   depositAddrForm: DepositAddress
@@ -187,7 +181,6 @@ export default class MarketsPage extends BasePage {
   stats: [StatsDisplay, StatsDisplay]
   loadingAnimations: { candles?: Wave }
   runningErrAnimations: Animation[]
-  mmRunning: boolean | undefined
   forms: Forms
   constructor (main: HTMLElement, pageParams: MarketsPageParams) {
     super()
@@ -228,15 +221,6 @@ export default class MarketsPage extends BasePage {
     bind(registerBttn, 'click', () => {
       app().loadPage('register', { host: this.market.dex.host })
     })
-
-    const runningMMDisplayElements: RunningMMDisplayElements = {
-      orderReportForm: page.orderReportForm,
-      dexBalancesRowTmpl: page.dexBalancesRowTmpl,
-      placementRowTmpl: page.placementRowTmpl,
-      placementAmtRowTmpl: page.placementAmtRowTmpl
-    }
-    Doc.cleanTemplates(page.dexBalancesRowTmpl, page.placementRowTmpl, page.placementAmtRowTmpl)
-    this.mm = new RunningMarketMakerDisplay(page.mmRunning, this.forms, runningMMDisplayElements, 'markets')
 
     this.reputationMeter = new ReputationMeter(page.reputationMeter)
 
@@ -477,25 +461,17 @@ export default class MarketsPage extends BasePage {
       walletstate: (note: WalletStateNote) => { this.handleWalletState(note) },
       reputation: () => { this.updateReputation() },
       feepayment: () => { this.updateReputation() },
-      runstats: (note: RunStatsNote) => {
-        this.mm.update()
-        if (note.baseID !== this.market.base.id || note.quoteID !== this.market.quote.id || note.host !== this.market.dex.host) return
-        if (Boolean(this.mmRunning) !== Boolean(note.stats)) {
-          this.mmRunning = Boolean(note.stats)
-          this.resolveOrderVsMMForm()
-        }
+      runstats: () => {
+        // nothing to do, we don't support displaying MM form at the moment
       },
-      epochreport: (note: EpochReportNote) => {
-        if (note.baseID !== this.market.base.id || note.quoteID !== this.market.quote.id || note.host !== this.market.dex.host) return
-        this.mm.handleEpochReportNote(note)
+      epochreport: () => {
+        // nothing to do, we don't support displaying MM form at the moment
       },
-      cexproblems: (note: CEXProblemsNote) => {
-        if (note.baseID !== this.market.base.id || note.quoteID !== this.market.quote.id || note.host !== this.market.dex.host) return
-        this.mm.handleCexProblemsNote(note)
+      cexproblems: () => {
+        // nothing to do, we don't support displaying MM form at the moment
       },
-      runevent: (note: RunEventNote) => {
-        if (note.baseID !== this.market.base.id || note.quoteID !== this.market.quote.id || note.host !== this.market.dex.host) return
-        this.mm.update()
+      runevent: () => {
+        // nothing to do, we don't support displaying MM form at the moment
       }
     })
 
@@ -728,22 +704,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    // see if MM bot is running for this market, if it - we don't want to show order form(s)
-    // because MM bot form replaces them
-    const mmStatus = app().mmStatus
-    if (mmStatus && this.mmRunning === undefined && mkt.base && mkt.quote) {
-      const { base: { id: baseID }, quote: { id: quoteID }, dex: { host } } = mkt
-      const botStatus = mmStatus.bots.find(({ config: cfg }) => cfg.baseID === baseID && cfg.quoteID === quoteID && cfg.host === host)
-      this.mmRunning = Boolean(botStatus?.running)
-    }
-    if (this.mmRunning) {
-      Doc.hide(page.orderFormBuy, page.orderFormSell)
-      Doc.show(page.mmRunning)
-      return
-    }
-
     // see if we can show order form(s) then
-    Doc.hide(page.mmRunning)
 
     // if order form is already showing we don't want to re-initialize it because
     // it might contain user inputs already (hence return right away), unless
@@ -1165,8 +1126,6 @@ export default class MarketsPage extends BasePage {
     }
 
     this.market = mkt
-    this.mm.setMarket(host, baseID, quoteID)
-    this.mmRunning = undefined
 
     page.lotSizeBuy.textContent = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
     page.lotSizeSell.textContent = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
@@ -2321,7 +2280,6 @@ export default class MarketsPage extends BasePage {
       (oldStatus === OrderUtil.StatusBooked && ord.status > OrderUtil.StatusBooked)
     ) {
       this.updateReputation()
-      this.mm.readBook()
     }
   }
 
@@ -2401,8 +2359,6 @@ export default class MarketsPage extends BasePage {
     // markets.
     const mkt = this.market
     if (!mkt || !mkt.dex || mkt.dex.connectionStatus !== ConnectionStatus.Connected) return
-
-    this.mm.handleBalanceNote(note)
 
     // If there's a balance update, refresh the max order section.
     const avail = note.balance.available
