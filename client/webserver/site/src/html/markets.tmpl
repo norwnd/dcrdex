@@ -148,8 +148,8 @@
             </section>
             <section class="d-flex flex-stretch-row">
               {{- /* BUY ORDER FORM */ -}}
-              <section id="orderFormBuy" class="d-hide" autocomplete="off">
-                <form id="limitOrderBoxBuy" class="d-flex flex-stretch-column">
+              <section id="orderFormBuy" class="px-1 d-hide">
+                <form id="limitOrderBoxBuy" class="d-flex flex-stretch-column" autocomplete="off">
                   <div class="d-flex justify-content-between m-1 fs14">
                     <div id="lotSizeBoxBuy">
                       [[[:title:lot_size]]]:
@@ -188,8 +188,8 @@
                 </form>
               </section>
               {{- /* SELL ORDER FORM */ -}}
-              <section id="orderFormSell" class="d-hide" autocomplete="off">
-                <form id="limitOrderBoxSell" class="d-flex flex-stretch-column">
+              <section id="orderFormSell" class="px-1 d-hide">
+                <form id="limitOrderBoxSell" class="d-flex flex-stretch-column" autocomplete="off">
                   <div class="d-flex justify-content-between m-1 fs14">
                     <div id="lotSizeBoxSell">
                       [[[:title:lot_size]]]:
@@ -370,19 +370,19 @@
               <div class="text-center fs20 mb-2">
                 [[[Your Orders]]]
               </div>
-              <div id="unreadyOrdersMsg" class="d-hide px-3 py-1 flex-center fs16 text-danger">[[[unready_wallets_msg]]]</div>
-              <div id="userNoOrders" class="p-3 flex-center fs16 grey">no active orders</div>
+              <div id="unreadyOrdersMsg" class="d-hide px-3 py-1 flex-center fs15 text-danger">[[[unready_wallets_msg]]]</div>
+              <div id="userNoOrders" class="p-3 flex-center fs15 grey">no active orders</div>
               <div id="userOrders" class="border-bottom">
                 <div id="userOrderTmpl" class="user-order border-top">
                   <div data-tmpl="header" class="user-order-header pointer">
                     <div data-tmpl="sideLight" class="side-indicator"></div>
-                    <span data-tmpl="side"></span>
-                    <span data-tmpl="qty" class="ms-1"></span>
-                    <span data-tmpl="baseSymbol" class="ms-1 grey"></span>
+                    <span data-tmpl="side" class="fs14"></span>
+                    <span data-tmpl="qty" class="ms-1 fs15"></span>
+                    <span data-tmpl="baseSymbol" class="ms-1 grey fs15"></span>
                     <span class="ms-1">@</span>
-                    <span data-tmpl="rate" class="ms-1"></span>
+                    <span data-tmpl="rate" class="ms-1 fs15"></span>
                     <span class="flex-grow-1 d-flex align-items-center justify-content-end">
-                      <span data-tmpl="status"></span>
+                      <span data-tmpl="status" class="fs15"></span>
                       <span data-tmpl="activeLight" class="active-indicator active"></span>
                     </span>
                     <!-- <span class="fs11 ico-open ms-2"></span> -->

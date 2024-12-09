@@ -289,7 +289,7 @@ div[data-handler=markets] {
 
       &:nth-child(2) { // middle section
         order: 2;
-        flex-basis: 60%; /* width/height - depending on flex-direction */
+        flex-basis: 57%; /* width/height - depending on flex-direction */
 
         & > section {
           &:first-child { // candle chart
@@ -318,7 +318,7 @@ div[data-handler=markets] {
 
       &:last-child { // user orders, recent matches
         order: 3;
-        flex-basis: 22%; /* width/height - depending on flex-direction */
+        flex-basis: 25%; /* width/height - depending on flex-direction */
       }
     }
 
