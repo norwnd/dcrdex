@@ -1342,6 +1342,7 @@ export default class MarketsPage extends BasePage {
 
     // preview total regardless of whether we can afford it
     this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+    this.setPageElementEnabled(this.page.previewTotalBuy, true)
 
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
@@ -1380,6 +1381,7 @@ export default class MarketsPage extends BasePage {
 
     // preview total regardless of whether we can afford it
     this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
+    this.setPageElementEnabled(this.page.previewTotalSell, true)
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
@@ -2456,6 +2458,7 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.rateFieldBuy), highlightBackgroundRed(page.rateStepBoxBuy))
     }
     if (!inputValid) {
+      this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.qtyBoxBuy, false)
       this.setPageElementEnabled(this.page.qtySliderBuy, false)
       this.setPageElementEnabled(this.page.previewTotalBuy, false)
@@ -2496,6 +2499,7 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.rateFieldSell), highlightBackgroundRed(page.rateStepBoxSell))
     }
     if (!inputValid) {
+      this.chosenRateSellAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.qtyBoxSell, false)
       this.setPageElementEnabled(this.page.qtySliderSell, false)
       this.setPageElementEnabled(this.page.previewTotalSell, false)
@@ -2525,14 +2529,24 @@ export default class MarketsPage extends BasePage {
    * 2) whether rounding(adjustment) to rate-step had happened (true when did)
    * 3) adjusted rate(price) value in atoms
    */
-  parseRateInput (rateStr: string | undefined): [boolean, boolean, number] {
+  parseRateInput (value: string | undefined): [boolean, boolean, number] {
     const page = this.page
 
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
-    const rawRateAtom = this.parseRateAtoms(rateStr)
-    const adjRateAtom = this.parseAdjustedRateAtoms(rateStr)
+    if (!value) {
+      return [false, false, 0]
+    }
+
+    // check value doesn't contain invalid characters
+    const validPattern = /^-?\d+\.?\d*$/
+    if (!value.match(validPattern)) {
+      return [false, false, 0]
+    }
+
+    const rawRateAtom = this.parseRateAtoms(value)
+    const adjRateAtom = this.parseAdjustedRateAtoms(value)
     const rateParsingIssue = isNaN(rawRateAtom) || rawRateAtom <= 0
     const rounded = adjRateAtom !== rawRateAtom
 
@@ -2581,6 +2595,16 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
+    if (!value) {
+      return [false, false, 0, 0]
+    }
+
+    // check value doesn't contain invalid characters
+    const validPattern = /^-?\d+\.?\d*$/
+    if (!value.match(validPattern)) {
+      return [false, false, 0, 0]
+    }
+
     const adjLots = parseInt(value || '')
     if (isNaN(adjLots) || adjLots < 0) {
       return [false, false, 0, 0]
@@ -2611,15 +2635,9 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.qtyFieldBuy), highlightBackgroundRed(page.lotSizeBoxBuy))
     }
     if (!inputValid) {
-      const [,,, adjQtyBuy] = this.parseLotStr('1')
-      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
-      page.qtyFieldBuy.value = String(adjQtyBuy)
-      page.orderTotalPreviewBuyLeft.textContent = ''
-      page.orderTotalPreviewBuyRight.textContent = ''
-      this.qtySliderBuy.setValue(0)
-
-      this.finalizeTotalBuy(100) // resolve button enabled/disabled for default values
-
+      this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
+      this.setPageElementEnabled(this.page.previewTotalBuy, false)
+      this.setOrderBttnBuyEnabled(false, 'choose your quantity')
       return
     }
     if (adjusted) {
@@ -2659,15 +2677,9 @@ export default class MarketsPage extends BasePage {
       this.animateErrors(highlightOutlineRed(page.qtyFieldSell), highlightBackgroundRed(page.lotSizeBoxSell))
     }
     if (!inputValid) {
-      const [,,, adjQtySell] = this.parseLotStr('1')
-      this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
-      page.qtyFieldSell.value = String(adjQtySell)
-      page.orderTotalPreviewSellLeft.textContent = ''
-      page.orderTotalPreviewSellRight.textContent = ''
-      this.qtySliderSell.setValue(0)
-
-      this.finalizeTotalSell(100) // resolve button enabled/disabled for default values
-
+      this.chosenQtySellAtom = 0 // reset chosen value, but don't interfere with user input field
+      this.setPageElementEnabled(this.page.previewTotalSell, false)
+      this.setOrderBttnSellEnabled(false, 'choose your quantity')
       return
     }
     if (adjusted) {
@@ -2704,6 +2716,16 @@ export default class MarketsPage extends BasePage {
 
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
+
+    if (!value) {
+      return [false, false, 0, 0]
+    }
+
+    // check value doesn't contain invalid characters
+    const validPattern = /^-?\d+\.?\d*$/
+    if (!value.match(validPattern)) {
+      return [false, false, 0, 0]
+    }
 
     const qtyRawAtom = convertStrToAtoms(value || '', bui.conventional.conversionFactor)
     if (isNaN(qtyRawAtom) || qtyRawAtom < 0) {
