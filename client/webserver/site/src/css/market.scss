@@ -17,84 +17,92 @@ div[data-handler=markets] {
     }
   }
 
-  .orderbook {
-    min-width: 225px;
-
-    & > div:first-child { // buy orders
-      order: 3;
+  #orderFormBuy,
+  #orderFormSell {
+    .disabled {
+      pointer-events: none;
+      opacity: 0.4;
     }
 
-    & > div:nth-child(2) { // header
-      order: 1;
+    input {
+      height: 30px;
+      border-radius: 0;
+      font-size: 14px;
+      font-weight: bold;
+      background-color: var(--section-bg);
+
+      &:hover,
+      &.selected {
+        border: 1px solid var(--border-color);
+      }
     }
 
-    & > div:last-child { // sell orders
-      order: 2;
+    span.unitbox {
+      position: absolute;
+      font-size: 14px;
+      font-weight: bold;
+      right: 5px;
+      top: 48%; // Looks better than 50 for some reason.
+      transform: translateY(-50%);
+      white-space: nowrap;
+    }
+
+    button {
+      opacity: 0.9;
+      padding: 5px 25px;
+      border-radius: 3px;
+      background-color: var(--section-bg);
+      color: var(--market-btn-color);
+
+      &:hover {
+        opacity: 1;
+        color: black;
+      }
+
+      &:disabled {
+        pointer-events: auto; // can't use none because it will not show "title" message
+        opacity: 0.4;
+      }
+    }
+
+    button:hover,
+    button.selected {
+      color: var(--market-btn-selected-color);
+    }
+
+    button.submit {
+      color: var(--market-btn-selected-color);
+    }
+
+    button.selected,
+    button.submit {
+      &.buygreen-bg {
+        background-color: var(--market-buygreen-bg);
+      }
+
+      &.sellred-bg {
+        background-color: var(--market-sellred-bg);
+      }
+    }
+
+    #orderTotalPreviewBuyLeft {
+      color: var(--sell-color);
+    }
+
+    #orderTotalPreviewBuyRight {
+      color: var(--buy-color);
+    }
+
+    #orderTotalPreviewSellLeft {
+      color: var(--sell-color);
+    }
+
+    #orderTotalPreviewSellRight {
+      color: var(--buy-color);
     }
   }
 
-  .order-panel {
-    min-width: 375px;
-
-    #orderForm {
-      input[type=number] {
-        height: 30px;
-        border-radius: 0;
-        font-size: 14px;
-      }
-
-      input:focus {
-        outline: none;
-      }
-
-      span.unitbox {
-        position: absolute;
-        font-size: 14px;
-        font-weight: bold;
-        right: 5px;
-        top: 48%; // Looks better than 50 for some reason.
-        transform: translateY(-50%);
-        white-space: nowrap;
-      }
-
-      button {
-        padding: 5px 25px;
-        border: 1px solid #78787877;
-        border-radius: 3px;
-        background-color: var(--section-bg);
-        color: var(--market-btn-color);
-
-        &:disabled {
-          opacity: 0.4;
-        }
-      }
-
-      button:hover,
-      button.selected {
-        color: var(--market-btn-selected-color);
-      }
-
-      button.submit {
-        color: var(--market-btn-selected-color);
-      }
-
-      button.selected,
-      button.submit {
-        &.buygreen-bg {
-          background-color: var(--market-buygreen-bg);
-        }
-
-        &.sellred-bg {
-          background-color: var(--market-sellred-bg);
-        }
-      }
-
-      #orderPreview,
-      .h21 {
-        height: 21px;
-      }
-    }
-
+  .rightmost-panel {
     .ico-unlocked {
       color: $success;
     }
@@ -110,7 +118,6 @@ div[data-handler=markets] {
     flex-grow: 1;
     position: relative;
     min-width: 100px; // Letting it go to zero can be problematic, causing some major cpu during chart calcs
-    min-height: 250px;
 
     canvas {
       position: absolute;
@@ -211,41 +218,20 @@ div[data-handler=markets] {
     }
   }
 
-  .markettab {
-    height: 30px;
-    border-style: none;
-    background-color: var(--section-bg);
-
-    &.selected {
-      background-color: var(--market-markettab-selected-bg);
-    }
-  }
-
   .numorders {
     background-color: var(--market-numorders-bg);
     padding: 1px 2px;
   }
 
   #leftMarketDock {
-    position: absolute;
     display: flex;
-    top: 0;
-    left: 0;
     z-index: 2;
     min-height: -webkit-fill-available; // for webkit browsers
+    min-width: 150px; // hack to prevent leftMarketDock from collapsing when there is no content to show
     background-color: var(--section-bg);
-
-    &.default,
-    &.stashed {
-      display: none;
-    }
 
     #searchBoxV1 {
       height: 55px;
-    }
-
-    &.stashed {
-      display: none;
     }
 
     #marketSearchV1:focus {
@@ -259,15 +245,14 @@ div[data-handler=markets] {
       width: 100%; // firefox needs, for some reason
       z-index: 2;
       background-color: transparent;
-      font-size: 25px;
       text-align: center;
       font-family: $demi-sans;
       font-variant: small-caps;
       border: none;
 
       & + .ico-search {
-        z-index: 1;
         position: absolute;
+        z-index: 1;
         left: 50%;
         top: 50%;
         transform: translateX(-50%) translateY(-50%);
@@ -286,15 +271,8 @@ div[data-handler=markets] {
 
     #marketListV1 {
       height: 100%;
-      min-width: 275px;
 
       & > div {
-        .dexname {
-          max-width: 60px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
         &.selected {
           background-color: #7773;
         }
@@ -303,27 +281,51 @@ div[data-handler=markets] {
   }
 
   #mainContent {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    & > div,
     & > section {
-      min-height: 500px;
-      display: flex;
-
-      &:first-child { // order book
-        max-height: 1000px;
-        order: 3;
-      }
-
-      &:nth-child(2) { // charts
+      &:first-child { // leftmost section
         order: 1;
+        flex-basis: 18%; /* width/height - depending on flex-direction */
       }
 
-      &:last-child { // order form, wallets, user orders
+      &:nth-child(2) { // middle section
         order: 2;
+        flex-basis: 57%; /* width/height - depending on flex-direction */
+
+        & > section {
+          &:first-child { // candle chart
+            order: 1;
+            flex-basis: 68%; /* width/height - depending on flex-direction */
+          }
+
+          &:last-child { // rightmost section
+            order: 2;
+            flex-basis: 32%; /* width/height - depending on flex-direction */
+
+            & > section {
+              &:first-child { // buy form
+                order: 1;
+                flex-basis: 50%; /* width/height - depending on flex-direction */
+              }
+
+              &:last-child { // sell form
+                order: 2;
+                flex-basis: 50%; /* width/height - depending on flex-direction */
+              }
+            }
+          }
+        }
       }
+
+      &:last-child { // user orders, recent matches
+        order: 3;
+        flex-basis: 25%; /* width/height - depending on flex-direction */
+      }
+    }
+
+    #leftMarketDock,
+    #orderBook {
+      width: 100%;
+      height: 100%;
     }
   }
 
@@ -431,61 +433,12 @@ div[data-handler=markets] {
       height: 40px;
     }
 
-    .order-opt {
-      opacity: 0.7;
-
-      &:not(.selected) {
-        cursor: pointer;
-      }
-
-      &.selected {
-        opacity: 1;
-        background-color: var(--form-opt-selected-bg);
-
-        div.opt-check {
-          background-color: $success;
-        }
-      }
-    }
-  }
-
-  #vDetailPane {
-    max-width: 425px;
-
-    .indent {
-      border-left: 2px solid var(--border-color);
+    #youSpend {
+      color: var(--sell-color);
     }
 
-    table.fee-breakout {
-      td {
-        text-align: center;
-        padding: 2px 5px;
-      }
-    }
-  }
-
-
-  #marketReopener {
-    display: none;
-    padding: 10px 0;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-color: var(--section-bg);
-    z-index: 10;
-  }
-
-  #leftHider,
-  #marketReopener {
-    .ico-arrowleft,
-    .ico-arrowright {
-      transform: scaleX(0.5);
-      opacity: 0.5;
-    }
-
-    &:hover .ico-arrowleft,
-    &:hover .ico-arrowright {
-      opacity: 1;
+    #youGet {
+      color: var(--buy-color);
     }
   }
 }
@@ -500,19 +453,14 @@ div[data-handler=markets] {
     grid-template-columns: auto auto auto;
   }
 
-  &.listopen .ico-arrowdown {
-    display: none;
-  }
-
-  &:not(.listopen) .ico-arrowup {
-    display: none;
+  #fiatPrice {
+    color: var(--text-warning);
   }
 }
 
 #headerSpace .market-stats {
   display: none;
 }
-
 
 #recentMatchesBox {
   @extend .stylish-overflow;
@@ -561,48 +509,10 @@ div[data-handler=markets] {
     display: flex;
     border-bottom: none !important;
   }
-
-  div[data-handler=markets] #leftMarketDock {
-    position: relative;
-
-    &.default {
-      display: flex;
-    }
-  }
 }
 
 @include media-breakpoint-up(lg) {
   div[data-handler=markets] {
-    #mainContent {
-      @include fill-abs;
-
-      overflow: hidden;
-      flex-direction: row;
-      align-items: stretch;
-
-      & > section,
-      & > div {
-        min-height: none;
-        display: flex;
-
-        &:nth-child(n) { // need nth-child for specificity
-          min-height: auto;
-        }
-
-        &:first-child { // order book
-          order: 1;
-        }
-
-        &:nth-child(2) { // charts
-          order: 2;
-        }
-
-        &:last-child { // order form, wallets, user orders
-          order: 3;
-        }
-      }
-    }
-
     .ordertable-wrap {
       height: calc(50% - 15px);
       display: flex;
@@ -626,23 +536,7 @@ div[data-handler=markets] {
       }
     }
 
-    .orderbook {
-      width: auto;
-
-      & > div:first-child { // sell orders
-        order: 1;
-      }
-
-      & > div:nth-child(2) { // header
-        order: 2;
-      }
-
-      & > div:last-child { // buy orders
-        order: 3;
-      }
-    }
-
-    .order-panel {
+    .rightmost-panel {
       & > div {
         @include fill-abs;
         @include stylish-overflow;
@@ -650,10 +544,6 @@ div[data-handler=markets] {
         height: 100%;
         overflow-x: hidden;
       }
-    }
-
-    #leftMarketDock.stashed + #marketReopener {
-      display: block;
     }
   }
 
