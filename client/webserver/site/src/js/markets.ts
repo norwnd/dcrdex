@@ -487,9 +487,6 @@ export default class MarketsPage extends BasePage {
 
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
-      for (const mord of Object.values(this.metaOrders)) {
-        mord.details.age.textContent = Doc.timeSince(mord.ord.submitTime)
-      }
       for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=age]')) {
         td.textContent = Doc.timeSince(parseFloat(td.dataset.sinceStamp ?? '0'))
       }
@@ -1671,16 +1668,14 @@ export default class MarketsPage extends BasePage {
       }
       header.sideLight.classList.add(ord.sell ? 'sell' : 'buy')
       if (!isActive) header.sideLight.classList.add('inactive')
-      details.side.textContent = mord.header.side.textContent = OrderUtil.sellString(ord)
-      details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
+      mord.header.side.textContent = OrderUtil.sellString(ord)
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
-      details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
+      mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
       let rateStr: string
       if (ord.type === OrderUtil.Market) rateStr = this.marketOrderRateString(ord, market)
       else rateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      details.rate.textContent = mord.header.rate.textContent = rateStr
+      mord.header.rate.textContent = rateStr
       header.baseSymbol.textContent = market.baseUnitInfo.conventional.unit
-      details.type.textContent = OrderUtil.orderTypeText(ord.type)
       this.updateMetaOrder(mord)
 
       const showCancel = (e: Event) => {
@@ -1789,13 +1784,10 @@ export default class MarketsPage extends BasePage {
   * updateMetaOrder sets the td contents of the user's order table row.
   */
   updateMetaOrder (mord: MetaOrder) {
-    const { header, details, ord } = mord
+    const { header, ord } = mord
     if (ord.status <= OrderUtil.StatusBooked || OrderUtil.hasActiveMatches(ord)) header.activeLight.classList.add('active')
     else header.activeLight.classList.remove('active')
-    details.status.textContent = header.status.textContent = OrderUtil.statusString(ord)
-    details.age.textContent = Doc.timeSince(ord.submitTime)
-    details.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
-    details.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
+    header.status.textContent = OrderUtil.statusString(ord)
   }
 
   /* updateTitle update the browser title based on the midgap value and the
@@ -2251,7 +2243,7 @@ export default class MarketsPage extends BasePage {
     else if (mord.ord.type === OrderUtil.Market && match.status === OrderUtil.NewlyMatched) { // Update the average market rate display.
       // Fetch and use the updated order.
       const ord = app().order(note.orderID)
-      if (ord) mord.details.rate.textContent = mord.header.rate.textContent = this.marketOrderRateString(ord, this.market)
+      if (ord) mord.header.rate.textContent = this.marketOrderRateString(ord, this.market)
     }
     if (
       (match.side === OrderUtil.MatchSideMaker && match.status === OrderUtil.MakerRedeemed) ||
@@ -2307,18 +2299,17 @@ export default class MarketsPage extends BasePage {
     }
 
     this.clearOrderTableEpochs()
-    for (const { ord, details, header } of Object.values(this.metaOrders)) {
+    for (const { ord, header } of Object.values(this.metaOrders)) {
       const alreadyMatched = note.epoch > ord.epoch
       switch (true) {
         case ord.type === OrderUtil.Limit && ord.status === OrderUtil.StatusEpoch && alreadyMatched: {
-          const status = ord.tif === OrderUtil.ImmediateTiF ? intl.prep(intl.ID_EXECUTED) : intl.prep(intl.ID_BOOKED)
-          details.status.textContent = header.status.textContent = status
+          header.status.textContent = ord.tif === OrderUtil.ImmediateTiF ? intl.prep(intl.ID_EXECUTED) : intl.prep(intl.ID_BOOKED)
           ord.status = ord.tif === OrderUtil.ImmediateTiF ? OrderUtil.StatusExecuted : OrderUtil.StatusBooked
           break
         }
         case ord.type === OrderUtil.Market && ord.status === OrderUtil.StatusEpoch:
           // Technically don't know if this should be 'executed' or 'settling'.
-          details.status.textContent = header.status.textContent = intl.prep(intl.ID_EXECUTED)
+          header.status.textContent = intl.prep(intl.ID_EXECUTED)
           ord.status = OrderUtil.StatusExecuted
           break
       }
