@@ -19,10 +19,10 @@
       <div id="marketStats" class="market-stats align-items-center justify-content-center flex-wrap border-bottom">
         <div class="flex-center p-2 pointer hoverbg" data-tmpl="marketSelect">
           <div class="flex-center">
-            <img class="medium-icon" data-tmpl="baseIcon">
-            <img class="medium-icon ms-1" data-tmpl="quoteIcon">
+            <img class="small-icon" data-tmpl="baseIcon">
+            <img class="small-icon ms-1" data-tmpl="quoteIcon">
           </div>
-          <div class="flex-center fs22 demi ms-2">
+          <div class="flex-center fs20 demi ms-2">
             <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
           </div>
         </div>
@@ -51,6 +51,7 @@
 
         {{- /* MAIN CONTENT */ -}}
         <div id="mainContent" class="d-flex flex-grow-1 flex-stretch-row">
+          {{- /* LEFTMOST SECTION */ -}}
           <section class="d-flex align-items-center">
             {{- /* MARKET LIST */ -}}
             <div id="leftMarketDock" class="d-flex flex-stretch-column d-hide">
@@ -65,13 +66,13 @@
                   <div id="marketTmplV1" class="d-flex align-items-stretch p-2 border-bottom lh1 pointer hoverbg">
                     <div class="d-flex flex-column">
                       <div class="d-flex align-items-center justify-content-start flex-grow-1">
-                        <img data-tmpl="baseIcon" class="mini-icon">
-                        <img data-tmpl="quoteIcon" class="mini-icon ms-1">
+                        <img data-tmpl="baseIcon" class="small-icon">
+                        <img data-tmpl="quoteIcon" class="small-icon ms-1">
                         <span class="text-danger ico-disconnected d-hide ps-1" data-tmpl="disconnectedIco"></span>
                       </div>
                     </div>
                     <div class="d-flex flex-column flex-grow-1 px-2">
-                      <span class="fs18 demi">
+                      <span class="fs20 demi">
                         <span data-tmpl="baseSymbol"></span>-<span data-tmpl="quoteSymbol"></span>
                       </span>
                     </div>
@@ -229,8 +230,8 @@
             </section>
           </section>
 
-          {{- /* ORDER FORM */ -}}
-          <section class="order-panel pb-3 position-relative">
+          {{- /* RIGHTMOST SECTION */ -}}
+          <section class="rightmost-panel pb-3 position-relative">
             <div id="orderScroller" class="flex-stretch-column">
               {{- /* TOKEN APPROVAL */ -}}
               <div class="fs15 pt-1 pb-3 text-center border-bottom d-hide" id="tokenApproval">
@@ -448,7 +449,6 @@
                   </tbody>
                 </table>
               </div>{{- /* END RECENT MATCHES */ -}}
-
             </div>
           </section>
         </div>
