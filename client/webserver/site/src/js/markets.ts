@@ -22,32 +22,32 @@ import ws from './ws'
 import * as intl from './locales'
 import {
   app,
-  SupportedAsset,
-  PageElement,
-  Order,
-  Market,
-  MaxOrderEstimate,
-  Exchange,
-  UnitInfo,
+  ApprovalStatus,
   Asset,
+  BalanceNote,
+  BondNote,
+  BookUpdate,
   Candle,
   CandlesPayload,
-  TradeForm,
-  BookUpdate,
-  WalletStateNote,
-  SpotPriceNote,
-  BondNote,
-  OrderNote,
-  EpochNote,
-  BalanceNote,
-  MiniOrder,
-  RemainderUpdate,
-  ConnEventNote,
   ConnectionStatus,
-  RecentMatch,
+  ConnEventNote,
+  EpochNote,
+  Exchange,
+  Market,
   MatchNote,
-  ApprovalStatus,
-  OrderFilter
+  MaxOrderEstimate,
+  MiniOrder,
+  Order,
+  OrderFilter,
+  OrderNote,
+  PageElement,
+  RecentMatch,
+  RemainderUpdate,
+  SpotPriceNote,
+  SupportedAsset,
+  TradeForm,
+  UnitInfo,
+  WalletStateNote
 } from './registry'
 import { setOptionTemplates } from './opts'
 
@@ -273,7 +273,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldBuy.value = String(adjQty)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+      this.finalizeTotalBuy(0)
     })
     this.qtySliderSell = new MiniSlider(page.qtySliderSell, (sliderValue: number) => {
       const page = this.page
@@ -295,7 +295,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldSell.value = String(adjQty)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
+      this.finalizeTotalSell(0)
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -793,7 +793,7 @@ export default class MarketsPage extends BasePage {
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now, scheduling with
         // delay of 100ms to potentially deduplicate some requests
-        this.resolveMaxBuy(this.chosenRateBuyAtom, 100)
+        this.finalizeTotalBuy(100)
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, true)
         this.setPageElementEnabled(this.page.qtySliderBuy, true)
@@ -819,7 +819,7 @@ export default class MarketsPage extends BasePage {
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now, scheduling with
         // delay of 100ms to potentially deduplicate some requests
-        this.resolveMaxSell(100)
+        this.finalizeTotalSell(100)
         this.setPageElementEnabled(this.page.priceBoxSell, true)
         this.setPageElementEnabled(this.page.qtyBoxSell, true)
         this.setPageElementEnabled(this.page.qtySliderSell, true)
@@ -1281,8 +1281,8 @@ export default class MarketsPage extends BasePage {
         { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
       )
     } else {
-      page.orderTotalPreviewBuyLeft.textContent = '?'
-      page.orderTotalPreviewBuyRight.textContent = '?'
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
     }
   }
 
@@ -1307,8 +1307,8 @@ export default class MarketsPage extends BasePage {
         { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
       )
     } else {
-      page.orderTotalPreviewSellLeft.textContent = '?'
-      page.orderTotalPreviewSellRight.textContent = '?'
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
     }
   }
 
@@ -1333,12 +1333,15 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * resolveMaxBuy recalculates new max buy estimate (that depends on rateAtom value),
+   * finalizeTotalBuy recalculates new max buy estimate (that depends on rateAtom value),
    * as well as validates whether currently chosen quantity (on buy order form) can be
    * purchased - and if not, it displays error on buy order form.
    */
-  resolveMaxBuy (rateAtom: number, delay: number) {
+  finalizeTotalBuy (delay: number) {
     const mkt = this.market
+
+    // preview total regardless of whether we can afford it
+    this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
 
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
@@ -1357,25 +1360,26 @@ export default class MarketsPage extends BasePage {
         // it will also update order button state as needed
         return
       }
-      const maxBuy = await this.requestMaxBuyEstimateCached(rateAtom)
+      const maxBuy = await this.requestMaxBuyEstimateCached(this.chosenRateBuyAtom)
       if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
         this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
         return
       }
-
-      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
 
       this.setOrderBttnBuyEnabled(true)
     }, delay)
   }
 
   /**
-   * resolveMaxSell recalculates new max Sell estimate (that depends on rateAtom value),
+   * finalizeTotalSell recalculates new max Sell estimate (that depends on rateAtom value),
    * as well as validates whether currently chosen quantity (on Sell order form) can be
    * purchased - and if not, it displays error on Sell order form.
    */
-  resolveMaxSell (delay: number) {
+  finalizeTotalSell (delay: number) {
     const mkt = this.market
+
+    // preview total regardless of whether we can afford it
+    this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
@@ -1398,8 +1402,6 @@ export default class MarketsPage extends BasePage {
         this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
         return
       }
-
-      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
 
       this.setOrderBttnSellEnabled(true)
     }, delay)
@@ -2379,7 +2381,7 @@ export default class MarketsPage extends BasePage {
         mkt.maxBuys = {}
       }
       if (this.chosenRateBuyAtom) { // can only fetch max buy estimate if we have some chosen rate
-        this.resolveMaxBuy(this.chosenRateBuyAtom, 0)
+        this.finalizeTotalBuy(0)
       }
     }
     if (note.assetID === mkt.baseCfg.id) {
@@ -2388,7 +2390,7 @@ export default class MarketsPage extends BasePage {
         // it is WRONG, we should flush cache with old value here
         mkt.maxSell = null
       }
-      this.resolveMaxSell(0)
+      this.finalizeTotalSell(0)
     }
   }
 
@@ -2473,7 +2475,7 @@ export default class MarketsPage extends BasePage {
 
     // recalculate maxbuy value because it does change with every rate change,
     // scheduling with delay of 100ms to potentially deduplicate some requests
-    this.resolveMaxBuy(this.chosenRateBuyAtom, 100)
+    this.finalizeTotalBuy(100)
   }
 
   rateFieldSellChangeHandler () {
@@ -2513,7 +2515,7 @@ export default class MarketsPage extends BasePage {
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.resolveMaxSell(100)
+    this.finalizeTotalSell(100)
   }
 
   /**
@@ -2616,7 +2618,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewBuyRight.textContent = ''
       this.qtySliderBuy.setValue(0)
 
-      this.resolveMaxBuy(this.chosenRateBuyAtom, 100) // resolve button enabled/disabled for default values
+      this.finalizeTotalBuy(100) // resolve button enabled/disabled for default values
 
       return
     }
@@ -2635,7 +2637,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderBuy.setValue(sliderValue)
     }
 
-    this.resolveMaxBuy(this.chosenRateBuyAtom, 100) // just to update preview and button
+    this.finalizeTotalBuy(100) // just to update preview and button
   }
 
   qtyFieldSellChangeHandler () {
@@ -2664,7 +2666,7 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewSellRight.textContent = ''
       this.qtySliderSell.setValue(0)
 
-      this.resolveMaxSell(100) // resolve button enabled/disabled for default values
+      this.finalizeTotalSell(100) // resolve button enabled/disabled for default values
 
       return
     }
@@ -2683,7 +2685,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderSell.setValue(sliderValue)
     }
 
-    this.resolveMaxSell(100) // just to update preview and button
+    this.finalizeTotalSell(100) // just to update preview and button
   }
 
   /**
