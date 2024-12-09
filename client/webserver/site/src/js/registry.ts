@@ -90,7 +90,7 @@ export interface Market {
   basesymbol: string
   quoteid: number
   quotesymbol: string
-  lotsize: number
+  lotsize: number // in atoms, in base currency
   parcelsize: number
   ratestep: number
   epochlen: number
@@ -98,7 +98,6 @@ export interface Market {
   buybuffer: number
   orders: Order[]
   spot: Spot | undefined
-  atomToConv: number
   inflight: InFlightOrder[]
   minimumRate: number
 }
@@ -246,7 +245,7 @@ export interface WalletState {
   version: number
   type: string
   traits: number
-  open: boolean
+  open: boolean // no longer used in UI
   running: boolean
   disabled: boolean
   balance: WalletBalance
@@ -618,6 +617,8 @@ export interface PageElement extends HTMLElement {
   options?: HTMLOptionElement[]
   selectedIndex?: number
   disabled?: boolean
+  min?: string
+  step?: string
 }
 
 export interface BooleanConfig {
@@ -694,8 +695,8 @@ export interface TradeForm {
   sell: boolean
   base: number
   quote: number
-  qty: number
-  rate: number
+  qty: number // in atoms, could be in either base (for sell-order) or quote (for buy-order) currency
+  rate: number // in atoms
   tifnow: boolean
   options: Record<string, any>
 }

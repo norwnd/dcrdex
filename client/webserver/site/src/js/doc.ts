@@ -104,7 +104,7 @@ function formatter (formatters: Record<string, Intl.NumberFormat>, min: number, 
 }
 
 /*
- * convertToConventional converts the value in atomic units to conventional
+ * convertToConventional converts coin value in atomic units to conventional
  * units.
  */
 function convertToConventional (v: number, unitInfo?: UnitInfo) {
@@ -257,6 +257,22 @@ export default class Doc {
   }
 
   /*
+   * hidePreservingLayout hides the specified elements without affecting page layout
+   * (like Doc.hide can). Use Doc.showPreservingLayout to undo.
+   */
+  static hidePreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'hidden'
+  }
+
+  /*
+   * showPreservingLayout shows the specified elements, undoing changes by made with
+   * Doc.hidePreservingLayout.
+   */
+  static showPreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'visible'
+  }
+
+  /*
    * show or hide the specified elements, based on value of the truthiness of
    * vis.
    */
@@ -325,23 +341,24 @@ export default class Doc {
    * formatCoinValue formats the value in atomic units into a string
    * representation in conventional units. If the value happens to be an
    * integer, no decimals are displayed. Trailing zeros may be truncated.
+   * By default full precision of unitInfo will be used, but `precision`
+   * parameter allows for specifying the desired one (note, `precision` is
+   * max number of significant digits after decimal point).
    */
-  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo): string {
-    const [v, prec] = convertToConventional(vAtomic, unitInfo)
+  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo, precision?: number): string {
+    const [v, precisionFull] = convertToConventional(vAtomic, unitInfo)
     if (Number.isInteger(v)) return intFormatter.format(v)
-    return decimalFormatter(prec).format(v)
-  }
-
-  static conventionalCoinValue (vAtomic: number, unitInfo?: UnitInfo): number {
-    const [v] = convertToConventional(vAtomic, unitInfo)
-    return v
+    if (!precision) {
+      precision = precisionFull
+    }
+    return decimalFormatter(precision).format(v)
   }
 
   /*
    * formatRateFullPrecision formats rate to represent it exactly at rate step
    * precision, trimming non-effectual zeros if there are any.
    */
-  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number) {
+  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
     const convRate = encRate * r / RateEncodingFactor
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
@@ -609,19 +626,6 @@ export default class Doc {
     return result || '0 s'
   }
 
-  /*
-   * disableMouseWheel can be used to disable the mouse wheel for any
-   * input. It is very easy to unknowingly scroll up on a number input
-   * and then submit an unexpected value. This function prevents the
-   * scroll increment/decrement behavior for a wheel action on a
-   * number input.
-   */
-  static disableMouseWheel (...inputFields: Element[]) {
-    for (const inputField of inputFields) {
-      Doc.bind(inputField, 'wheel', () => { /* pass */ }, { passive: true })
-    }
-  }
-
   // showFormError can be used to set and display error message on forms.
   static showFormError (el: PageElement, msg: any) {
     el.textContent = msg
@@ -671,7 +675,7 @@ export class Animation {
       now = new Date().getTime()
     }
     f(1)
-    this.runCompletionFunction()
+    return this.runCompletionFunction()
   }
 
   /* wait returns a promise that will resolve when the animation completes. */
@@ -800,28 +804,6 @@ export class WalletIcons {
       return
     }
     Doc.hide(syncIcon)
-  }
-
-  /* reads the core.Wallet state and sets the icon visibility. */
-  readWallet (wallet: WalletState | null) {
-    this.setSyncing(wallet)
-    if (!wallet) return this.nowallet()
-    switch (true) {
-      case (wallet.disabled):
-        this.disabled()
-        break
-      case (!wallet.running):
-        this.sleeping()
-        break
-      case (!wallet.open):
-        this.locked()
-        break
-      case (wallet.open):
-        this.unlocked()
-        break
-      default:
-        console.error('wallet in unknown state', wallet)
-    }
   }
 }
 

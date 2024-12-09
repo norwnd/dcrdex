@@ -93,24 +93,24 @@ export function likelyTaker (ord: Order, rate: number): boolean {
   return ord.rate > rate
 }
 
-const preparcelQuantity = (ord: Order, mkt?: Market, midGap?: number) => {
+const preparcelQuantity = (ord: Order, mkt?: Market, midGapAtom?: number) => {
   const qty = ord.qty - ord.filled
   if (ord.type === OrderTypeLimit) return qty
   if (ord.sell) return qty * ord.rate / RateEncodingFactor
-  const rate = midGap || mkt?.spot?.rate || 0
+  const rateAtom = midGapAtom || mkt?.spot?.rate || 0
   // Caller should not call this for market orders without a mkt arg.
   if (!mkt) return 0
   // This is tricky. The server will use the mid-gap rate to convert the
   // order qty. We don't have a mid-gap rate, only a spot rate.
-  if (rate && (mkt?.spot?.bookVolume || 0) > 0) return qty * RateEncodingFactor / rate
+  if (rateAtom && (mkt?.spot?.bookVolume || 0) > 0) return qty * RateEncodingFactor / rateAtom
   return mkt.lotsize // server uses same fallback if book is empty
 }
 
-export function epochWeight (ord: Order, mkt: Market, midGap?: number) {
+export function epochWeight (ord: Order, mkt: Market, midGapAtom?: number) {
   if (ord.status !== StatusEpoch) return 0
-  const qty = preparcelQuantity(ord, mkt, midGap)
-  const rate = midGap || mkt.spot?.rate || 0
-  if (likelyTaker(ord, rate)) return qty * 2
+  const qty = preparcelQuantity(ord, mkt, midGapAtom)
+  const rateAtom = midGapAtom || mkt.spot?.rate || 0
+  if (likelyTaker(ord, rateAtom)) return qty * 2
   return qty
 }
 
