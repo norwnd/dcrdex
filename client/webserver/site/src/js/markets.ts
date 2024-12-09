@@ -267,7 +267,7 @@ export default class MarketsPage extends BasePage {
       // max lots we can buy).
       // No need to check for errors because only user can "produce" an invalid input.
       const lots = Math.max(1, Math.floor(maxBuy.swap.lots * sliderValue))
-      const [,,, adjQty] = this.parseLotStr(String(lots))
+      const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldBuy.value = String(adjQty)
@@ -289,7 +289,7 @@ export default class MarketsPage extends BasePage {
       // max lots we can sell).
       // No need to check for errors because only user can "produce" an invalid input.
       const lots = Math.max(1, Math.floor(maxSellLots * sliderValue))
-      const [,,, adjQty] = this.parseLotStr(String(lots))
+      const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldSell.value = String(adjQty)
@@ -783,7 +783,7 @@ export default class MarketsPage extends BasePage {
 
     if (this.canTradeBuy()) {
       // Reset limit-order buy form inputs to defaults.
-      const [,,, adjQtyBuy] = this.parseLotStr('1')
+      const adjQtyBuy = this.lotToQty(1)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
       this.qtySliderBuy.setValue(0)
@@ -809,7 +809,7 @@ export default class MarketsPage extends BasePage {
 
     if (this.canTradeSell()) {
       // Reset limit-order sell form inputs to defaults.
-      const [,,, adjQtySell] = this.parseLotStr('1')
+      const adjQtySell = this.lotToQty(1)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
       this.qtySliderSell.setValue(0)
@@ -2074,9 +2074,6 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
-    // TODO
-    console.log('stepSubmitBuy')
-
     Doc.hide(page.orderErrBuy)
 
     const showError = function (err: string, args?: Record<string, string>) {
@@ -2535,85 +2532,44 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
-    if (!value) {
+    const rateRaw = this.parseNumber(value)
+    if (!rateRaw || isNaN(rateRaw) || rateRaw <= 0) {
       return [false, false, 0]
     }
+    const rateRawAtom = convertNumberToAtoms(rateRaw, this.market.rateConversionFactor)
+
+    const adjRateAtom = this.adjustRateAtoms(rateRawAtom)
+    const rounded = adjRateAtom !== rateRawAtom
+
+    return [true, rounded, adjRateAtom]
+  }
+
+  parseNumber (value: string | undefined): number | null {
+    if (!value) {
+      return null
+    }
+
+    value = value.replace(',', '.') // comma is a typical alternative to dot, allow for it
 
     // check value doesn't contain invalid characters
     const validPattern = /^-?\d+\.?\d*$/
     if (!value.match(validPattern)) {
-      return [false, false, 0]
+      return null
     }
 
-    const rawRateAtom = this.parseRateAtoms(value)
-    const adjRateAtom = this.parseAdjustedRateAtoms(value)
-    const rateParsingIssue = isNaN(rawRateAtom) || rawRateAtom <= 0
-    const rounded = adjRateAtom !== rawRateAtom
+    return parseFloat(value)
+  }
 
-    return [!rateParsingIssue, rounded, adjRateAtom]
+  lotToQty (lots: number): number {
+    return lots * this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor
   }
 
   /*
-   * parseRateAtoms converts rateStr to number rate value in atoms.
-   */
-  parseRateAtoms (rateStr: string | undefined): number {
-    if (!rateStr) return NaN
-    return convertStrToAtoms(rateStr, this.market.rateConversionFactor)
-  }
-
-  /*
-   * parseAdjustedRateAtoms converts rateStr to number rate value in atoms,
-   * rounded down to a multiple of rateStep.
-   */
-  parseAdjustedRateAtoms (rateStr: string | undefined): number {
-    const rateAtom = this.parseRateAtoms(rateStr)
-    return this.adjustRateAtoms(rateAtom)
-  }
-
-  /*
-   * adjustRateAtoms rounds down rateAtom to a multiple of rateStep.
-   */
+  * adjustRateAtoms rounds down rateAtom to a multiple of rateStep.
+  */
   adjustRateAtoms (rateAtom: number): number {
     const rateStepAtom = this.market.cfg.ratestep
     return rateAtom - (rateAtom % rateStepAtom)
-  }
-
-  /**
-   * parseLotStr parses lot string value and returns:
-   * 1) whether there are any parsing issues (true if none, false when
-   *    parsing fails)
-   * 2) whether rounding(adjustment) had happened (true when did)
-   * 3) adjusted lot value
-   * 4) adjusted quantity value
-   *
-   * If lot value couldn't be parsed (parsing issues), the following
-   * values are returned: [false, false, 0, 0].
-   */
-  parseLotStr (value: string | undefined): [boolean, boolean, number, number] {
-    const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSize } } } = this
-
-    Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
-    Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
-
-    if (!value) {
-      return [false, false, 0, 0]
-    }
-
-    // check value doesn't contain invalid characters
-    const validPattern = /^-?\d+\.?\d*$/
-    if (!value.match(validPattern)) {
-      return [false, false, 0, 0]
-    }
-
-    const adjLots = parseInt(value || '')
-    if (isNaN(adjLots) || adjLots < 0) {
-      return [false, false, 0, 0]
-    }
-
-    const rounded = String(adjLots) !== value
-    const adjQty = adjLots * lotSize / bui.conventional.conversionFactor
-
-    return [true, rounded, adjLots, adjQty]
   }
 
   qtyFieldBuyChangeHandler () {
@@ -2717,20 +2673,11 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
-    if (!value) {
+    const qtyRaw = this.parseNumber(value)
+    if (!qtyRaw || isNaN(qtyRaw) || qtyRaw < 0) {
       return [false, false, 0, 0]
     }
-
-    // check value doesn't contain invalid characters
-    const validPattern = /^-?\d+\.?\d*$/
-    if (!value.match(validPattern)) {
-      return [false, false, 0, 0]
-    }
-
-    const qtyRawAtom = convertStrToAtoms(value || '', bui.conventional.conversionFactor)
-    if (isNaN(qtyRawAtom) || qtyRawAtom < 0) {
-      return [false, false, 0, 0]
-    }
+    const qtyRawAtom = convertNumberToAtoms(qtyRaw, bui.conventional.conversionFactor)
 
     const lotsRaw = qtyRawAtom / lotSizeAtom
     const adjLots = Math.floor(lotsRaw)
@@ -3088,12 +3035,6 @@ function makeMarket (host: string, base?: number, quote?: number) {
 
 /* marketID creates a DEX-compatible market name from the ticker symbols. */
 export function marketID (b: string, q: string) { return `${b}_${q}` }
-
-/* convertStrToAtoms converts the float string to atoms. */
-function convertStrToAtoms (s: string, conversionFactor: number) {
-  if (!s) return 0
-  return convertNumberToAtoms(parseFloat(s), conversionFactor)
-}
 
 /* convertNumberToAtoms converts the float string to atoms. */
 function convertNumberToAtoms (v: number, conversionFactor: number) {
