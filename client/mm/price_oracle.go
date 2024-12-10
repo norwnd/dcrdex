@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -429,7 +430,7 @@ func oracleMarketReport(ctx context.Context, b, q *fiatrates.CoinpaprikaAsset, l
 		}
 		oracles = append(oracles, oracle)
 		usdQuote, found := mkt.Quotes["USD"]
-		if found {
+		if found && !math.IsNaN(usdQuote.Volume) && usdQuote.Volume > 0 {
 			oracle.USDVol = usdQuote.Volume
 		}
 	}
