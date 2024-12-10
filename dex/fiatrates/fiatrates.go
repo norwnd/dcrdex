@@ -3,6 +3,7 @@ package fiatrates
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -85,8 +86,8 @@ func FetchCoinpaprikaRates(ctx context.Context, assets []*CoinpaprikaAsset, log 
 		}
 
 		price := coinInfo.Quotes.USD.Price
-		if price == 0 {
-			log.Errorf("zero-price returned from coinpaprika for slug %s", coinInfo.ID)
+		if math.IsNaN(price) || price <= 0 {
+			log.Errorf("invalid price returned from coinpaprika for slug %s, price %v", coinInfo.ID, price)
 			continue
 		}
 		for _, assetID := range assetIDs {
