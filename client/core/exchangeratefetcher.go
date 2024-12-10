@@ -6,6 +6,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -157,10 +158,10 @@ func FetchDcrdataRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 		return nil
 	}
 
-	if !noBTCAsset {
+	if !noBTCAsset && !math.IsNaN(res.BtcPrice) && res.BtcPrice > 0 {
 		fiatRates[btcBipID] = res.BtcPrice
 	}
-	if !noDCRAsset {
+	if !noDCRAsset && !math.IsNaN(res.DcrPrice) && res.DcrPrice > 0 {
 		fiatRates[dcrBipID] = res.DcrPrice
 	}
 
@@ -198,7 +199,12 @@ func FetchMessariRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 			return
 		}
 
-		fiatRates[assetID] = res.Data.MarketData.Price
+		price := res.Data.MarketData.Price
+		if math.IsNaN(price) || price <= 0 {
+			log.Errorf("invalid price returned from messari for asset %s, price %v", assetID, price)
+			return
+		}
+		fiatRates[assetID] = price
 	}
 
 	for _, sa := range assets {
