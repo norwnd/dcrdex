@@ -119,26 +119,6 @@ const languageData: Record<string, LangData> = {
   'en-US': {
     name: 'English',
     flag: '🇺🇸' // Not 🇬🇧. MURICA!
-  },
-  'pt-BR': {
-    name: 'Portugese',
-    flag: '🇧🇷'
-  },
-  'zh-CN': {
-    name: 'Chinese',
-    flag: '🇨🇳'
-  },
-  'pl-PL': {
-    name: 'Polish',
-    flag: '🇵🇱'
-  },
-  'de-DE': {
-    name: 'German',
-    flag: '🇩🇪'
-  },
-  'ar': {
-    name: 'Arabic',
-    flag: '🇪🇬' // Egypt I guess
   }
 }
 

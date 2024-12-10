@@ -963,11 +963,6 @@ var ar = map[string]*intl.Translation{
 
 var localesMap = map[string]map[string]*intl.Translation{
 	"en-US": enUS,
-	"pt-BR": ptBR,
-	"zh-CN": zhCN,
-	"pl-PL": plPL,
-	"de-DE": deDE,
-	"ar":    ar,
 }
 
 // RegisterTranslations registers translations with the init package for
