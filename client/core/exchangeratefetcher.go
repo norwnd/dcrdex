@@ -19,9 +19,9 @@ const (
 	// DefaultFiatCurrency is the currency for displaying assets fiat value.
 	DefaultFiatCurrency = "USD"
 	// fiatRateRequestInterval is the amount of time between calls to the exchange API.
-	fiatRateRequestInterval = 60 * time.Second
+	fiatRateRequestInterval = 12 * time.Minute
 	// fiatRateDataExpiry : Any data older than fiatRateDataExpiry will be discarded.
-	fiatRateDataExpiry = 90 * time.Second
+	fiatRateDataExpiry = 60 * time.Minute
 	fiatRequestTimeout = time.Second * 15
 
 	// Tokens. Used to identify fiat rate source, source name must not contain a
