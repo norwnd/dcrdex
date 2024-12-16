@@ -37,8 +37,7 @@ import {
   MatchNote,
   MaxOrderEstimate,
   MiniOrder,
-  Order,
-  OrderFilter,
+  Order, OrderFilter,
   OrderNote,
   PageElement,
   RecentMatch,
@@ -1030,6 +1029,9 @@ export default class MarketsPage extends BasePage {
   }
 
   setOrderBttnBuyEnabled (isEnabled: boolean, disabledTooltipMsg?: string) {
+    // TODO
+    // console.log(isEnabled)
+    // console.log(disabledTooltipMsg)
     const btn = this.page.submitBttnBuy
     if (isEnabled) {
       btn.removeAttribute('disabled')
@@ -1597,25 +1599,23 @@ export default class MarketsPage extends BasePage {
     const { base: b, quote: q, dex: { host }, cfg: { name: mktID } } = this.market
     for (const oid in this.metaOrders) delete this.metaOrders[oid]
     if (!b || !q) return this.resolveUserOrders([]) // unsupported asset
-    const activeOrders = app().orders(host, mktID)
-    if (activeOrders.length >= maxUserOrdersShown) return this.resolveUserOrders(activeOrders)
 
-    // TODO - we probably just want to remove all the code below
-    // Looks like we have some room for non-active orders
+    const activeOrders = app().orders(host, mktID)
+    if (activeOrders.length !== 0) {
+      this.resolveUserOrders(activeOrders)
+      return
+    }
+
+    // we've probably just started and haven't received any order notifications yet,
+    // fetch orders explicitly then
     const filter: OrderFilter = {
       hosts: [host],
       market: { baseID: b.id, quoteID: q.id },
-      // TODO - this looks strange, prob wanna do this instead
-      // n: maxUserOrdersShown - activeOrders.length
+      statuses: [0, 1, 2], // interested in active orders only
       n: this.maxUserOrderCount()
     }
     const res = await postJSON('/api/orders', filter)
-    const orders = res.orders || []
-    // Make sure all active orders are in there. The /orders API sorts by time,
-    // so if there is are 10 cancelled/executed orders newer than an old active
-    // order, the active order wouldn't be included in the result.
-    for (const activeOrd of activeOrders) if (!orders.some((dbOrd: Order) => dbOrd.id === activeOrd.id)) orders.push(activeOrd)
-    return this.resolveUserOrders(res.orders || [])
+    this.resolveUserOrders(res.orders || [])
   }
 
   /* refreshActiveOrders refreshes the user's active order list. */
