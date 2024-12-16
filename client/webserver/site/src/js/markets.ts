@@ -378,19 +378,11 @@ export default class MarketsPage extends BasePage {
     })
 
     // Limit order buy: event listeners for handling user interactions.
-    bind(page.rateFieldBuy, 'change', () => { this.rateFieldBuyChangeHandler() })
-    bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyChangeHandler() })
-    // bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyInputHandler() })
-    bind(page.qtyFieldBuy, 'change', () => { this.qtyFieldBuyChangeHandler() })
-    bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyChangeHandler() })
-    // bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyInputHandler() })
+    bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyInputHandler() })
+    bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyInputHandler() })
     // Limit order sell: event listeners for handling user interactions.
-    bind(page.rateFieldSell, 'change', () => { this.rateFieldSellChangeHandler() })
-    bind(page.rateFieldSell, 'input', () => { this.rateFieldSellChangeHandler() })
-    // bind(page.rateFieldSell, 'input', () => { this.rateFieldSellInputHandler() })
-    bind(page.qtyFieldSell, 'change', () => { this.qtyFieldSellChangeHandler() })
-    bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellChangeHandler() })
-    // bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellInputHandler() })
+    bind(page.rateFieldSell, 'input', () => { this.rateFieldSellInputHandler() })
+    bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellInputHandler() })
 
     // Market search input bindings.
     bind(page.marketSearchV1, ['change', 'keyup'], () => { this.filterMarkets() })
@@ -789,14 +781,12 @@ export default class MarketsPage extends BasePage {
       if (defaultRateAtom !== 0) {
         this.chosenRateBuyAtom = defaultRateAtom
         page.rateFieldBuy.value = String(defaultRateAtom / mkt.rateConversionFactor)
-        // we'll eventually need to fetch max estimate for slider to work, plus to
-        // do validation on user inputs, might as well do it now, scheduling with
-        // delay of 100ms to potentially deduplicate some requests
-        this.finalizeTotalBuy(100)
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, true)
         this.setPageElementEnabled(this.page.qtySliderBuy, true)
-        this.setPageElementEnabled(this.page.previewTotalBuy, true)
+        // we'll eventually need to fetch max estimate for slider to work, plus to
+        // do validation on user inputs, might as well do it now
+        this.finalizeTotalBuy(0)
       } else {
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, false)
@@ -815,14 +805,12 @@ export default class MarketsPage extends BasePage {
       if (defaultRateAtom !== 0) {
         this.chosenRateSellAtom = defaultRateAtom
         page.rateFieldSell.value = String(defaultRateAtom / mkt.rateConversionFactor)
-        // we'll eventually need to fetch max estimate for slider to work, plus to
-        // do validation on user inputs, might as well do it now, scheduling with
-        // delay of 100ms to potentially deduplicate some requests
-        this.finalizeTotalSell(100)
         this.setPageElementEnabled(this.page.priceBoxSell, true)
         this.setPageElementEnabled(this.page.qtyBoxSell, true)
         this.setPageElementEnabled(this.page.qtySliderSell, true)
-        this.setPageElementEnabled(this.page.previewTotalSell, true)
+        // we'll eventually need to fetch max estimate for slider to work, plus to
+        // do validation on user inputs, might as well do it now
+        this.finalizeTotalSell(0)
       } else {
         this.chosenRateSellAtom = 0
         page.rateFieldSell.value = ''
@@ -1029,11 +1017,13 @@ export default class MarketsPage extends BasePage {
   }
 
   setOrderBttnBuyEnabled (isEnabled: boolean, disabledTooltipMsg?: string) {
-    // TODO
-    // console.log(isEnabled)
-    // console.log(disabledTooltipMsg)
     const btn = this.page.submitBttnBuy
     if (isEnabled) {
+      // TODO
+      // setTimeout(() => {
+      //   btn.removeAttribute('disabled')
+      //   btn.removeAttribute('title')
+      // }, 2000)
       btn.removeAttribute('disabled')
       btn.removeAttribute('title')
     } else {
@@ -1335,7 +1325,7 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * finalizeTotalBuy recalculates new max buy estimate (that depends on rateAtom value),
+   * finalizeTotalBuy recalculates new max buy estimate (that depends on chosen rate value),
    * as well as validates whether currently chosen quantity (on buy order form) can be
    * purchased - and if not, it displays error on buy order form.
    */
@@ -1374,9 +1364,9 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * finalizeTotalSell recalculates new max Sell estimate (that depends on rateAtom value),
-   * as well as validates whether currently chosen quantity (on Sell order form) can be
-   * purchased - and if not, it displays error on Sell order form.
+   * finalizeTotalSell recalculates new max sell estimate (that depends on chosen rate value),
+   * as well as validates whether currently chosen quantity (on sell order form) can be
+   * purchased - and if not, it displays error on sell order form.
    */
   finalizeTotalSell (delay: number) {
     const mkt = this.market
@@ -2437,7 +2427,7 @@ export default class MarketsPage extends BasePage {
     this.resolveOrderVsMMForm()
   }
 
-  rateFieldBuyChangeHandler () {
+  rateFieldBuyInputHandler () {
     const page = this.page
 
     const rateFieldValue = this.page.rateFieldBuy.value
@@ -2471,14 +2461,12 @@ export default class MarketsPage extends BasePage {
 
     this.setPageElementEnabled(this.page.qtyBoxBuy, true)
     this.setPageElementEnabled(this.page.qtySliderBuy, true)
-    this.setPageElementEnabled(this.page.previewTotalBuy, true)
 
-    // recalculate maxbuy value because it does change with every rate change,
-    // scheduling with delay of 100ms to potentially deduplicate some requests
-    this.finalizeTotalBuy(100)
+    // recalculate maxbuy value because it does change with every rate change
+    this.finalizeTotalBuy(0)
   }
 
-  rateFieldSellChangeHandler () {
+  rateFieldSellInputHandler () {
     const page = this.page
 
     const rateFieldValue = this.page.rateFieldSell.value
@@ -2512,11 +2500,10 @@ export default class MarketsPage extends BasePage {
 
     this.setPageElementEnabled(this.page.qtyBoxSell, true)
     this.setPageElementEnabled(this.page.qtySliderSell, true)
-    this.setPageElementEnabled(this.page.previewTotalSell, true)
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.finalizeTotalSell(100)
+    this.finalizeTotalSell(0)
   }
 
   /**
@@ -2572,7 +2559,7 @@ export default class MarketsPage extends BasePage {
     return rateAtom - (rateAtom % rateStepAtom)
   }
 
-  qtyFieldBuyChangeHandler () {
+  qtyFieldBuyInputHandler () {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
@@ -2611,10 +2598,10 @@ export default class MarketsPage extends BasePage {
       this.qtySliderBuy.setValue(sliderValue)
     }
 
-    this.finalizeTotalBuy(100) // just to update preview and button
+    this.finalizeTotalBuy(0)
   }
 
-  qtyFieldSellChangeHandler () {
+  qtyFieldSellInputHandler () {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
@@ -2653,7 +2640,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderSell.setValue(sliderValue)
     }
 
-    this.finalizeTotalSell(100) // just to update preview and button
+    this.finalizeTotalSell(0)
   }
 
   /**
