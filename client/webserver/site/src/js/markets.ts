@@ -272,7 +272,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldBuy.value = String(adjQty)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.finalizeTotalBuy(0)
+      this.finalizeTotalBuy()
     })
     this.qtySliderSell = new MiniSlider(page.qtySliderSell, (sliderValue: number) => {
       const page = this.page
@@ -294,7 +294,7 @@ export default class MarketsPage extends BasePage {
       page.qtyFieldSell.value = String(adjQty)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.finalizeTotalSell(0)
+      this.finalizeTotalSell()
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -786,7 +786,7 @@ export default class MarketsPage extends BasePage {
         this.setPageElementEnabled(this.page.qtySliderBuy, true)
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now
-        this.finalizeTotalBuy(0)
+        this.finalizeTotalBuy()
       } else {
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, false)
@@ -810,7 +810,7 @@ export default class MarketsPage extends BasePage {
         this.setPageElementEnabled(this.page.qtySliderSell, true)
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now
-        this.finalizeTotalSell(0)
+        this.finalizeTotalSell()
       } else {
         this.chosenRateSellAtom = 0
         page.rateFieldSell.value = ''
@@ -1329,7 +1329,7 @@ export default class MarketsPage extends BasePage {
    * as well as validates whether currently chosen quantity (on buy order form) can be
    * purchased - and if not, it displays error on buy order form.
    */
-  finalizeTotalBuy (delay: number) {
+  async finalizeTotalBuy () {
     const mkt = this.market
 
     // preview total regardless of whether we can afford it
@@ -1347,20 +1347,18 @@ export default class MarketsPage extends BasePage {
 
     this.maxBuyLastReqID++
     const reqID = this.maxBuyLastReqID
-    window.setTimeout(async () => {
-      if (reqID !== this.maxBuyLastReqID) {
-        // a fresher request has been issued, no need to execute this one,
-        // it will also update order button state as needed
-        return
-      }
-      const maxBuy = await this.requestMaxBuyEstimateCached(this.chosenRateBuyAtom)
-      if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
-        this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
-        return
-      }
+    const maxBuy = await this.requestMaxBuyEstimateCached(this.chosenRateBuyAtom)
+    if (reqID !== this.maxBuyLastReqID) {
+      // a fresher action has been issued, no need to apply the effects of this one,
+      // the fresher one will also update order button state as needed
+      return
+    }
+    if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
+      this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
+      return
+    }
 
-      this.setOrderBttnBuyEnabled(true)
-    }, delay)
+    this.setOrderBttnBuyEnabled(true)
   }
 
   /**
@@ -1368,7 +1366,7 @@ export default class MarketsPage extends BasePage {
    * as well as validates whether currently chosen quantity (on sell order form) can be
    * purchased - and if not, it displays error on sell order form.
    */
-  finalizeTotalSell (delay: number) {
+  async finalizeTotalSell () {
     const mkt = this.market
 
     // preview total regardless of whether we can afford it
@@ -1385,20 +1383,18 @@ export default class MarketsPage extends BasePage {
 
     this.maxSellLastReqID++
     const reqID = this.maxSellLastReqID
-    window.setTimeout(async () => {
-      if (reqID !== this.maxSellLastReqID) {
-        // a fresher request has been issued, no need to execute this one,
-        // it will also update order button state as needed
-        return
-      }
-      const maxSell = await this.requestMaxSellEstimateCached()
-      if (!maxSell || this.chosenQtySellAtom > maxSell.swap.value) {
-        this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
-        return
-      }
+    const maxSell = await this.requestMaxSellEstimateCached()
+    if (reqID !== this.maxSellLastReqID) {
+      // a fresher action has been issued, no need to apply the effects of this one,
+      // the fresher one will also update order button state as needed
+      return
+    }
+    if (!maxSell || this.chosenQtySellAtom > maxSell.swap.value) {
+      this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
+      return
+    }
 
-      this.setOrderBttnSellEnabled(true)
-    }, delay)
+    this.setOrderBttnSellEnabled(true)
   }
 
   async requestMaxBuyEstimateCached (rateAtom: number): Promise<any> {
@@ -2370,7 +2366,7 @@ export default class MarketsPage extends BasePage {
         mkt.maxBuys = {}
       }
       if (this.chosenRateBuyAtom) { // can only fetch max buy estimate if we have some chosen rate
-        this.finalizeTotalBuy(0)
+        this.finalizeTotalBuy()
       }
     }
     if (note.assetID === mkt.baseCfg.id) {
@@ -2379,7 +2375,7 @@ export default class MarketsPage extends BasePage {
         // it is WRONG, we should flush cache with old value here
         mkt.maxSell = null
       }
-      this.finalizeTotalSell(0)
+      this.finalizeTotalSell()
     }
   }
 
@@ -2463,7 +2459,7 @@ export default class MarketsPage extends BasePage {
     this.setPageElementEnabled(this.page.qtySliderBuy, true)
 
     // recalculate maxbuy value because it does change with every rate change
-    this.finalizeTotalBuy(0)
+    this.finalizeTotalBuy()
   }
 
   rateFieldSellInputHandler () {
@@ -2503,7 +2499,7 @@ export default class MarketsPage extends BasePage {
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.finalizeTotalSell(0)
+    this.finalizeTotalSell()
   }
 
   /**
@@ -2598,7 +2594,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderBuy.setValue(sliderValue)
     }
 
-    this.finalizeTotalBuy(0)
+    this.finalizeTotalBuy()
   }
 
   qtyFieldSellInputHandler () {
@@ -2640,7 +2636,7 @@ export default class MarketsPage extends BasePage {
       this.qtySliderSell.setValue(sliderValue)
     }
 
-    this.finalizeTotalSell(0)
+    this.finalizeTotalSell()
   }
 
   /**
