@@ -24,16 +24,25 @@ div[data-handler=markets] {
       opacity: 0.4;
     }
 
-    input {
-      height: 30px;
-      border-radius: 0;
-      font-size: 14px;
+    .order-form-input{
+      height: 36px;
+      font-size: 16px;
       font-weight: bold;
-      background-color: var(--section-bg);
+      background-color: var(--body-bg-lower-opacity);
+      border: 2px solid var(--border-color);
 
       &:hover,
-      &.selected {
-        border: 1px solid var(--border-color);
+      &:focus {
+        border: 2px solid var(--text-warning);
+      }
+    }
+
+    .qty-slider {
+      height: 8px;
+
+      &:hover,
+      &:focus {
+        cursor: pointer;
       }
     }
 
@@ -47,6 +56,34 @@ div[data-handler=markets] {
       white-space: nowrap;
     }
 
+    #previewTotalBuy {
+      #orderTotalPreviewBuyLeft {
+        flex-basis: 42%;
+      }
+
+      #orderTotalPreviewBuyDelimiter {
+        flex-basis: 6%;
+      }
+
+      #orderTotalPreviewBuyRight {
+        flex-basis: 42%;
+      }
+    }
+
+    #previewTotalSell {
+      #orderTotalPreviewSellLeft {
+        flex-basis: 42%;
+      }
+
+      #orderTotalPreviewSellDelimiter {
+        flex-basis: 6%;
+      }
+
+      #orderTotalPreviewSellRight {
+        flex-basis: 42%;
+      }
+    }
+
     button {
       opacity: 0.95;
       padding: 5px 25px;
@@ -55,7 +92,7 @@ div[data-handler=markets] {
       color: var(--market-btn-selected-color);
 
       &:hover,
-      &.selected {
+      &:focus {
         opacity: 1;
       }
 
@@ -65,7 +102,6 @@ div[data-handler=markets] {
       }
     }
 
-    button.selected,
     button.submit {
       &.buygreen-bg {
         background-color: var(--market-buygreen-bg);
@@ -264,8 +300,8 @@ div[data-handler=markets] {
       height: 100%;
 
       & > div {
-        &.selected {
-          background-color: #7773;
+        &:focus {
+          background-color: var(--body-bg-lower-opacity);
         }
       }
     }
@@ -339,7 +375,7 @@ div[data-handler=markets] {
       }
 
       &:hover,
-      &.selected {
+      &:focus {
         border-color: var(--text-warning);
         color: var(--text-warning);
       }

@@ -166,22 +166,31 @@
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxBuy">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select bg1" id="rateFieldBuy">
+                      <input type="text" class="form-control select bg1 order-form-input" id="rateFieldBuy">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxBuy">
                     <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select bg1" id="qtyFieldBuy">
+                      <input type="text" class="form-control select bg1 order-form-input" id="qtyFieldBuy">
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
-                  <div id="qtySliderBuy" class="mini-slider mt-1 mx-2 disabled"></div>
-                  <div class="d-flex justify-content-center m-1 disabled" id="previewTotalBuy">
-                    <div id="orderTotalPreviewBuyLeft" class="flex-center text-center mx-2 fs18"></div>
-                    <span class="flex-center text-center mx-2 fs24">⇄</span>
-                    <div id="orderTotalPreviewBuyRight" class="flex-center text-center mx-2 fs18"></div>
+                  <div id="qtySliderBuy" class="d-flex flex-stretch-column mt-3 mb-2 mx-2 disabled">
+                    <input id="qtySliderBuyInput" type="range" min="0" max="1" step="0.01" list="markers" class="qty-slider">
+                    <datalist id="markers">
+                      <option value="0"></option>
+                      <option value="0.25"></option>
+                      <option value="0.5"></option>
+                      <option value="0.75"></option>
+                      <option value="1"></option>
+                    </datalist>
+                  </div>
+                  <div class="d-flex flex-grow-1 flex-stretch-row m-1 disabled" id="previewTotalBuy">
+                    <div id="orderTotalPreviewBuyLeft" class="d-flex align-items-center justify-content-end mx-2 fs18"></div>
+                    <span id="orderTotalPreviewBuyDelimiter" class="d-flex align-items-center mx-2 fs24">⇄</span>
+                    <div id="orderTotalPreviewBuyRight" class="d-flex align-items-center justify-content-start mx-2 fs18"></div>
                   </div>
                   <button id="submitBttnBuy" type="button" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
@@ -206,22 +215,31 @@
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxSell">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select bg1" id="rateFieldSell">
+                      <input type="text" class="form-control select bg1 order-form-input" id="rateFieldSell">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxSell">
                     <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select bg1" id="qtyFieldSell">
+                      <input type="text" class="form-control select bg1 order-form-input" id="qtyFieldSell">
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
-                  <div id="qtySliderSell" class="mini-slider mt-1 mx-2 disabled"></div>
-                  <div class="d-flex justify-content-center m-1 disabled" id="previewTotalSell">
-                    <div id="orderTotalPreviewSellLeft" class="flex-center text-center mx-2 fs18"></div>
-                    <span class="flex-center text-center mx-2 fs24">⇄</span>
-                    <div id="orderTotalPreviewSellRight" class="flex-center text-center mx-2 fs18"></div>
+                  <div id="qtySliderSell" class="d-flex flex-stretch-column mt-3 mb-2 mx-2 disabled">
+                    <input id="qtySliderSellInput" type="range" min="0" max="1" step="0.01" list="markers" class="qty-slider">
+                    <datalist id="markers">
+                      <option value="0"></option>
+                      <option value="0.25"></option>
+                      <option value="0.5"></option>
+                      <option value="0.75"></option>
+                      <option value="1"></option>
+                    </datalist>
+                  </div>
+                  <div class="d-flex flex-grow-1 flex-stretch-row m-1 disabled" id="previewTotalSell">
+                    <div id="orderTotalPreviewSellLeft" class="d-flex align-items-center justify-content-end mx-2 fs18"></div>
+                    <span id="orderTotalPreviewSellDelimiter" class="d-flex align-items-center mx-2 fs24">⇄</span>
+                    <div id="orderTotalPreviewSellRight" class="d-flex align-items-center justify-content-start mx-2 fs18"></div>
                   </div>
                   <button id="submitBttnSell" type="button" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center sellred-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>

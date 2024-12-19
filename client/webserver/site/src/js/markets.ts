@@ -1,4 +1,4 @@
-import Doc, { Animation, MiniSlider } from './doc'
+import Doc, { Animation } from './doc'
 import State from './state'
 import BasePage from './basepage'
 import OrderBook from './orderbook'
@@ -152,8 +152,6 @@ export default class MarketsPage extends BasePage {
   maxBuyLastReqID: number
   // maxSellLastReqID same as maxBuyLastReqID but for /maxsell requests.
   maxSellLastReqID: number
-  qtySliderBuy: MiniSlider
-  qtySliderSell: MiniSlider
   verifiedOrder: TradeForm
   market: CurrentMarket
   openAsset: SupportedAsset
@@ -251,9 +249,14 @@ export default class MarketsPage extends BasePage {
     bind(page.showTradingReputation, 'click', () => { toggleTradingReputation(true) })
     bind(page.hideTradingReputation, 'click', () => { toggleTradingReputation(false) })
 
-    this.qtySliderBuy = new MiniSlider(page.qtySliderBuy, (sliderValue: number) => {
+    bind(page.qtySliderBuyInput, 'input', () => {
       const page = this.page
       const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+
+      const sliderValue = this.parseNumber(page.qtySliderBuyInput.value)
+      if (sliderValue === null || isNaN(sliderValue) || sliderValue < 0) {
+        return
+      }
 
       // Assume max buy has already been fetched and rate has already been validated
       // and adjusted (don't let user touch lot/qty/slider fields otherwise), but
@@ -274,9 +277,14 @@ export default class MarketsPage extends BasePage {
 
       this.finalizeTotalBuy()
     })
-    this.qtySliderSell = new MiniSlider(page.qtySliderSell, (sliderValue: number) => {
+    bind(page.qtySliderSellInput, 'input', () => {
       const page = this.page
       const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+
+      const sliderValue = this.parseNumber(page.qtySliderSellInput.value)
+      if (sliderValue === null || isNaN(sliderValue) || sliderValue < 0) {
+        return
+      }
 
       // Assume max sell has already been fetched (don't let user touch lot/qty/slider
       // fields otherwise), but still handle the absence of maxBuy just in case.
@@ -718,13 +726,13 @@ export default class MarketsPage extends BasePage {
     this.chosenRateBuyAtom = 0
     page.rateFieldBuy.value = ''
     page.qtyFieldBuy.value = ''
-    this.qtySliderBuy.setValue(0)
+    page.qtySliderBuyInput.value = '0'
     page.orderTotalPreviewBuyLeft.textContent = ''
     page.orderTotalPreviewBuyRight.textContent = ''
     this.chosenRateSellAtom = 0
     page.rateFieldSell.value = ''
     page.qtyFieldSell.value = ''
-    this.qtySliderSell.setValue(0)
+    page.qtySliderSellInput.value = '0'
     page.orderTotalPreviewSellLeft.textContent = ''
     page.orderTotalPreviewSellRight.textContent = ''
     this.setPageElementEnabled(this.page.priceBoxBuy, false)
@@ -777,13 +785,12 @@ export default class MarketsPage extends BasePage {
       const adjQtyBuy = this.lotToQty(1)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
-      this.qtySliderBuy.setValue(0)
+      page.qtySliderBuyInput.value = '0'
       if (defaultRateAtom !== 0) {
         this.chosenRateBuyAtom = defaultRateAtom
         page.rateFieldBuy.value = String(defaultRateAtom / mkt.rateConversionFactor)
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, true)
-        this.setPageElementEnabled(this.page.qtySliderBuy, true)
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now
         this.finalizeTotalBuy()
@@ -791,7 +798,7 @@ export default class MarketsPage extends BasePage {
         this.setPageElementEnabled(this.page.priceBoxBuy, true)
         this.setPageElementEnabled(this.page.qtyBoxBuy, false)
         this.setPageElementEnabled(this.page.qtySliderBuy, false)
-        this.setPageElementEnabled(this.page.previewTotalBuy, false)
+        this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
         this.setOrderBttnBuyEnabled(false, 'choose your price')
       }
     }
@@ -801,7 +808,7 @@ export default class MarketsPage extends BasePage {
       const adjQtySell = this.lotToQty(1)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
-      this.qtySliderSell.setValue(0)
+      page.qtySliderSellInput.value = '0'
       if (defaultRateAtom !== 0) {
         this.chosenRateSellAtom = defaultRateAtom
         page.rateFieldSell.value = String(defaultRateAtom / mkt.rateConversionFactor)
@@ -819,7 +826,7 @@ export default class MarketsPage extends BasePage {
         this.setPageElementEnabled(this.page.priceBoxSell, true)
         this.setPageElementEnabled(this.page.qtyBoxSell, false)
         this.setPageElementEnabled(this.page.qtySliderSell, false)
-        this.setPageElementEnabled(this.page.previewTotalSell, false)
+        this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
         this.setOrderBttnSellEnabled(false, 'choose your price')
       }
     }
@@ -1272,9 +1279,11 @@ export default class MarketsPage extends BasePage {
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
         { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
       )
+      this.setPageElementEnabled(this.page.previewTotalBuy, true)
     } else {
       page.orderTotalPreviewBuyLeft.textContent = ''
       page.orderTotalPreviewBuyRight.textContent = ''
+      this.setPageElementEnabled(this.page.previewTotalBuy, false)
     }
   }
 
@@ -1298,9 +1307,11 @@ export default class MarketsPage extends BasePage {
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
         { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
       )
+      this.setPageElementEnabled(this.page.previewTotalSell, true)
     } else {
       page.orderTotalPreviewSellLeft.textContent = ''
       page.orderTotalPreviewSellRight.textContent = ''
+      this.setPageElementEnabled(this.page.previewTotalSell, false)
     }
   }
 
@@ -1334,11 +1345,11 @@ export default class MarketsPage extends BasePage {
 
     // preview total regardless of whether we can afford it
     this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
-    this.setPageElementEnabled(this.page.previewTotalBuy, true)
 
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLotAtom) {
+      this.setPageElementEnabled(this.page.qtySliderBuy, false)
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
@@ -1354,10 +1365,12 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
+      this.setPageElementEnabled(this.page.qtySliderBuy, false)
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
 
+    this.setPageElementEnabled(this.page.qtySliderBuy, true)
     this.setOrderBttnBuyEnabled(true)
   }
 
@@ -1375,6 +1388,7 @@ export default class MarketsPage extends BasePage {
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
+      this.setPageElementEnabled(this.page.qtySliderSell, false)
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
@@ -1390,10 +1404,12 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxSell || this.chosenQtySellAtom > maxSell.swap.value) {
+      this.setPageElementEnabled(this.page.qtySliderSell, false)
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
 
+    this.setPageElementEnabled(this.page.qtySliderSell, true)
     this.setOrderBttnSellEnabled(true)
   }
 
@@ -2072,12 +2088,6 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    // imitate order button click
-    // this.setOrderBttnBuyEnabled(false)
-    // setTimeout(() => {
-    //   this.setOrderBttnBuyEnabled(true)
-    // }, 300) // 300ms seems fluent
-
     const baseWallet = app().walletMap[market.base.id]
     const quoteWallet = app().walletMap[market.quote.id]
     if (!baseWallet) {
@@ -2114,12 +2124,6 @@ export default class MarketsPage extends BasePage {
     if (!this.validateOrderSell(order)) {
       return
     }
-
-    // imitate order button click
-    // this.setOrderBttnSellEnabled(false)
-    // setTimeout(() => {
-    //   this.setOrderBttnSellEnabled(true)
-    // }, 300) // 300ms seems fluent
 
     const baseWallet = app().walletMap[market.base.id]
     const quoteWallet = app().walletMap[market.quote.id]
@@ -2444,7 +2448,7 @@ export default class MarketsPage extends BasePage {
       this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.qtyBoxBuy, false)
       this.setPageElementEnabled(this.page.qtySliderBuy, false)
-      this.setPageElementEnabled(this.page.previewTotalBuy, false)
+      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your price')
       return
     }
@@ -2483,7 +2487,7 @@ export default class MarketsPage extends BasePage {
       this.chosenRateSellAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.qtyBoxSell, false)
       this.setPageElementEnabled(this.page.qtySliderSell, false)
-      this.setPageElementEnabled(this.page.previewTotalSell, false)
+      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
       this.setOrderBttnSellEnabled(false, 'choose your price')
       return
     }
@@ -2516,7 +2520,7 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
     const rateRaw = this.parseNumber(value)
-    if (!rateRaw || isNaN(rateRaw) || rateRaw <= 0) {
+    if (rateRaw === null || isNaN(rateRaw) || rateRaw <= 0) {
       return [false, false, 0]
     }
     const rateRawAtom = convertNumberToAtoms(rateRaw, this.market.rateConversionFactor)
@@ -2575,7 +2579,7 @@ export default class MarketsPage extends BasePage {
     }
     if (!inputValid) {
       this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
-      this.setPageElementEnabled(this.page.previewTotalBuy, false)
+      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your quantity')
       return
     }
@@ -2590,8 +2594,8 @@ export default class MarketsPage extends BasePage {
     // still handle absent maxBuy case gracefully.
     const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
     if (maxBuy) {
-      const sliderValue = (adjLots / maxBuy.swap.lots)
-      this.qtySliderBuy.setValue(sliderValue)
+      const sliderValue = Math.min(1, adjLots / maxBuy.swap.lots)
+      page.qtySliderBuyInput.value = String(sliderValue)
     }
 
     this.finalizeTotalBuy()
@@ -2632,8 +2636,8 @@ export default class MarketsPage extends BasePage {
     // case gracefully.
     const maxSell = this.market.maxSell
     if (maxSell) {
-      const sliderValue = (adjLots / maxSell.swap.lots)
-      this.qtySliderSell.setValue(sliderValue)
+      const sliderValue = Math.min(1, adjLots / maxSell.swap.lots)
+      page.qtySliderSellInput.value = String(sliderValue)
     }
 
     this.finalizeTotalSell()
@@ -2657,7 +2661,7 @@ export default class MarketsPage extends BasePage {
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
 
     const qtyRaw = this.parseNumber(value)
-    if (!qtyRaw || isNaN(qtyRaw) || qtyRaw < 0) {
+    if (qtyRaw === null || isNaN(qtyRaw) || qtyRaw <= 0) {
       return [false, false, 0, 0]
     }
     const qtyRawAtom = convertNumberToAtoms(qtyRaw, bui.conventional.conversionFactor)
