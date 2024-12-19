@@ -326,6 +326,7 @@ a[data-tmpl=walletCfgGuide] {
     overflow: visible;
 
     & > div[data-tmpl=track] {
+      height: 0.5rem;
       position: absolute;
       left: 0.375rem; // keep the ball inside of the color
       right: 0.375rem;
@@ -335,7 +336,7 @@ a[data-tmpl=walletCfgGuide] {
 
       & > div[data-tmpl=ball] {
         width: 0.75rem;
-        height: 0.75rem;
+        height: 1.25rem;
         top: 0.1rem;
         border-radius: 1rem;
         background-color: var(--text-grey);
