@@ -1026,11 +1026,6 @@ export default class MarketsPage extends BasePage {
   setOrderBttnBuyEnabled (isEnabled: boolean, disabledTooltipMsg?: string) {
     const btn = this.page.submitBttnBuy
     if (isEnabled) {
-      // TODO
-      // setTimeout(() => {
-      //   btn.removeAttribute('disabled')
-      //   btn.removeAttribute('title')
-      // }, 2000)
       btn.removeAttribute('disabled')
       btn.removeAttribute('title')
     } else {
@@ -2715,7 +2710,10 @@ export default class MarketsPage extends BasePage {
     const tbody = sell ? this.page.sellRows : this.page.buyRows
     Doc.empty(tbody)
     if (!bookSide || !bookSide.length) return
-    const orderBins = this.binOrdersByRateAndEpoch(bookSide)
+    let orderBins = this.binOrdersByRateAndEpoch(bookSide)
+    // trim order bins list to fit only 14 of them on the screen per book-side (otherwise
+    // we'd need to scroll the UI which is undesirable)
+    orderBins = orderBins.slice(0, 14)
     orderBins.forEach(bin => { tbody.appendChild(this.orderTableRow(bin)) })
   }
 
