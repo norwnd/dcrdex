@@ -65,6 +65,9 @@ const epochMatchSummaryRoute = 'epoch_match_summary'
 const animationLength = 500
 const maxUserOrdersShown = 10
 
+// orderBookSideMaxCapacity defines how many orders in the book side will be displayed
+const orderBookSideMaxCapacity = 14
+
 const buyBtnClass = 'buygreen-bg'
 const sellBtnClass = 'sellred-bg'
 
@@ -2721,7 +2724,7 @@ export default class MarketsPage extends BasePage {
     let orderBins = this.binOrdersByRateAndEpoch(bookSide)
     // trim order bins list to fit only 14 of them on the screen per book-side (otherwise
     // we'd need to scroll the UI which is undesirable)
-    orderBins = orderBins.slice(0, 14)
+    orderBins = orderBins.slice(0, orderBookSideMaxCapacity)
     orderBins.forEach(bin => { tbody.appendChild(this.orderTableRow(bin)) })
   }
 
@@ -2737,6 +2740,10 @@ export default class MarketsPage extends BasePage {
         row.manager.insertOrder(order)
       } else {
         row = this.orderTableRow([order])
+        // make sure we don't exceed book-side max capacity
+        if (tbody.childElementCount >= orderBookSideMaxCapacity) {
+          tbody.lastChild?.remove()
+        }
         tbody.insertBefore(row, tbody.firstChild)
       }
       return
@@ -2749,12 +2756,20 @@ export default class MarketsPage extends BasePage {
         return
       } else if (row.manager.compare(order) > 0) {
         const tr = this.orderTableRow([order])
+        // make sure we don't exceed book-side max capacity
+        if (tbody.childElementCount >= orderBookSideMaxCapacity) {
+          tbody.lastChild?.remove()
+        }
         tbody.insertBefore(tr, row)
         return
       }
       row = row.nextSibling as OrderRow
     }
     const tr = this.orderTableRow([order])
+    // make sure we don't exceed book-side max capacity
+    if (tbody.childElementCount >= orderBookSideMaxCapacity) {
+      tbody.lastChild?.remove()
+    }
     tbody.appendChild(tr)
   }
 
