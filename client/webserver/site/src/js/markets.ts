@@ -2425,12 +2425,14 @@ export default class MarketsPage extends BasePage {
   rateFieldBuyInputHandler () {
     const page = this.page
 
-    const rateFieldValue = this.page.rateFieldBuy.value
+    const rateFieldValue = this.page.rateFieldBuy.value?.trim()
 
-    // allow a '.' that's typical for decimals
-    if (rateFieldValue && rateFieldValue.length > 0 &&
-        rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
-        rateFieldValue.indexOf('.') === rateFieldValue.length - 1) {
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    if ((rateFieldValue && rateFieldValue.length > 0) &&
+        ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+        rateFieldValue.indexOf('.') === rateFieldValue.length - 1) ||
+        ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+        rateFieldValue.indexOf(',') === rateFieldValue.length - 1)))) {
       return
     }
 
@@ -2464,12 +2466,14 @@ export default class MarketsPage extends BasePage {
   rateFieldSellInputHandler () {
     const page = this.page
 
-    const rateFieldValue = this.page.rateFieldSell.value
+    const rateFieldValue = this.page.rateFieldSell.value?.trim()
 
-    // allow a '.' that's typical for decimals
-    if (rateFieldValue && rateFieldValue.length > 0 &&
-        rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
-        rateFieldValue.indexOf('.') === rateFieldValue.length - 1) {
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    if ((rateFieldValue && rateFieldValue.length > 0) &&
+        ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+          rateFieldValue.indexOf('.') === rateFieldValue.length - 1) ||
+        ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
+          rateFieldValue.indexOf(',') === rateFieldValue.length - 1)))) {
       return
     }
 
@@ -2558,12 +2562,14 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
-    const qtyFieldValue = page.qtyFieldBuy.value
+    const qtyFieldValue = page.qtyFieldBuy.value?.trim()
 
-    // allow a '.' that's typical for decimals
-    if (qtyFieldValue && qtyFieldValue.length > 0 &&
-        qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
-        qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) {
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    if ((qtyFieldValue && qtyFieldValue.length > 0) &&
+        ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+          qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) ||
+        ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+          qtyFieldValue.indexOf(',') === qtyFieldValue.length - 1)))) {
       return
     }
 
@@ -2600,12 +2606,14 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
-    const qtyFieldValue = page.qtyFieldSell.value
+    const qtyFieldValue = page.qtyFieldSell.value?.trim()
 
-    // allow a '.' that's typical for decimals
-    if (qtyFieldValue && qtyFieldValue.length > 0 &&
-        qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
-        qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) {
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    if ((qtyFieldValue && qtyFieldValue.length > 0) &&
+        ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+          qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) ||
+        ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
+          qtyFieldValue.indexOf(',') === qtyFieldValue.length - 1)))) {
       return
     }
 
