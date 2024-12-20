@@ -1344,12 +1344,12 @@ export default class MarketsPage extends BasePage {
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLotAtom) {
-      this.setPageElementEnabled(this.page.qtySliderBuy, false)
+      this.setPageElementEnabled(this.page.qtySliderBuy, false) // can't use slider
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
 
-    this.setOrderBttnBuyEnabled(false, 'validating max allowed buy ...')
+    this.setOrderBttnBuyEnabled(false, 'calculating how much we can buy ...')
 
     this.maxBuyLastReqID++
     const reqID = this.maxBuyLastReqID
@@ -1360,12 +1360,12 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
-      this.setPageElementEnabled(this.page.qtySliderBuy, false)
+      this.setPageElementEnabled(this.page.qtySliderBuy, true) // can use slider
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
 
-    this.setPageElementEnabled(this.page.qtySliderBuy, true)
+    this.setPageElementEnabled(this.page.qtySliderBuy, true) // can use slider
     this.setOrderBttnBuyEnabled(true)
   }
 
@@ -1383,12 +1383,12 @@ export default class MarketsPage extends BasePage {
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
-      this.setPageElementEnabled(this.page.qtySliderSell, false)
+      this.setPageElementEnabled(this.page.qtySliderSell, false) // can't use slider
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
 
-    this.setOrderBttnSellEnabled(false, 'validating max allowed sell ...')
+    this.setOrderBttnSellEnabled(false, 'calculating how much we can sell ...')
 
     this.maxSellLastReqID++
     const reqID = this.maxSellLastReqID
@@ -1399,12 +1399,12 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxSell || this.chosenQtySellAtom > maxSell.swap.value) {
-      this.setPageElementEnabled(this.page.qtySliderSell, false)
+      this.setPageElementEnabled(this.page.qtySliderSell, true) // can use slider
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
 
-    this.setPageElementEnabled(this.page.qtySliderSell, true)
+    this.setPageElementEnabled(this.page.qtySliderSell, true) // can use slider
     this.setOrderBttnSellEnabled(true)
   }
 
