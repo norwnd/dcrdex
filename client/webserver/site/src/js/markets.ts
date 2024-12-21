@@ -859,7 +859,6 @@ export default class MarketsPage extends BasePage {
         page.rateFieldSell.value = String(defaultRateAtom / mkt.rateConversionFactor)
         this.setPageElementEnabled(this.page.priceBoxSell, true)
         this.setPageElementEnabled(this.page.qtyBoxSell, true)
-        this.setPageElementEnabled(this.page.qtySliderSell, true)
         // we'll eventually need to fetch max estimate for slider to work, plus to
         // do validation on user inputs, might as well do it now
         this.finalizeTotalSell()
