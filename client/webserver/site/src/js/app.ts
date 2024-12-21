@@ -233,6 +233,36 @@ export default class Application {
       if (!page && page !== '') return
       this.loadPage(page, e.state.data, true)
     })
+    // disable mouse-wheel based events for number input forms because it's an
+    // undesirable foot gun,
+    // setting "passive" to "true" (in "bind" below) seemingly results into smoother
+    // page-scrolling, see this for details:
+    // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener#using_passive_listeners
+    const ignoreWheelOnNumberInputs = () => {
+      if (!document.activeElement) {
+        return
+      }
+      if (document.activeElement instanceof HTMLElement) {
+        if (document.activeElement.nodeName.toLowerCase() === 'input') {
+          // blurring this element is a hacky work-around that allows us to get rid of
+          // default behavior of "number input" field which treats mouse-scrolling as
+          // number increment/decrement, this solution isn't perfect because it results
+          // in focus loss (for the input element involved), a proper solution would be
+          // to implement some mechanism to re-focus input element involved once we are
+          // done scrolling - perhaps we might consider trying it out in the future
+          document.activeElement.blur()
+        }
+      }
+    }
+    bind(document, 'wheel', ignoreWheelOnNumberInputs, { passive: true })
+    bind(document, 'mousewheel', ignoreWheelOnNumberInputs, { passive: true })
+    bind(document, 'DOMMouseScroll', ignoreWheelOnNumberInputs, { passive: true })
+
+    bind(window, 'popstate', (e: PopStateEvent) => {
+      const page = e.state?.page
+      if (!page && page !== '') return
+      this.loadPage(page, e.state.data, true)
+    })
     // The main element is the interchangeable part of the page that doesn't
     // include the header. Main should define a data-handler attribute
     // associated with one of the available constructors.
