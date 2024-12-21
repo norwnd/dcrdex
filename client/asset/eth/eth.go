@@ -1662,11 +1662,14 @@ func (w *ETHWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uint6
 			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, dexeth.MinGasTipCap)
 	}
 
-	if w.gasFeeLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//if w.gasFeeLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
+	//}
 
 	g, err := w.initGasEstimate(int(ord.MaxSwapCount), ord.Version, ord.RedeemVersion, ord.RedeemAssetID)
 	if err != nil {
@@ -1710,11 +1713,14 @@ func (w *TokenWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uin
 			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, dexeth.MinGasTipCap)
 	}
 
-	if w.gasFeeLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//if w.gasFeeLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
+	//}
 
 	approvalStatus, err := w.approvalStatus(ord.Version)
 	if err != nil {
@@ -1773,11 +1779,14 @@ func (w *TokenWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uin
 // FundMultiOrder funds multiple orders in one shot. No special handling is
 // required for ETH as ETH does not over-lock during funding.
 func (w *ETHWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]asset.Coins, [][]dex.Bytes, uint64, error) {
-	if w.gasFeeLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//if w.gasFeeLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
+	//}
 
 	g, err := w.initGasEstimate(1, ord.Version, ord.RedeemVersion, ord.RedeemAssetID)
 	if err != nil {
@@ -1811,11 +1820,14 @@ func (w *ETHWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]ass
 // FundMultiOrder funds multiple orders in one shot. No special handling is
 // required for ETH as ETH does not over-lock during funding.
 func (w *TokenWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]asset.Coins, [][]dex.Bytes, uint64, error) {
-	if w.gasFeeLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//if w.gasFeeLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(w.assetID), ord.MaxFeeRate, w.gasFeeLimit())
+	//}
 
 	approvalStatus, err := w.approvalStatus(ord.Version)
 	if err != nil {

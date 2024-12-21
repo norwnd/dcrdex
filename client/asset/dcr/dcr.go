@@ -1868,12 +1868,15 @@ func (dcr *ExchangeWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes
 	if ord.FeeSuggestion > cfg.feeRateLimit {
 		return nil, nil, 0, fmt.Errorf("suggested fee > configured limit. %d > %d", ord.FeeSuggestion, cfg.feeRateLimit)
 	}
-	// Check wallet's fee rate limit against server's max fee rate
-	if cfg.feeRateLimit < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(BipID), ord.MaxFeeRate, cfg.feeRateLimit)
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallet's fee rate limit against server's max fee rate
+	//if cfg.feeRateLimit < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), ord.MaxFeeRate, cfg.feeRateLimit)
+	//}
 
 	customCfg := new(swapOptions)
 	err := config.Unmapify(ord.Options, customCfg)
@@ -2457,12 +2460,15 @@ func (dcr *ExchangeWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) 
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", mo.FeeSuggestion, mo.MaxFeeRate)
 	}
 
-	cfg := dcr.config()
-	if cfg.feeRateLimit < mo.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(BipID), mo.MaxFeeRate, cfg.feeRateLimit)
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//cfg := dcr.config()
+	//if cfg.feeRateLimit < mo.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), mo.MaxFeeRate, cfg.feeRateLimit)
+	//}
 
 	bal, err := dcr.Balance()
 	if err != nil {
