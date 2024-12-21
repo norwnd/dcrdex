@@ -534,40 +534,82 @@ export default class MarketsPage extends BasePage {
   /* setCurrMarketPrice updates the current market price on the stats displays
      and the orderbook display. */
   setCurrMarketPrice (): void {
+    const setDummyValues = (mkt: Market | null) => {
+      for (const s of this.stats) {
+        s.tmpl.change24.classList.remove('buycolor', 'sellcolor')
+        s.tmpl.change24.textContent = '-'
+        s.tmpl.volume24.textContent = '-'
+        s.tmpl.volume24Unit.textContent = 'USD'
+        s.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
+        s.tmpl.bisonPrice.textContent = '-'
+        s.tmpl.fiatPrice.textContent = '-'
+        if (mkt) {
+          const baseFiatRate = app().fiatRatesMap[mkt.baseid]
+          const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
+          s.tmpl.fiatPrice.textContent = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
+        }
+      }
+      Doc.hide(this.page.obUp)
+      Doc.hide(this.page.obDown)
+      this.page.obPrice.classList.remove('sellcolor', 'buycolor')
+      this.page.obPrice.textContent = '-'
+    }
+
     const selectedMkt = this.market
-    if (!selectedMkt) return
+    if (!selectedMkt) {
+      // not enough info to display current market price
+      setDummyValues(null)
+      return
+    }
     // Get an up-to-date Market.
     const xc = app().exchanges[selectedMkt.dex.host]
     const mkt = xc.markets[selectedMkt.cfg.name]
-    if (!mkt.spot) return
+    if (!mkt.spot) {
+      // not enough info to display current market price
+      setDummyValues(mkt)
+      return
+    }
+
+    const recentMatches = this.recentMatchesSorted('age', -1) // freshest first
+    if (recentMatches.length === 0) {
+      // not enough info to display current market price
+      setDummyValues(mkt)
+      return
+    }
+
+    const mostRecentMatchIsBuy = !recentMatches[0].sell
 
     for (const s of this.stats) {
       const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
       const baseFiatRate = app().fiatRatesMap[mkt.baseid]
       const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
-      if (baseFiatRate) {
-        s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
-        s.tmpl.volUnit.textContent = 'USD'
-      } else {
-        s.tmpl.volume.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
-        s.tmpl.volUnit.textContent = unit
-      }
 
+      s.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
+      s.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
       s.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
-      const sign = mkt.spot.change24 > 0 ? '+' : ''
-      s.tmpl.change.classList.remove('buycolor', 'sellcolor')
-      s.tmpl.change.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
-      s.tmpl.change.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 
-      const priceText = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
-      s.tmpl.fiatPrice.textContent = '(' + priceText + ')'
+      s.tmpl.fiatPrice.textContent = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
+
+      const sign = mkt.spot.change24 > 0 ? '+' : ''
+      s.tmpl.change24.classList.remove('buycolor', 'sellcolor')
+      s.tmpl.change24.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
+      s.tmpl.change24.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
+
+      if (baseFiatRate) {
+        s.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
+        s.tmpl.volume24Unit.textContent = 'USD'
+      } else {
+        s.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
+        s.tmpl.volume24Unit.textContent = unit
+      }
     }
 
-    this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
+    // updates order-book affiliated values
+    Doc.setVis(mostRecentMatchIsBuy, this.page.obUp)
+    Doc.setVis(!mostRecentMatchIsBuy, this.page.obDown)
     this.page.obPrice.classList.remove('sellcolor', 'buycolor')
-    this.page.obPrice.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
-    Doc.setVis(mkt.spot.change24 >= 0, this.page.obUp)
-    Doc.setVis(mkt.spot.change24 < 0, this.page.obDown)
+    this.page.obPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
+    this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
   }
 
   /* setMarketDetails updates the currency names on the stats displays. */
@@ -1680,7 +1722,8 @@ export default class MarketsPage extends BasePage {
       let rateStr: string
       if (ord.type === OrderUtil.Market) rateStr = this.marketOrderRateString(ord, market)
       else rateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      details.rate.textContent = mord.header.rate.textContent = rateStr
+      mord.header.rate.textContent = `@${rateStr}`
+      details.rate.textContent = rateStr
       header.baseSymbol.textContent = market.baseUnitInfo.conventional.unit
       details.type.textContent = OrderUtil.orderTypeText(ord.type)
       this.updateMetaOrder(mord)
@@ -1829,8 +1872,10 @@ export default class MarketsPage extends BasePage {
       if (order.rate > 0) this.book.add(order)
       this.addTableOrder(order)
     }
+
     this.recentMatches = mktBook.book.recentMatches ?? []
     this.refreshRecentMatchesTable()
+    this.setCurrMarketPrice() // needs an update whenever matches update
 
     this.market.bookLoaded = true
     this.updateTitle()
@@ -1897,6 +1942,7 @@ export default class MarketsPage extends BasePage {
   handleEpochMatchSummary (data: BookUpdate) {
     this.addRecentMatches(data.payload.matchSummaries)
     this.refreshRecentMatchesTable()
+    this.setCurrMarketPrice() // needs an update whenever matches update
   }
 
   /* handleCandleUpdateRoute is the handler for 'candle_update' notifications. */
@@ -2312,29 +2358,25 @@ export default class MarketsPage extends BasePage {
     }
   }
 
-  /*
-   * recentMatchesSortCompare returns sort compare function according to the active
-   * sort key and direction.
-   */
-  recentMatchesSortCompare () {
-    switch (this.recentMatchesSortKey) {
+  recentMatchesSorted (sortBy: string, direction: number): RecentMatch[] {
+    switch (sortBy) {
       case 'rate':
-        return (a: RecentMatch, b: RecentMatch) => this.recentMatchesSortDirection * (a.rate - b.rate)
+        return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.rate - b.rate))
       case 'qty':
-        return (a: RecentMatch, b: RecentMatch) => this.recentMatchesSortDirection * (a.qty - b.qty)
+        return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.qty - b.qty))
       case 'age':
-        return (a: RecentMatch, b:RecentMatch) => this.recentMatchesSortDirection * (a.stamp - b.stamp)
+        return this.recentMatches.sort((a: RecentMatch, b:RecentMatch) => direction * (a.stamp - b.stamp))
+      default:
+        return []
     }
   }
 
   refreshRecentMatchesTable () {
     const page = this.page
-    const recentMatches = this.recentMatches
     Doc.empty(page.recentMatchesLiveList)
-    if (!recentMatches) return
-    const compare = this.recentMatchesSortCompare()
-    recentMatches.sort(compare)
-    for (const match of recentMatches) {
+    const recentMatchesSorted = this.recentMatchesSorted(this.recentMatchesSortKey, this.recentMatchesSortDirection)
+    if (!recentMatchesSorted) return
+    for (const match of recentMatchesSorted) {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)

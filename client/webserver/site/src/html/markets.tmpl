@@ -17,7 +17,7 @@
 
       {{- /* MARKET STATS - SMALL SCREENS */ -}}
       <div id="marketStats" class="market-stats align-items-center justify-content-center flex-wrap border-bottom">
-        <div class="flex-center p-2 pointer hoverbg" data-tmpl="marketSelect">
+        <div class="flex-center p-1 pointer hoverbg" data-tmpl="marketSelect">
           <div class="flex-center">
             <img class="small-icon" data-tmpl="baseIcon">
             <img class="small-icon ms-1" data-tmpl="quoteIcon">
@@ -27,25 +27,25 @@
           </div>
         </div>
   
-        <div class="d-flex flex-column">
-          <span class="fs15 grey">[[[:title:price]]]</span>
-          <div class="flex-center me-2">
-            <span data-tmpl="bisonPrice"></span>
-            <div data-tmpl="change" class="ms-2"></div>
-            <span id="fiatPrice" data-tmpl="fiatPrice" class="ms-2"></span>
-          </div>
+        <div class="d-flex flex-center p-2">
+          <span data-tmpl="bisonPrice" class="fs20"></span>
         </div>
 
-        <div class="statgrid">
-          <span class="fs15 grey border-bottom border-start ps-2 pe-4">[[[volume_24]]]</span>
-          <span class="fs15 grey border-bottom ps-2 pe-4">[[[High]]]</span>
-          <span class="fs15 grey border-bottom ps-2">[[[Low]]]</span>
-          <div class="d-flex align-items-end border-start ps-2 pe-4">
-            <div data-tmpl="volume">-</div>
-            <div data-tmpl="volUnit" class="fs14 grey ms-1">USD</div>
+        <div class="statgrid mx-1">
+          <span class="fs15 grey border-bottom border-start px-2">[[[Fiat Price]]]</span>
+          <span class="fs15 grey border-bottom px-2">[[[Change24]]]</span>
+          <span class="fs15 grey border-bottom px-2">[[[Volume24]]]</span>
+          <span class="fs15 grey border-bottom px-2">[[[High24]]]</span>
+          <span class="fs15 grey border-bottom ps-2">[[[Low24]]]</span>
+
+          <div class="border-start px-2 fiat-price" data-tmpl="fiatPrice">-</div>
+          <div class="px-2" data-tmpl="change24">-</div>
+          <div class="d-flex justify-content-start align-items-center px-2">
+            <div data-tmpl="volume24">-</div>
+            <div data-tmpl="volume24Unit" class="fs14 grey ms-1">USD</div>
           </div>
-          <div class="ps-2 pe-4" data-tmpl="high">-</div>
-          <div class="ps-2" data-tmpl="low">-</div>
+          <div class="px-2" data-tmpl="high">-</div>
+          <div class="px-2" data-tmpl="low">-</div>
         </div>
       </div>
 
@@ -91,9 +91,9 @@
 
               <div class="d-flex justify-content-end py-1 px-2 fs16">
                 <div class="flex-center">
-                  <span id="obUp" class="ico-arrowup buycolor fs13"></span>
-                  <span id="obDown" class="ico-arrowdown sellcolor fs13 d-hide"></span>
-                  <span id="obPrice" class="buycolor ms-1"></span>
+                  <span id="obUp" class="ico-arrowup buycolor fs14"></span>
+                  <span id="obDown" class="ico-arrowdown sellcolor fs14 d-hide"></span>
+                  <span id="obPrice" class="buycolor ms-1 fs16"></span>
                 </div>
               </div>
 
@@ -102,16 +102,14 @@
                 <table class="compact row-hover buys lh1 fs16">
                   <tbody id="buyRows">
                     {{- /* This row is used by the app as a template. */ -}}
-                    <tr id="orderRowTmpl" class="px-2 w-100">
-                      <td class="pe-2 w-100">
-                        <div class="d-flex justify-content-start align-items-center">
-                          <div data-tmpl="qty">-</div>
-                          <small class="numorders lh1 rounded3 text-center ms-2" data-tmpl="numOrders">-</small>
-                        </div>
+                    <tr id="orderRowTmpl" class="d-flex justify-content-between px-2 w-100">
+                      <td class="d-flex justify-content-start align-items-center pe-2 w-100">
+                        <div data-tmpl="qty">-</div>
+                        <small class="numorders lh1 rounded3 text-center ms-2" data-tmpl="numOrders">-</small>
                       </td>
-                      <td class="text-end text-nowrap ps-2">
-                        <span class="text-end ico-check fs14 pe-1 d-hide" data-tmpl="epoch"></span>
-                        <span class="text-end ico-own-book-order fs14 pe-1 d-hide" data-tmpl="ownBookOrder"></span>
+                      <td class="d-flex justify-content-end align-items-center text-nowrap ps-2">
+                        <span class="ico-check fs10 pe-1 d-hide" data-tmpl="epoch"></span>
+                        <span class="ico-own-book-order fs10 pe-1 d-hide" data-tmpl="ownBookOrder"></span>
                         <span data-tmpl="rate">-</span>
                       </td>
                     </tr>
@@ -397,7 +395,6 @@
                     <span data-tmpl="side" class="fs14"></span>
                     <span data-tmpl="qty" class="ms-1 fs15"></span>
                     <span data-tmpl="baseSymbol" class="ms-1 grey fs15"></span>
-                    <span class="ms-1">@</span>
                     <span data-tmpl="rate" class="ms-1 fs15"></span>
                     <span class="flex-grow-1 d-flex align-items-center justify-content-end">
                       <span data-tmpl="status" class="fs15"></span>
