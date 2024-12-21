@@ -542,11 +542,12 @@ export default class MarketsPage extends BasePage {
         s.tmpl.volume24Unit.textContent = 'USD'
         s.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
         s.tmpl.bisonPrice.textContent = '-'
-        s.tmpl.fiatPrice.textContent = '-'
+        s.tmpl.fiatPrice.textContent = '(-)'
         if (mkt) {
           const baseFiatRate = app().fiatRatesMap[mkt.baseid]
           const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
-          s.tmpl.fiatPrice.textContent = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
+          const fiatPrice = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : '-'
+          s.tmpl.fiatPrice.textContent = `(~${fiatPrice})`
         }
       }
       Doc.hide(this.page.obUp)
@@ -588,7 +589,8 @@ export default class MarketsPage extends BasePage {
       s.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
       s.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
 
-      s.tmpl.fiatPrice.textContent = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : ' ? '
+      const fiatPrice = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : '-'
+      s.tmpl.fiatPrice.textContent = `(~${fiatPrice})`
 
       const sign = mkt.spot.change24 > 0 ? '+' : ''
       s.tmpl.change24.classList.remove('buycolor', 'sellcolor')

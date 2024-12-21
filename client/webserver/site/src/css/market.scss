@@ -471,12 +471,9 @@ div[data-handler=markets] {
 }
 
 .market-stats {
-  display: flex;
-  margin: 0 5px;
-
   .statgrid {
     display: grid;
-    grid-template-columns: auto auto auto auto auto;
+    grid-template-columns: auto auto auto auto;
   }
 }
 
