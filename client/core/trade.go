@@ -2323,8 +2323,6 @@ func (c *Core) swapMatches(t *trackedTrade, matches []*matchTracker) error {
 func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *errorSet) {
 	// Prepare the asset.Contracts.
 	contracts := make([]*asset.Contract, len(matches))
-	// These matches may have different fee rates, matched in different epochs.
-	var highestFeeRate uint64
 	for i, match := range matches {
 		value := match.Quantity
 		if !match.trade.Sell {
@@ -2344,10 +2342,6 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 			Value:      value,
 			SecretHash: match.MetaData.Proof.SecretHash,
 			LockTime:   uint64(lockTime),
-		}
-
-		if match.FeeRateSwap > highestFeeRate {
-			highestFeeRate = match.FeeRateSwap
 		}
 	}
 
@@ -2396,25 +2390,16 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 		return
 	}
 
-	// Use a higher swap fee rate if a local estimate is higher than the
-	// prescribed rate, but not higher than the funded (max) rate.
-	if highestFeeRate < t.metaData.MaxFeeRate {
-		freshRate := fromWallet.feeRate()
-		if freshRate == 0 { // either not a FeeRater, or FeeRate failed
-			freshRate = t.dc.bestBookFeeSuggestion(fromWallet.AssetID)
-		}
-		if freshRate > t.metaData.MaxFeeRate {
-			freshRate = t.metaData.MaxFeeRate
-		}
-		if highestFeeRate < freshRate {
-			c.log.Infof("Prescribed %v fee rate %v looks low, using %v",
-				fromWallet.Symbol, highestFeeRate, freshRate)
-			highestFeeRate = freshRate
-		}
+	// calculate swap fee rate, cap it if necessary
+	swapFeeRate := fromWallet.feeRate()
+	if swapFeeRate == 0 { // either not a FeeRater, or FeeRate failed
+		swapFeeRate = t.dc.bestBookFeeSuggestion(fromWallet.AssetID)
 	}
-
+	if swapFeeRate > t.metaData.MaxFeeRate {
+		swapFeeRate = t.metaData.MaxFeeRate
+	}
 	// Ensure swap is not sent with a zero fee rate.
-	if highestFeeRate == 0 {
+	if swapFeeRate == 0 {
 		errs.add("swap cannot proceed with a zero fee rate")
 		return
 	}
@@ -2428,7 +2413,7 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 		Version:    t.metaData.FromVersion,
 		Inputs:     inputs,
 		Contracts:  contracts,
-		FeeRate:    highestFeeRate,
+		FeeRate:    swapFeeRate,
 		LockChange: lockChange,
 		Options:    t.options,
 	}
@@ -2957,14 +2942,18 @@ func (c *Core) sendRedeemAsync(t *trackedTrade, match *matchTracker, coinID, sec
 	}()
 }
 
+// redeemFee calculates fee rate that will be used for redeem transactions
 func (t *trackedTrade) redeemFee() uint64 {
 	// Try not to use (*Core).feeSuggestion here, since it can incur an RPC
 	// request to the server. t.redeemFeeSuggestion is updated every tick and
 	// uses a rate directly from our wallet, if available. Only go looking for
 	// one if we don't have one cached.
 	var feeSuggestion uint64
-	if _, is := t.accountRedeemer(); is {
-		feeSuggestion = t.metaData.RedeemMaxFeeRate
+	if feeRater, is := t.wallets.toWallet.Wallet.(asset.FeeRater); is {
+		feeSuggestion = feeRater.FeeRate()
+		if feeSuggestion > t.metaData.RedeemMaxFeeRate { // cap it if necessary
+			feeSuggestion = t.metaData.RedeemMaxFeeRate
+		}
 	} else {
 		feeSuggestion = t.redeemFeeSuggestion.get()
 	}

@@ -50,9 +50,9 @@ const (
 
 	// The default fee is passed to the user as part of the asset.WalletInfo
 	// structure.
-	defaultFee = 100
+	defaultFee = 5
 	// defaultFeeRateLimit is the default value for the feeratelimit.
-	defaultFeeRateLimit = 1400
+	defaultFeeRateLimit = 5
 	// defaultRedeemConfTarget is the default redeem transaction confirmation
 	// target in blocks used by estimatesmartfee to get the optimal fee for a
 	// redeem transaction.
@@ -1879,10 +1879,16 @@ func (btc *baseWallet) feeRate(confTarget uint64) (feeRate uint64, err error) {
 		btc.log.Meter("feeRate.rate.fail", time.Hour).Errorf("Failed to get fee rate from external API: %v", err)
 		return 0, nil
 	}
-	if feeRate <= 0 || feeRate > btc.feeRateLimit() { // but fetcher shouldn't return <= 0 without error
-		return 0, fmt.Errorf("external fee rate %v exceeds configured limit", feeRate)
+	if feeRate <= 0 { // but fetcher shouldn't return <= 0 without error
+		return 0, fmt.Errorf("external fee rate value %v doesn't make sense", feeRate)
 	}
+
 	btc.log.Tracef("Retrieved fee rate from external API: %v", feeRate)
+	if feeRate > btc.feeRateLimit() {
+		btc.log.Tracef("capping fee rate %v retrieved from external API at user-configured limit of %v", feeRate, btc.feeRateLimit())
+		feeRate = btc.feeRateLimit()
+	}
+
 	return feeRate, nil
 }
 
@@ -1964,7 +1970,7 @@ func (btc *baseWallet) feeRateWithFallback(feeSuggestion uint64) uint64 {
 			feeSuggestion)
 		return feeSuggestion
 	}
-	btc.log.Warnf("Unable to get optimal fee rate, using fallback of %d", btc.fallbackFeeRate)
+	btc.log.Warnf("Unable to get optimal fee rate, using fallback of %d", btc.fallbackFeeRate())
 	return btc.fallbackFeeRate()
 }
 
@@ -2422,7 +2428,7 @@ func (btc *baseWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, ui
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", ord.FeeSuggestion, ord.MaxFeeRate)
 	}
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//// Check wallets fee rate limit against server's max fee rate
 	//if btc.feeRateLimit() < ord.MaxFeeRate {
@@ -5505,7 +5511,7 @@ func (btc *baseWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) ([]a
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", mo.FeeSuggestion, mo.MaxFeeRate)
 	}
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//// Check wallets fee rate limit against server's max fee rate
 	//if btc.feeRateLimit() < mo.MaxFeeRate {

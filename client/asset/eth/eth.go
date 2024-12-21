@@ -79,6 +79,9 @@ const (
 	defaultGasFeeLimit  = 200 // gwei
 	defaultSendGasLimit = 21_000
 
+	// gweiConversionFactor is used to convert between gwei and wei
+	gweiConversionFactor = 1_000_000_000
+
 	walletTypeGeth  = "geth"
 	walletTypeRPC   = "rpc"
 	walletTypeToken = "token"
@@ -132,7 +135,7 @@ var (
 		{
 			Key:         "gasfeelimit",
 			DisplayName: "Gas Fee Limit",
-			Description: "This is the highest network fee rate you are willing to " +
+			Description: "This is the highest network fee rate (gas price) you are willing to " +
 				"pay on swap transactions. If gasfeelimit is lower than a market's " +
 				"maxfeerate, you will not be able to trade on that market with this " +
 				"wallet.  Units: gwei / gas",
@@ -453,6 +456,7 @@ type baseWallet struct {
 	settingsMtx sync.RWMutex
 	settings    map[string]string
 
+	// gasFeeLimitV is user-configured max allowed gas price value (in gwei)
 	gasFeeLimitV uint64 // atomic
 
 	walletsMtx sync.RWMutex
@@ -1663,7 +1667,7 @@ func (w *ETHWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uint6
 	}
 
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//if w.gasFeeLimit() < ord.MaxFeeRate {
 	//	return nil, nil, 0, fmt.Errorf(
@@ -1714,7 +1718,7 @@ func (w *TokenWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uin
 	}
 
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//if w.gasFeeLimit() < ord.MaxFeeRate {
 	//	return nil, nil, 0, fmt.Errorf(
@@ -1780,7 +1784,7 @@ func (w *TokenWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, uin
 // required for ETH as ETH does not over-lock during funding.
 func (w *ETHWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]asset.Coins, [][]dex.Bytes, uint64, error) {
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//if w.gasFeeLimit() < ord.MaxFeeRate {
 	//	return nil, nil, 0, fmt.Errorf(
@@ -1821,7 +1825,7 @@ func (w *ETHWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]ass
 // required for ETH as ETH does not over-lock during funding.
 func (w *TokenWallet) FundMultiOrder(ord *asset.MultiOrder, maxLock uint64) ([]asset.Coins, [][]dex.Bytes, uint64, error) {
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//if w.gasFeeLimit() < ord.MaxFeeRate {
 	//	return nil, nil, 0, fmt.Errorf(
@@ -3645,9 +3649,9 @@ func (w *baseWallet) currentNetworkFees(ctx context.Context) (baseRate, tipRate 
 	return c.baseRate, c.tipRate, nil
 }
 
-// currentFeeRate gives the current rate of transactions being mined. Only
-// use this to provide informative realistic estimates of actual fee *use*. For
-// transaction planning, use recommendedMaxFeeRateGwei.
+// currentFeeRate gives the current rate of transactions being mined. Only use
+// this to provide informative realistic estimates of the actual fees that will
+// be charged. For transaction planning, use recommendedMaxFeeRateGwei.
 func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error) {
 	b, t, err := w.currentNetworkFees(ctx)
 	if err != nil {
@@ -3657,17 +3661,21 @@ func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error)
 }
 
 // recommendedMaxFeeRate finds a recommended max fee rate using the somewhat
-// standard baseRate * 2 + tip formula.
+// standard baseRate * 2 + tip formula, capping it at user-configured value.
 func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, err error) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error getting net fee state: %v", err)
 	}
 
-	return new(big.Int).Add(
-		tip,
-		new(big.Int).Mul(base, big.NewInt(2)),
-	), tip, nil
+	userConfiguredMaxTotal := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
+	recommendedTotal := new(big.Int).Add(tip, new(big.Int).Mul(base, big.NewInt(2)))
+	if recommendedTotal.Cmp(userConfiguredMaxTotal) > 0 {
+		// make sure we don't blindly follow 3rd-party supplied estimates by capping it
+		// at user-configured value
+		return userConfiguredMaxTotal, tip, nil
+	}
+	return recommendedTotal, tip, nil
 }
 
 // recommendedMaxFeeRateGwei gets the recommended max fee rate and converts it
