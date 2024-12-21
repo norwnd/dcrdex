@@ -1871,7 +1871,7 @@ func (dcr *ExchangeWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes
 		return nil, nil, 0, fmt.Errorf("suggested fee > configured limit. %d > %d", ord.FeeSuggestion, cfg.feeRateLimit)
 	}
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//// Check wallet's fee rate limit against server's max fee rate
 	//if cfg.feeRateLimit < ord.MaxFeeRate {
@@ -2463,7 +2463,7 @@ func (dcr *ExchangeWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) 
 	}
 
 	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
-	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// on client side (server doesn't enforce/check this really), we know better than whatever
 	// server suggests.
 	//cfg := dcr.config()
 	//if cfg.feeRateLimit < mo.MaxFeeRate {
