@@ -2421,12 +2421,15 @@ func (btc *baseWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, ui
 	if ord.FeeSuggestion > ord.MaxFeeRate {
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", ord.FeeSuggestion, ord.MaxFeeRate)
 	}
-	// Check wallets fee rate limit against server's max fee rate
-	if btc.feeRateLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configued fee rate limit %v",
-			dex.BipIDSymbol(BipID), ord.MaxFeeRate, btc.feeRateLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallets fee rate limit against server's max fee rate
+	//if btc.feeRateLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configued fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), ord.MaxFeeRate, btc.feeRateLimit())
+	//}
 
 	customCfg := new(swapOptions)
 	err := config.Unmapify(ord.Options, customCfg)
@@ -5501,12 +5504,15 @@ func (btc *baseWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) ([]a
 	if mo.FeeSuggestion > mo.MaxFeeRate {
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", mo.FeeSuggestion, mo.MaxFeeRate)
 	}
-	// Check wallets fee rate limit against server's max fee rate
-	if btc.feeRateLimit() < mo.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configued fee rate limit %v",
-			dex.BipIDSymbol(BipID), mo.MaxFeeRate, btc.feeRateLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// (on client side, server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallets fee rate limit against server's max fee rate
+	//if btc.feeRateLimit() < mo.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configued fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), mo.MaxFeeRate, btc.feeRateLimit())
+	//}
 
 	bal, err := btc.Balance()
 	if err != nil {
