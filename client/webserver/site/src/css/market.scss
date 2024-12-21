@@ -478,10 +478,6 @@ div[data-handler=markets] {
     display: grid;
     grid-template-columns: auto auto auto auto auto;
   }
-
-  .fiat-price {
-    color: var(--text-warning);
-  }
 }
 
 #headerSpace .market-stats {
