@@ -1541,6 +1541,10 @@ type Core struct {
 
 	requestedActionMtx sync.RWMutex
 	requestedActions   map[string]*asset.ActionRequiredNote
+
+	// previouslyFailedTradeAttempt is used to track last trade user tried to place but
+	// failed to pass all validation rules
+	previouslyFailedTradeAttempt atomic.Pointer[tradeAttempt]
 }
 
 // New is the constructor for a new Core.
@@ -3124,7 +3128,7 @@ func (c *Core) isActiveBondAsset(assetID uint32, includeLive bool) bool {
 		for tknAssetID := range ra.Tokens {
 			assetIDs[tknAssetID] = true
 		}
-	} else { // it's a token and we only care about the parent, not sibling tokens
+	} else {                                             // it's a token and we only care about the parent, not sibling tokens
 		if tkn := asset.TokenInfo(assetID); tkn != nil { // it should be
 			assetIDs[tkn.ParentID] = true
 		}
@@ -6158,29 +6162,61 @@ func (c *Core) createTradeRequest(wallets *walletSet, coins asset.Coins, redeemS
 	}, nil
 }
 
-func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection) error {
+// tradeAttempt represents user-initiated trade attempt.
+type tradeAttempt struct {
+	market string
+	rate   uint64
+}
+
+func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection) (err error) {
 	if rate == 0 {
 		return newError(orderParamsErr, "zero rate is invalid")
 	}
 
+	// code below implements a warning for the caller for cases where there is quite large
+	// chance he is about to do something stupid; this is indeed a warning and not an
+	// error because caller can retry same trade-request 2nd time to succeed
+
+	defer func() {
+		if err != nil {
+			// remember this failed attempt to do future trade-requests validation properly
+			c.previouslyFailedTradeAttempt.Store(&tradeAttempt{market: market, rate: rate})
+			return
+		}
+		c.previouslyFailedTradeAttempt.Store(nil) // resetting to default
+		return
+	}()
+
+	prevTradeAttempt := c.previouslyFailedTradeAttempt.Load()
+	if prevTradeAttempt != nil &&
+		market == prevTradeAttempt.market && rate == prevTradeAttempt.rate {
+		// the caller repeated the same trade-request for the 2nd time now, assume it means he
+		// understood the warning and don't perform any strict rate validation (as is done below)
+		// this time around
+		return nil
+	}
+
 	// to prevent accidental placement of orders with unreasonable rates we'll
 	// limit ourselves to only those orders that aren't immediately matched
-	// (for now)
 	book := dc.bookie(market)
 	bisonOrders, found, err := book.BestNOrders(1, false)
 	if err != nil {
-		return newError(walletErr, fmt.Sprintf("couldn't fetch best buy order in Bison book: %v", err))
+		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
+			"fetch best buy order in Bison book: %v", err))
 	}
 	if sell && found && rate <= bisonOrders[0].Rate {
-		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+		return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+			"trying to place trade with rate %d "+
 			"that would immediately match a buy order in Bison book", rate))
 	}
 	bisonOrders, found, err = book.BestNOrders(1, true)
 	if err != nil {
-		return newError(walletErr, fmt.Sprintf("couldn't fetch best sell order in Bison book: %v", err))
+		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
+			"fetch best sell order in Bison book: %v", err))
 	}
 	if !sell && found && rate >= bisonOrders[0].Rate {
-		return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+		return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+			"trying to place trade with rate %d "+
 			"that would immediately match a sell order in Bison book", rate))
 	}
 
@@ -6193,18 +6229,21 @@ func validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection)
 	bisonRate, err := dc.midGapMkt(market)
 	if err == nil {
 		if math.Abs(float64(rate)-float64(bisonRate)) > (0.25 * float64(bisonRate)) {
-			return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+				"trying to place trade with rate %d "+
 				"that's diverging from Bison rate %d for more than 25 percent", rate, bisonRate))
 		}
 		// additionally, prevent placing limit-orders that might result into slippage of 1% or more
 		if sell {
 			if float64(rate) < (float64(bisonRate) - 0.01*float64(bisonRate)) {
-				return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+				return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+					"trying to place trade with rate %d "+
 					"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
 			}
 		} else {
 			if float64(rate) > (float64(bisonRate) + 0.01*float64(bisonRate)) {
-				return newError(orderParamsErr, fmt.Sprintf("trying to place trade with rate %d "+
+				return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+					"trying to place trade with rate %d "+
 					"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
 			}
 		}
@@ -6232,7 +6271,7 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 		if qty == 0 {
 			return nil, newError(orderParamsErr, "zero quantity order not allowed")
 		}
-		if err := validateTradeRate(form.Sell, rate, mktID, dc); err != nil {
+		if err := c.validateTradeRate(form.Sell, rate, mktID, dc); err != nil {
 			return nil, err
 		}
 		if minRate := dc.minimumMarketRate(assetConfigs.quoteAsset, mktConf.LotSize); rate < minRate {
@@ -6358,7 +6397,7 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 		if trade.Qty == 0 {
 			return nil, newError(orderParamsErr, "zero quantity is invalid")
 		}
-		if err := validateTradeRate(form.Sell, trade.Rate, mktID, dc); err != nil {
+		if err := c.validateTradeRate(form.Sell, trade.Rate, mktID, dc); err != nil {
 			return nil, err
 		}
 	}
