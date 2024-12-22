@@ -1143,7 +1143,7 @@ export class RunningMarketMakerDisplay {
       const baseUI = app().assets[this.mkt.baseID].unitInfo
       const quoteUI = app().assets[this.mkt.quoteID].unitInfo
       rowTmpl.priority.textContent = String(priority)
-      rowTmpl.rate.textContent = Doc.formatRateFullPrecision(placement.rate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.rate.textContent = Doc.formatRateAtomFullPrecision(placement.rate, baseUI, quoteUI, this.mkt.rateStep)
       rowTmpl.lots.textContent = String(placement.lots)
       rowTmpl.standingLots.textContent = String(placement.standingLots)
       rowTmpl.orderedLots.textContent = String(placement.orderedLots)
@@ -1153,7 +1153,7 @@ export class RunningMarketMakerDisplay {
         rowTmpl.orderedLots.classList.add('text-warning')
       }
       Doc.setVis(placement.counterTradeRate > 0, rowTmpl.counterTradeRate)
-      rowTmpl.counterTradeRate.textContent = Doc.formatRateFullPrecision(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.counterTradeRate.textContent = Doc.formatRateAtomFullPrecision(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep)
       for (const assetID of assetIDs) {
         const asset = app().assets[assetID]
         const unitInfo = asset.unitInfo

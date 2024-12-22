@@ -6,7 +6,7 @@ declare global {
     dumpLogger: (loggerID: string) => void
     mmstatus: () => Promise<MarketMakingStatus>
     testFormatFourSigFigs: () => void
-    testFormatRateFullPrecision: () => void
+    testFormatRateAtomFullPrecision: () => void
     user: () => User
     cexBook: () => Promise<void>
     mmStatus: () => MarketMakingStatus
@@ -158,7 +158,7 @@ export interface Spot {
   stamp: number
   baseID: number
   quoteID: number
-  rate: number
+  rate: number // in atoms
   bookVolume: number // Unused?
   change24: number
   vol24: number

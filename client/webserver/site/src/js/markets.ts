@@ -530,7 +530,9 @@ export default class MarketsPage extends BasePage {
   /* setCurrMarketPrice updates the current market price on the stats displays
      and the orderbook display. */
   setCurrMarketPrice (): void {
-    const setDummyValues = (mkt: Market | null) => {
+    const selectedMkt = this.market
+
+    const setDummyValues = () => {
       this.stats.tmpl.change24.classList.remove('buycolor', 'sellcolor')
       this.stats.tmpl.change24.textContent = '-'
       this.stats.tmpl.volume24.textContent = '-'
@@ -539,10 +541,20 @@ export default class MarketsPage extends BasePage {
       this.stats.tmpl.bisonPrice.textContent = '-'
       this.stats.tmpl.fiatPrice.textContent = '(-)'
       if (mkt) {
-        const baseFiatRate = app().fiatRatesMap[mkt.baseid]
-        const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
-        const fiatPriceAvailable = baseFiatRate && quoteFiatRate
-        this.stats.tmpl.fiatPrice.textContent = fiatPriceAvailable ? `(~${Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate)})` : '(-)'
+        const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
+        const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
+        let fiatPriceFormatted = '(-)'
+        if (baseFiatRate && quoteFiatRate) {
+          const fiatPrice = baseFiatRate / quoteFiatRate
+          fiatPriceFormatted = Doc.formatRateFullPrecision(
+            fiatPrice,
+            selectedMkt.baseUnitInfo,
+            selectedMkt.quoteUnitInfo,
+            selectedMkt.cfg.ratestep
+          )
+          fiatPriceFormatted = `(~${fiatPriceFormatted})`
+        }
+        this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
       }
       Doc.hide(this.page.obUp)
       Doc.hide(this.page.obDown)
@@ -550,10 +562,9 @@ export default class MarketsPage extends BasePage {
       this.page.obPrice.textContent = '-'
     }
 
-    const selectedMkt = this.market
     if (!selectedMkt) {
       // not enough info to display current market price
-      setDummyValues(null)
+      setDummyValues()
       return
     }
     // Get an up-to-date Market.
@@ -561,35 +572,49 @@ export default class MarketsPage extends BasePage {
     const mkt = xc.markets[selectedMkt.cfg.name]
     if (!mkt.spot) {
       // not enough info to display current market price
-      setDummyValues(mkt)
+      setDummyValues()
       return
     }
 
     const recentMatches = this.recentMatchesSorted('age', -1) // freshest first
     if (recentMatches.length === 0) {
       // not enough info to display current market price
-      setDummyValues(mkt)
+      setDummyValues()
       return
     }
 
     const mostRecentMatchIsBuy = !recentMatches[0].sell
 
-    const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
-    const baseFiatRate = app().fiatRatesMap[mkt.baseid]
-    const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
-
     this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
     this.stats.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.stats.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
+    this.stats.tmpl.bisonPrice.textContent = Doc.formatRateAtomFullPrecision(
+      mkt.spot.rate,
+      selectedMkt.baseUnitInfo,
+      selectedMkt.quoteUnitInfo,
+      selectedMkt.cfg.ratestep
+    )
 
-    const fiatPriceAvailable = baseFiatRate && quoteFiatRate
-    this.stats.tmpl.fiatPrice.textContent = fiatPriceAvailable ? `(~${Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate)})` : '(-)'
+    const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
+    const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
+    let fiatPriceFormatted = '(-)'
+    if (baseFiatRate && quoteFiatRate) {
+      const fiatPrice = baseFiatRate / quoteFiatRate
+      fiatPriceFormatted = Doc.formatRateFullPrecision(
+        fiatPrice,
+        selectedMkt.baseUnitInfo,
+        selectedMkt.quoteUnitInfo,
+        selectedMkt.cfg.ratestep
+      )
+      fiatPriceFormatted = `(~${fiatPriceFormatted})`
+    }
+    this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
 
     const sign = mkt.spot.change24 > 0 ? '+' : ''
     this.stats.tmpl.change24.classList.remove('buycolor', 'sellcolor')
     this.stats.tmpl.change24.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
     this.stats.tmpl.change24.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 
+    const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
     if (baseFiatRate) {
       this.stats.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
       this.stats.tmpl.volume24Unit.textContent = 'USD'
@@ -603,7 +628,12 @@ export default class MarketsPage extends BasePage {
     Doc.setVis(!mostRecentMatchIsBuy, this.page.obDown)
     this.page.obPrice.classList.remove('sellcolor', 'buycolor')
     this.page.obPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.page.obPrice.textContent = Doc.formatFourSigFigs(mkt.spot.rate / selectedMkt.rateConversionFactor)
+    this.page.obPrice.textContent = Doc.formatRateAtomFullPrecision(
+      mkt.spot.rate,
+      selectedMkt.baseUnitInfo,
+      selectedMkt.quoteUnitInfo,
+      selectedMkt.cfg.ratestep
+    )
   }
 
   /* setMarketDetails updates the currency names on the stats displays. */
@@ -651,7 +681,8 @@ export default class MarketsPage extends BasePage {
   /* setHighLow calculates the high and low rates over the last 24 hours. */
   setHighLow () {
     let [high, low] = [0, 0]
-    const spot = this.market.cfg.spot
+    const mkt = this.market
+    const spot = mkt.cfg.spot
     // Use spot values for 24 hours high and low rates if it is available. We
     // will default to setting it from candles if it's not.
     if (spot && spot.low24 && spot.high24) {
@@ -679,11 +710,26 @@ export default class MarketsPage extends BasePage {
       }
     }
 
-    const baseID = this.market.base.id
-    const quoteID = this.market.quote.id
-    const dex = this.market.dex
-    this.stats.tmpl.high.textContent = high > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, high, dex)) : '-'
-    this.stats.tmpl.low.textContent = low > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, low, dex)) : '-'
+    let lowFormatted = '-'
+    if (low > 0) {
+      lowFormatted = Doc.formatRateAtomFullPrecision(
+        low,
+        mkt.baseUnitInfo,
+        mkt.quoteUnitInfo,
+        mkt.cfg.ratestep
+      )
+    }
+    this.stats.tmpl.low.textContent = lowFormatted
+    let highFormatted = '-'
+    if (high > 0) {
+      highFormatted = Doc.formatRateAtomFullPrecision(
+        high,
+        mkt.baseUnitInfo,
+        mkt.quoteUnitInfo,
+        mkt.cfg.ratestep
+      )
+    }
+    this.stats.tmpl.high.textContent = highFormatted
   }
 
   /* assetsAreSupported is true if all the assets of the current market are
@@ -1697,8 +1743,8 @@ export default class MarketsPage extends BasePage {
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
-      let headerRateStr = Doc.formatRateFourSigFigs(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      let detailsRateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      let headerRateStr = Doc.formatRateAtomFourSigFigs(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      let detailsRateStr = Doc.formatRateAtomFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
         detailsRateStr = this.marketOrderDetailsRateString(ord, market)
@@ -1802,14 +1848,14 @@ export default class MarketsPage extends BasePage {
 
   marketOrderHeaderRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-    let rateStr = Doc.formatRateFourSigFigs(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    let rateStr = Doc.formatRateAtomFourSigFigs(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
     return rateStr
   }
 
   marketOrderDetailsRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-    let rateStr = Doc.formatRateFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    let rateStr = Doc.formatRateAtomFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
     return rateStr
   }
@@ -2357,6 +2403,8 @@ export default class MarketsPage extends BasePage {
 
   refreshRecentMatchesTable () {
     const page = this.page
+    const mkt = this.market
+
     Doc.empty(page.recentMatchesLiveList)
     const recentMatchesSorted = this.recentMatchesSorted(this.recentMatchesSortKey, this.recentMatchesSortDirection)
     if (!recentMatchesSorted) return
@@ -2364,8 +2412,8 @@ export default class MarketsPage extends BasePage {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
-      tmpl.rate.textContent = Doc.formatCoinValue(match.rate / this.market.rateConversionFactor)
-      tmpl.qty.textContent = Doc.formatCoinValue(match.qty, this.market.baseUnitInfo)
+      tmpl.rate.textContent = Doc.formatRateAtomFullPrecision(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+      tmpl.qty.textContent = Doc.formatCoinValue(match.qty, mkt.baseUnitInfo)
       tmpl.age.textContent = Doc.timeSince(match.stamp)
       tmpl.age.dataset.sinceStamp = String(match.stamp)
       row.classList.add(match.sell ? 'sellcolor' : 'buycolor')
@@ -3109,7 +3157,7 @@ class OrderTableRowManager {
     this.msgRate = orderBin[0].msgRate
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
-    const rateText = Doc.formatRateFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
+    const rateText = Doc.formatRateAtomFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
     Doc.setVis(this.isEpoch(), this.page.epoch)
 
     if (this.msgRate === 0) {

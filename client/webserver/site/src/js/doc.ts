@@ -59,7 +59,6 @@ const languages = navigator.languages.filter((locale: string) => locale !== 'c')
 const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0 })
 
 const fourSigFigs = new Intl.NumberFormat(languages, {
-  minimumSignificantDigits: 4,
   maximumSignificantDigits: 4
 })
 
@@ -82,6 +81,14 @@ const fullPrecisionFormatters: Record<number, Intl.NumberFormat> = {}
  * specified decimal precision.
  */
 function fullPrecisionFormatter (prec: number, locales?: string | string[]) {
+  return formatter(fullPrecisionFormatters, 0, prec, locales)
+}
+
+/*
+ * fullPrecisionFormatter gets the formatFullPrecision formatter for the
+ * specified decimal precision.
+ */
+function fullPrecisionFormatterWithPreservingZeroes (prec: number, locales?: string | string[]) {
   return formatter(fullPrecisionFormatters, prec, prec, locales)
 }
 
@@ -363,23 +370,31 @@ export default class Doc {
   }
 
   /*
-   * formatRateFullPrecision formats atomic rate value to represent it exactly at rate step
-   * precision, trimming non-effectual zeros if there are any.
+   * formatRateAtomFullPrecision formats atomic rate value to represent it exactly at rate step
+   * precision.
    */
-  static formatRateFullPrecision (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+  static formatRateAtomFullPrecision (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
-    const convRate = rateAtom * r / RateEncodingFactor
-    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
-      Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
-    if (rateStepDigits <= 0) return intFormatter.format(convRate)
-    return fullPrecisionFormatter(rateStepDigits).format(convRate)
+    const rateConv = rateAtom * r / RateEncodingFactor
+    return Doc.formatRateFullPrecision(rateConv, bui, qui, rateStepEnc)
   }
 
   /*
-   * formatRateFourSigFigs formats atomic rate value to represent it with 4 significant digits
+   * formatRateAtomFullPrecision formats atomic rate value to represent it exactly at rate step
+   * precision.
+   */
+  static formatRateFullPrecision (rateConv: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
+        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
+    if (rateStepDigits <= 0) return intFormatter.format(rateConv)
+    return fullPrecisionFormatterWithPreservingZeroes(rateStepDigits).format(rateConv)
+  }
+
+  /*
+   * formatRateAtomFourSigFigs formats atomic rate value to represent it with 4 significant digits
    * at most, trimming non-effectual zeros if there are any.
    */
-  static formatRateFourSigFigs (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+  static formatRateAtomFourSigFigs (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
     const convRate = rateAtom * r / RateEncodingFactor
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
@@ -388,12 +403,22 @@ export default class Doc {
   }
 
   /*
-   * formatRateFourSigFigs formats number n using 4 decimals at most, sacrificing
+   * formatRateAtomFourSigFigs formats number n using 4 decimals at most, sacrificing
    * them as needed. Parameter maxDecimals helps it figure our if it even needs all 4
    * digits or not (e.g. if maxDecimals is 2 there is no point in displaying 4 digits).
    */
   static formatFourSigFigs (n: number, maxDecimals?: number): string {
-    return formatSigFigsWithFormatters(intFormatter, fourSigFigs, n, maxDecimals)
+    if (n >= 1000) {
+      // can't show decimals, might as well format as integer
+      return intFormatter.format(n)
+    }
+    if (!maxDecimals) {
+      // since maxDecimals is not specified formatting with fourSigFigs is
+      // the best we can do here
+      return fourSigFigs.format(n)
+    }
+    // otherwise it's best to format with full precision up to maxDecimals
+    return fullPrecisionFormatter(maxDecimals).format(n)
   }
 
   static formatInt (i: number): string {
@@ -803,55 +828,8 @@ function timeMod (t: number, dur: number) {
   return [n, t - n * dur]
 }
 
-function formatSigFigsWithFormatters (intFormatter: Intl.NumberFormat, sigFigFormatter: Intl.NumberFormat, n: number, maxDecimals?: number, locales?: string | string[]): string {
-  if (n >= 1000) return intFormatter.format(n)
-  const s = sigFigFormatter.format(n)
-  if (typeof maxDecimals !== 'number') return s
-  const fractional = sigFigFormatter.formatToParts(n).filter((part: Intl.NumberFormatPart) => part.type === 'fraction')[0]?.value ?? ''
-  if (fractional.length <= maxDecimals) return s
-  return fullPrecisionFormatter(maxDecimals, locales).format(n)
-}
-
 if (process.env.NODE_ENV === 'development') {
-  // Code will only appear in dev build.
-  // https://webpack.js.org/guides/production/
-  window.testFormatFourSigFigs = () => {
-    const tests: [string, string, number | undefined, string][] = [
-      ['en-US', '1.234567', undefined, '1.235'], // sigFigFormatter
-      ['en-US', '1.234567', 2, '1.23'], // decimalFormatter
-      ['en-US', '1234', undefined, '1,234.0'], // oneFractionalDigit
-      ['en-US', '12', undefined, '12.00'], // sigFigFormatter
-      ['fr-FR', '123.45678', undefined, '123,5'], // oneFractionalDigit
-      ['fr-FR', '1234.5', undefined, '1 234,5'], // U+202F for thousands separator
-      // For Arabic, https://www.saitak.com/number is useful, but seems to use
-      // slightly different unicode points and no thousands separator. I think
-      // the Arabic decimal separator is supposed to be more like a point, not
-      // a comma, but Google Chrome uses U+066B (Arabic Decimal Separator),
-      // which looks like a comma to me. ¯\_(ツ)_/¯
-      ['ar-EG', '123.45678', undefined, '١٢٣٫٥'],
-      ['ar-EG', '1234', undefined, '١٬٢٣٤٫٠'],
-      ['ar-EG', '0.12345', 3, '٠٫١٢٣']
-    ]
-
-    // Reproduce the NumberFormats with ONLY our desired language.
-    for (const [code, unformatted, maxDecimals, expected] of tests) {
-      const intFormatter = new Intl.NumberFormat(code, { // oneFractionalDigit
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1
-      })
-      const sigFigFormatter = new Intl.NumberFormat(code, {
-        minimumSignificantDigits: 4,
-        maximumSignificantDigits: 4
-      })
-      for (const k in decimalFormatters) delete decimalFormatters[k] // cleanup
-      for (const k in fullPrecisionFormatters) delete fullPrecisionFormatters[k] // cleanup
-      const s = formatSigFigsWithFormatters(intFormatter, sigFigFormatter, parseFloatDefault(unformatted), maxDecimals, code)
-      if (s !== expected) console.log(`TEST FAILED: f('${code}', ${unformatted}, ${maxDecimals}) => '${s}' != '${expected}'}`)
-      else console.log(`✔️ f('${code}', ${unformatted}, ${maxDecimals}) => ${s} ✔️`)
-    }
-  }
-
-  window.testFormatRateFullPrecision = () => {
+  window.testFormatRateAtomFullPrecision = () => {
     const tests: [number, number, number, number, string][] = [
       // Two utxo assets with a conventional rate of 0.15. Conventional rate
       // step is 100 / 1e8 = 1e-6, so there should be 6 decimal digits.
@@ -889,7 +867,7 @@ if (process.env.NODE_ENV === 'development') {
       for (const k in fullPrecisionFormatters) delete fullPrecisionFormatters[k] // cleanup
       const bui = { conventional: { conversionFactor: bFactor } } as any as UnitInfo
       const qui = { conventional: { conversionFactor: qFactor } } as any as UnitInfo
-      const enc = Doc.formatRateFullPrecision(encRate, bui, qui, rateStep)
+      const enc = Doc.formatRateAtomFullPrecision(encRate, bui, qui, rateStep)
       if (enc !== expEncoding) console.log(`TEST FAILED: f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} != ${expEncoding}`)
       else console.log(`✔️ f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} ✔️`)
     }
