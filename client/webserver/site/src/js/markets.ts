@@ -806,8 +806,6 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const mkt = this.market
 
-    // see if we can fetch & set up a default rate value
-    let defaultRateAtom = 0
     if (!mkt.bookLoaded && retryNum <= maxRetries) {
       // we don't have order-book yet to fetch default rate, try later again
       setTimeout(() => {
@@ -816,19 +814,11 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const midGapRateAtom = this.midGapRateAtom()
-    if (midGapRateAtom) {
-      defaultRateAtom = midGapRateAtom
-    }
-
-    // TODO
-    console.log('defaultRateAtom:')
-    console.log(defaultRateAtom)
-
     const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
 
     if (this.canTradeBuy()) {
-      // Reset limit-order buy form inputs to defaults.
+      // reset limit-order buy form inputs to defaults
+      const defaultRateAtom = this.book.bestBuyRateAtom()
       const adjQtyBuy = this.lotToQty(1)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
@@ -851,7 +841,8 @@ export default class MarketsPage extends BasePage {
     }
 
     if (this.canTradeSell()) {
-      // Reset limit-order sell form inputs to defaults.
+      // reset limit-order sell form inputs to defaults
+      const defaultRateAtom = this.book.bestSellRateAtom()
       const adjQtySell = this.lotToQty(1)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
@@ -1612,14 +1603,14 @@ export default class MarketsPage extends BasePage {
   /*
    * midGapRateAtom returns the value in the middle of the best buy and best sell. If
    * either one of the buy or sell sides are empty, midGap returns the best rate
-   * from the other side. If both sides are empty, midGap returns the value
-   * null. The rate returned is the atomic ratio, used for conversion. For a
+   * from the other side. If both sides are empty, midGap returns the value 0.
+   * The rate returned is the atomic ratio, used for conversion. For a
    * conventional rate for display or to convert conventional units, use
    * midGapConventional
    */
-  midGapRateAtom (): number | null {
+  midGapRateAtom (): number {
     const book = this.book
-    if (!book) return null
+    if (!book) return 0
     if (book.buys && book.buys.length) {
       if (book.sells && book.sells.length) {
         return this.adjustRateAtoms((book.buys[0].msgRate + book.sells[0].msgRate) / 2)
@@ -1629,7 +1620,7 @@ export default class MarketsPage extends BasePage {
     if (book.sells && book.sells.length) {
       return this.adjustRateAtoms(book.sells[0].msgRate)
     }
-    return null
+    return 0
   }
 
   maxUserOrderCount (): number {

@@ -713,8 +713,8 @@ export interface MiniOrder {
   id: string
   qty: number
   qtyAtomic: number
-  rate: number
-  msgRate: number
+  rate: number // conventional
+  msgRate: number // in atoms
   epoch: number
   sell: boolean
 }
