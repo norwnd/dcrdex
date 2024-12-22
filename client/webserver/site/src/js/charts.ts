@@ -583,7 +583,7 @@ export class CandleChart extends Chart {
     const maxCandles = Math.max(data.candles.length, 1000)
     while (n < maxCandles) {
       this.zoomLevels.push(n)
-      n *= 2
+      n = Math.min(maxCandles, n + 0.005 * maxCandles)
     }
     this.numToShow = 100
     this.draw()

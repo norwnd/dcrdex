@@ -470,15 +470,11 @@ div[data-handler=markets] {
   }
 }
 
-.market-stats {
+#marketStats {
   .statgrid {
     display: grid;
     grid-template-columns: auto auto auto auto;
   }
-}
-
-#headerSpace .market-stats {
-  display: none;
 }
 
 #recentMatchesBox {
@@ -519,14 +515,9 @@ div[data-handler=markets] {
 }
 
 @include media-breakpoint-up(xl) {
-  #main .market-stats {
+  #marketStats {
     display: none;
     border-top: none;
-  }
-
-  #headerSpace .market-stats {
-    display: flex;
-    border-bottom: none !important;
   }
 }
 

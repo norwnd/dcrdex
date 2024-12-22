@@ -1271,7 +1271,8 @@ export interface Application {
   user: User
   mmStatus: MarketMakingStatus
   header: HTMLElement
-  headerSpace: HTMLElement
+  mmTitle: HTMLElement
+  marketStats: HTMLElement
   walletMap: Record<number, WalletState>
   exchanges: Record<string, Exchange>
   fiatRatesMap: Record<number, number>

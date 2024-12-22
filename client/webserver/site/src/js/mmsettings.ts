@@ -276,7 +276,11 @@ export default class MarketMakerSettingsPage extends BasePage {
     this.basePane = new AssetPane(this, page.basePane)
     this.quotePane = new AssetPane(this, page.quotePane)
 
-    app().headerSpace.appendChild(page.mmTitle)
+    // since marketStats resides directly on the header (not markets page) we need to fetch
+    // it through markets page parent
+    if (!main.parentElement) return // Not gonna happen, but TypeScript cares.
+    const mmTitleElem = Doc.idDescendants(main.parentElement).mmTitle
+    Doc.show(mmTitleElem)
 
     setOptionTemplates(page)
     Doc.cleanTemplates(

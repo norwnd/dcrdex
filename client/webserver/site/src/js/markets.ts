@@ -123,7 +123,7 @@ interface OrderRow extends HTMLElement {
 }
 
 interface StatsDisplay {
-  row: PageElement
+  htmlElem: PageElement
   tmpl: Record<string, PageElement>
 }
 
@@ -178,7 +178,7 @@ export default class MarketsPage extends BasePage {
   recentMatches: RecentMatch[]
   recentMatchesSortKey: string
   recentMatchesSortDirection: 1 | -1
-  stats: [StatsDisplay, StatsDisplay]
+  stats: StatsDisplay
   loadingAnimations: { candles?: Wave }
   runningErrAnimations: Animation[]
   forms: Forms
@@ -413,12 +413,10 @@ export default class MarketsPage extends BasePage {
     })
     setDisclaimerAckViz(State.fetchLocal(State.orderDisclaimerAckedLK))
 
-    const stats0 = page.marketStats
-    const stats1 = stats0.cloneNode(true) as PageElement
-    Doc.hide(stats0, stats1)
-    stats1.removeAttribute('id')
-    app().headerSpace.appendChild(stats1)
-    this.stats = [{ row: stats0, tmpl: Doc.parseTemplate(stats0) }, { row: stats1, tmpl: Doc.parseTemplate(stats1) }]
+    // since marketStats resides directly on the header (not markets page) we need to fetch
+    // it through markets page parent
+    const marketStatsElem = Doc.idDescendants(this.main.parentElement).marketStats
+    this.stats = { htmlElem: marketStatsElem, tmpl: Doc.parseTemplate(marketStatsElem) }
 
     const closeMarketsList = () => {
       Doc.hide(page.leftMarketDock)
@@ -430,12 +428,10 @@ export default class MarketsPage extends BasePage {
       State.storeLocal(State.leftMarketDockLK, '1')
       Doc.show(page.leftMarketDock)
     }
-    for (const s of this.stats) {
-      bind(s.tmpl.marketSelect, 'click', () => {
-        if (page.leftMarketDock.clientWidth === 0) openMarketsList()
-        else closeMarketsList()
-      })
-    }
+    bind(this.stats.tmpl.marketSelect, 'click', () => {
+      if (page.leftMarketDock.clientWidth === 0) openMarketsList()
+      else closeMarketsList()
+    })
     const loadMarket = (mkt: ExchangeMarket) => {
       // nothing to do if this market is already set/chosen
       const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
@@ -535,20 +531,18 @@ export default class MarketsPage extends BasePage {
      and the orderbook display. */
   setCurrMarketPrice (): void {
     const setDummyValues = (mkt: Market | null) => {
-      for (const s of this.stats) {
-        s.tmpl.change24.classList.remove('buycolor', 'sellcolor')
-        s.tmpl.change24.textContent = '-'
-        s.tmpl.volume24.textContent = '-'
-        s.tmpl.volume24Unit.textContent = 'USD'
-        s.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
-        s.tmpl.bisonPrice.textContent = '-'
-        s.tmpl.fiatPrice.textContent = '(-)'
-        if (mkt) {
-          const baseFiatRate = app().fiatRatesMap[mkt.baseid]
-          const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
-          const fiatPrice = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : '-'
-          s.tmpl.fiatPrice.textContent = `(~${fiatPrice})`
-        }
+      this.stats.tmpl.change24.classList.remove('buycolor', 'sellcolor')
+      this.stats.tmpl.change24.textContent = '-'
+      this.stats.tmpl.volume24.textContent = '-'
+      this.stats.tmpl.volume24Unit.textContent = 'USD'
+      this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
+      this.stats.tmpl.bisonPrice.textContent = '-'
+      this.stats.tmpl.fiatPrice.textContent = '(-)'
+      if (mkt) {
+        const baseFiatRate = app().fiatRatesMap[mkt.baseid]
+        const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
+        const fiatPriceAvailable = baseFiatRate && quoteFiatRate
+        this.stats.tmpl.fiatPrice.textContent = fiatPriceAvailable ? `(~${Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate)})` : '(-)'
       }
       Doc.hide(this.page.obUp)
       Doc.hide(this.page.obDown)
@@ -580,30 +574,28 @@ export default class MarketsPage extends BasePage {
 
     const mostRecentMatchIsBuy = !recentMatches[0].sell
 
-    for (const s of this.stats) {
-      const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
-      const baseFiatRate = app().fiatRatesMap[mkt.baseid]
-      const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
+    const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
+    const baseFiatRate = app().fiatRatesMap[mkt.baseid]
+    const quoteFiatRate = app().fiatRatesMap[mkt.quoteid]
 
-      s.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
-      s.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-      s.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
+    this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
+    this.stats.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
+    this.stats.tmpl.bisonPrice.textContent = Doc.formatFourSigFigs(app().conventionalRate(mkt.baseid, mkt.quoteid, mkt.spot.rate, xc))
 
-      const fiatPrice = (baseFiatRate && quoteFiatRate) ? Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate) : '-'
-      s.tmpl.fiatPrice.textContent = `(~${fiatPrice})`
+    const fiatPriceAvailable = baseFiatRate && quoteFiatRate
+    this.stats.tmpl.fiatPrice.textContent = fiatPriceAvailable ? `(~${Doc.formatFourSigFigs(baseFiatRate / quoteFiatRate)})` : '(-)'
 
-      const sign = mkt.spot.change24 > 0 ? '+' : ''
-      s.tmpl.change24.classList.remove('buycolor', 'sellcolor')
-      s.tmpl.change24.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
-      s.tmpl.change24.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
+    const sign = mkt.spot.change24 > 0 ? '+' : ''
+    this.stats.tmpl.change24.classList.remove('buycolor', 'sellcolor')
+    this.stats.tmpl.change24.classList.add(mkt.spot.change24 >= 0 ? 'buycolor' : 'sellcolor')
+    this.stats.tmpl.change24.textContent = `${sign}${(mkt.spot.change24 * 100).toFixed(1)}%`
 
-      if (baseFiatRate) {
-        s.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
-        s.tmpl.volume24Unit.textContent = 'USD'
-      } else {
-        s.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
-        s.tmpl.volume24Unit.textContent = unit
-      }
+    if (baseFiatRate) {
+      this.stats.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
+      this.stats.tmpl.volume24Unit.textContent = 'USD'
+    } else {
+      this.stats.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
+      this.stats.tmpl.volume24Unit.textContent = unit
     }
 
     // updates order-book affiliated values
@@ -617,14 +609,12 @@ export default class MarketsPage extends BasePage {
   /* setMarketDetails updates the currency names on the stats displays. */
   setMarketDetails () {
     if (!this.market) return
-    for (const s of this.stats) {
-      const { baseCfg: ba, quoteCfg: qa } = this.market
-      s.tmpl.baseIcon.src = Doc.logoPath(ba.symbol)
-      s.tmpl.quoteIcon.src = Doc.logoPath(qa.symbol)
-      Doc.empty(s.tmpl.baseSymbol, s.tmpl.quoteSymbol)
-      s.tmpl.baseSymbol.appendChild(Doc.symbolize(ba, true))
-      s.tmpl.quoteSymbol.appendChild(Doc.symbolize(qa, true))
-    }
+    const { baseCfg: ba, quoteCfg: qa } = this.market
+    this.stats.tmpl.baseIcon.src = Doc.logoPath(ba.symbol)
+    this.stats.tmpl.quoteIcon.src = Doc.logoPath(qa.symbol)
+    Doc.empty(this.stats.tmpl.baseSymbol, this.stats.tmpl.quoteSymbol)
+    this.stats.tmpl.baseSymbol.appendChild(Doc.symbolize(ba, true))
+    this.stats.tmpl.quoteSymbol.appendChild(Doc.symbolize(qa, true))
   }
 
   /**
@@ -674,10 +664,8 @@ export default class MarketsPage extends BasePage {
           this.requestCandles(fiveMinBinKey)
           return
         }
-        for (const s of this.stats) {
-          s.tmpl.high.textContent = '-'
-          s.tmpl.low.textContent = '-'
-        }
+        this.stats.tmpl.high.textContent = '-'
+        this.stats.tmpl.low.textContent = '-'
         return
       }
 
@@ -694,10 +682,8 @@ export default class MarketsPage extends BasePage {
     const baseID = this.market.base.id
     const quoteID = this.market.quote.id
     const dex = this.market.dex
-    for (const s of this.stats) {
-      s.tmpl.high.textContent = high > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, high, dex)) : '-'
-      s.tmpl.low.textContent = low > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, low, dex)) : '-'
-    }
+    this.stats.tmpl.high.textContent = high > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, high, dex)) : '-'
+    this.stats.tmpl.low.textContent = low > 0 ? Doc.formatFourSigFigs(app().conventionalRate(baseID, quoteID, low, dex)) : '-'
   }
 
   /* assetsAreSupported is true if all the assets of the current market are
@@ -1128,7 +1114,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    for (const s of this.stats) Doc.show(s.row)
+    Doc.show(this.stats.htmlElem)
 
     const baseCfg = dex.assets[baseID]
     const quoteCfg = dex.assets[quoteID]
@@ -1305,11 +1291,11 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValueFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
       )
       page.orderTotalPreviewBuyRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValueFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
       )
       this.setPageElementEnabled(this.page.previewTotalBuy, true)
     } else {
@@ -1333,11 +1319,11 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalIn, market.baseUnitInfo, 2), asset: market.baseUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValueFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
       )
       page.orderTotalPreviewSellRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValue(totalOut, market.quoteUnitInfo, 2), asset: market.quoteUnitInfo.conventional.unit }
+        { total: Doc.formatCoinValueFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
       )
       this.setPageElementEnabled(this.page.previewTotalSell, true)
     } else {
@@ -1711,11 +1697,14 @@ export default class MarketsPage extends BasePage {
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
-      let rateStr: string
-      if (ord.type === OrderUtil.Market) rateStr = this.marketOrderRateString(ord, market)
-      else rateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      mord.header.rate.textContent = `@${rateStr}`
-      details.rate.textContent = rateStr
+      let headerRateStr = Doc.formatRateFourSigFigs(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      let detailsRateStr = Doc.formatRateFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      if (ord.type === OrderUtil.Market) {
+        headerRateStr = this.marketOrderHeaderRateString(ord, market)
+        detailsRateStr = this.marketOrderDetailsRateString(ord, market)
+      }
+      mord.header.rate.textContent = `@ ${headerRateStr}`
+      details.rate.textContent = detailsRateStr
       header.baseSymbol.textContent = market.baseUnitInfo.conventional.unit
       details.type.textContent = OrderUtil.orderTypeText(ord.type)
       this.updateMetaOrder(mord)
@@ -1811,11 +1800,14 @@ export default class MarketsPage extends BasePage {
     Doc.setVis(unreadyOrders, page.unreadyOrdersMsg)
   }
 
-  /*
-   marketOrderRateString uses the market config rate step to format the average
-   market order rate.
-  */
-  marketOrderRateString (ord: Order, mkt: CurrentMarket) :string {
+  marketOrderHeaderRateString (ord: Order, mkt: CurrentMarket): string {
+    if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
+    let rateStr = Doc.formatRateFourSigFigs(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
+    return rateStr
+  }
+
+  marketOrderDetailsRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
     let rateStr = Doc.formatRateFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
@@ -2276,7 +2268,10 @@ export default class MarketsPage extends BasePage {
     else if (mord.ord.type === OrderUtil.Market && match.status === OrderUtil.NewlyMatched) { // Update the average market rate display.
       // Fetch and use the updated order.
       const ord = app().order(note.orderID)
-      if (ord) mord.details.rate.textContent = mord.header.rate.textContent = this.marketOrderRateString(ord, this.market)
+      if (ord) {
+        mord.header.rate.textContent = this.marketOrderHeaderRateString(ord, this.market)
+        mord.details.rate.textContent = this.marketOrderDetailsRateString(ord, this.market)
+      }
     }
     if (
       (match.side === OrderUtil.MatchSideMaker && match.status === OrderUtil.MakerRedeemed) ||

@@ -1,53 +1,9 @@
-{{define "walletIcons"}}
-<span data-state="sleeping" class="ico-sleeping grey d-hide"></span>
-<span data-state="locked" class="ico-locked grey d-hide"></span>
-<span data-state="unlocked" class="ico-unlocked d-hide"></span>
-<span data-state="syncing" class="ico-sync fs12 d-hide" data-tooltip="placeholder text"></span>
-<span data-state="nopeers" class="ico-disconnected fs12 d-hide" data-tooltip="no peers!"></span>
-<span data-state="nowallet"></span> {{/* not showing ico-cross */}}
-<span data-state="disabled" class="ico-cross text-danger d-hide" data-tooltip="placeholder text"></span>
-{{end}}
-
 {{define "markets"}}
 {{template "top" .}}
 <div id="main" data-handler="markets" class="main m-0 flex-nowrap">
   {{- /* BODY */ -}}
   <div class="flex-grow-1 position-relative">
     <div class="stylish-overflow h-100 w-100 overflow-x-hidden flex-stretch-column">
-
-      {{- /* MARKET STATS - SMALL SCREENS */ -}}
-      <div id="marketStats" class="market-stats align-items-center justify-content-center flex-wrap border-bottom">
-        <div class="flex-center p-1 pointer hoverbg" data-tmpl="marketSelect">
-          <div class="flex-center">
-            <img class="small-icon" data-tmpl="baseIcon">
-            <img class="small-icon ms-1" data-tmpl="quoteIcon">
-          </div>
-          <div class="flex-center fs24 demi ms-2">
-            <span data-tmpl="baseSymbol"></span> / <span data-tmpl="quoteSymbol"></span>
-          </div>
-        </div>
-
-        <div class="d-flex flex-stretch-row mx-1">
-          <div data-tmpl="bisonPrice" class="d-flex align-items-center bison-price fs20"></div>
-          <div data-tmpl="fiatPrice" class="d-flex align-items-center ps-2 fs16">-</div>
-        </div>
-
-        <div class="statgrid">
-          <span class="fs14 grey px-2">[[[Change24]]]</span>
-          <span class="fs14 grey px-2">[[[Volume24]]]</span>
-          <span class="fs14 grey px-2">[[[High24]]]</span>
-          <span class="fs14 grey ps-2">[[[Low24]]]</span>
-
-          <div class="px-2 fs14" data-tmpl="change24">-</div>
-          <div class="d-flex justify-content-start align-items-center px-2">
-            <div data-tmpl="volume24" class="fs14">-</div>
-            <div data-tmpl="volume24Unit" class="fs14 grey ms-1">USD</div>
-          </div>
-          <div class="px-2 fs14" data-tmpl="high">-</div>
-          <div class="px-2 fs14" data-tmpl="low">-</div>
-        </div>
-      </div>
-
         {{- /* MAIN CONTENT */ -}}
         <div id="mainContent" class="d-flex flex-grow-1 flex-stretch-row">
           {{- /* LEFTMOST SECTION */ -}}
@@ -70,7 +26,7 @@
                         <span class="text-danger ico-disconnected d-hide ps-1" data-tmpl="disconnectedIco"></span>
                       </div>
                     </div>
-                    <div class="d-flex flex-column flex-grow-1 px-2">
+                    <div class="d-flex flex-column flex-grow-1 ps-1">
                       <span class="fs22 demi">
                         <span data-tmpl="baseSymbol"></span> / <span data-tmpl="quoteSymbol"></span>
                       </span>

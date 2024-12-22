@@ -147,7 +147,8 @@ export default class Application {
   recorders: Record<string, LogMessage[]>
   main: HTMLElement
   header: HTMLElement
-  headerSpace: HTMLElement
+  mmTitle: HTMLElement
+  marketStats: HTMLElement
   assets: Record<number, SupportedAsset>
   exchanges: Record<string, Exchange>
   walletMap: Record<number, WalletState>
@@ -368,7 +369,8 @@ export default class Application {
     this.main.replaceWith(main)
     this.main = main
     this.noteReceivers = []
-    Doc.empty(this.headerSpace)
+    Doc.hide(this.mmTitle)
+    Doc.hide(this.marketStats)
     this.attach(data)
     return true
   }
@@ -479,7 +481,8 @@ export default class Application {
   attachHeader () {
     this.header = idel(document.body, 'header')
     const page = this.page = Doc.idDescendants(this.header)
-    this.headerSpace = page.headerSpace
+    this.mmTitle = page.mmTitle
+    this.marketStats = page.marketStats
     this.popupNotes = idel(document.body, 'popupNotes')
     this.popupTmpl = Doc.tmplElement(this.popupNotes, 'note')
     if (this.popupTmpl) this.popupTmpl.remove()

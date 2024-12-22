@@ -2,7 +2,6 @@ import * as intl from './locales'
 import {
   UnitInfo,
   LayoutMetrics,
-  WalletState,
   PageElement
 } from './registry'
 import State from './state'
@@ -355,18 +354,44 @@ export default class Doc {
   }
 
   /*
-   * formatRateFullPrecision formats rate to represent it exactly at rate step
+   * formatCoinValueFourSigFigs is similar to formatCoinValue but is more flexible
+   * in the way it treats decimals (can omit them if necessary).
+   */
+  static formatCoinValueFourSigFigs (vAtomic: number, unitInfo?: UnitInfo): string {
+    const [v, precisionFull] = convertToConventional(vAtomic, unitInfo)
+    return Doc.formatFourSigFigs(v, precisionFull)
+  }
+
+  /*
+   * formatRateFullPrecision formats atomic rate value to represent it exactly at rate step
    * precision, trimming non-effectual zeros if there are any.
    */
-  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+  static formatRateFullPrecision (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
-    const convRate = encRate * r / RateEncodingFactor
+    const convRate = rateAtom * r / RateEncodingFactor
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
       Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
     if (rateStepDigits <= 0) return intFormatter.format(convRate)
     return fullPrecisionFormatter(rateStepDigits).format(convRate)
   }
 
+  /*
+   * formatRateFourSigFigs formats atomic rate value to represent it with 4 significant digits
+   * at most, trimming non-effectual zeros if there are any.
+   */
+  static formatRateFourSigFigs (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+    const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
+    const convRate = rateAtom * r / RateEncodingFactor
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
+        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
+    return Doc.formatFourSigFigs(convRate, rateStepDigits)
+  }
+
+  /*
+   * formatRateFourSigFigs formats number n using 4 decimals at most, sacrificing
+   * them as needed. Parameter maxDecimals helps it figure our if it even needs all 4
+   * digits or not (e.g. if maxDecimals is 2 there is no point in displaying 4 digits).
+   */
   static formatFourSigFigs (n: number, maxDecimals?: number): string {
     return formatSigFigsWithFormatters(intFormatter, fourSigFigs, n, maxDecimals)
   }
@@ -718,92 +743,6 @@ export const Easing: Record<string, (t: number) => number> = {
       : t === 1
         ? 1
         : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1
-  }
-}
-
-/* WalletIcons are used for controlling wallets in various places. */
-export class WalletIcons {
-  icons: Record<string, HTMLElement>
-  status: Element
-
-  constructor (box: HTMLElement) {
-    const stateElement = (name: string) => box.querySelector(`[data-state=${name}]`) as HTMLElement
-    this.icons = {}
-    this.icons.sleeping = stateElement('sleeping')
-    this.icons.locked = stateElement('locked')
-    this.icons.unlocked = stateElement('unlocked')
-    this.icons.nowallet = stateElement('nowallet')
-    this.icons.syncing = stateElement('syncing')
-    this.icons.nopeers = stateElement('nopeers')
-    this.icons.disabled = stateElement('disabled')
-    this.status = stateElement('status')
-  }
-
-  /* sleeping sets the icons to indicate that the wallet is not connected. */
-  sleeping () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.nowallet, i.syncing, i.disabled)
-    Doc.show(i.sleeping)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_OFF)
-  }
-
-  /*
-   * locked sets the icons to indicate that the wallet is connected, but locked.
-   */
-  locked () {
-    const i = this.icons
-    Doc.hide(i.unlocked, i.nowallet, i.sleeping, i.disabled)
-    Doc.show(i.locked)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_LOCKED)
-  }
-
-  /*
-   * unlocked sets the icons to indicate that the wallet is connected and
-   * unlocked.
-   */
-  unlocked () {
-    const i = this.icons
-    Doc.hide(i.locked, i.nowallet, i.sleeping, i.disabled)
-    Doc.show(i.unlocked)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_READY)
-  }
-
-  /* nowallet sets the icons to indicate that no wallet exists. */
-  nowallet () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.sleeping, i.syncing, i.disabled)
-    Doc.show(i.nowallet)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_NO_WALLET)
-  }
-
-  /* set the icons to indicate that the wallet is disabled */
-  disabled () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.sleeping, i.syncing, i.nowallet, i.nopeers)
-    Doc.show(i.disabled)
-    i.disabled.dataset.tooltip = intl.prep(intl.ID_DISABLED_MSG)
-  }
-
-  setSyncing (wallet: WalletState | null) {
-    const syncIcon = this.icons.syncing
-    if (!wallet || !wallet.running || wallet.disabled) {
-      Doc.hide(syncIcon)
-      return
-    }
-
-    if (wallet.peerCount === 0) {
-      Doc.show(this.icons.nopeers)
-      Doc.hide(syncIcon) // potentially misleading with no peers
-      return
-    }
-    Doc.hide(this.icons.nopeers)
-
-    if (!wallet.synced) {
-      Doc.show(syncIcon)
-      syncIcon.dataset.tooltip = intl.prep(intl.ID_WALLET_SYNC_PROGRESS, { syncProgress: (wallet.syncProgress * 100).toFixed(1) })
-      return
-    }
-    Doc.hide(syncIcon)
   }
 }
 
