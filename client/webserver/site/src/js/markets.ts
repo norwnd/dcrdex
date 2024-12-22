@@ -2232,9 +2232,6 @@ export default class MarketsPage extends BasePage {
     page.tradingLimit.textContent = (parcelLimit * mkt.parcelsize).toFixed(2)
     page.limitUsage.textContent = parcelLimit > 0 ? (usedParcels / parcelLimit * 100).toFixed(1) : '0'
 
-    page.orderLimitRemain.textContent = ((parcelLimit - usedParcels) * mkt.parcelsize).toFixed(1)
-    page.orderTradingTier.textContent = String(tier)
-
     this.reputationMeter.update()
   }
 

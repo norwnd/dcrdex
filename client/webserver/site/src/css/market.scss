@@ -474,6 +474,8 @@ div[data-handler=markets] {
   .statgrid {
     display: grid;
     grid-template-columns: auto auto auto auto;
+    row-gap: 0;
+    column-gap: 0;
   }
 }
 

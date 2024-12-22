@@ -221,7 +221,6 @@ var EnUS = map[string]*intl.Translation{
 	"Trading Limits":              {T: "Trading Limits"},
 	"What is a fidelity bond":     {T: "What is a fidelity bond?"},
 	"what_s_a_bond":               {T: "What's a bond?"},
-	"order_form_remaining_limit":  {T: `<span id="orderLimitRemain"></span> lots remaining in tier <span id="orderTradingTier"></span> trading limit`},
 	"Parcel Size":                 {T: "Parcel Size"},
 	"Trading Limit":               {T: "Trading Limit"},
 	"Current Usage":               {T: "Current Usage"},

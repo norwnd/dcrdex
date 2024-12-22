@@ -284,8 +284,6 @@ export default class WalletsPage extends BasePage {
     Doc.bind(page.connectBttn, 'click', () => this.doConnect(this.selectedAssetID))
     Doc.bind(page.send, 'click', () => this.showSendForm(this.selectedAssetID))
     Doc.bind(page.receive, 'click', () => this.showDeposit(this.selectedAssetID))
-    Doc.bind(page.unlockBttn, 'click', () => this.openWallet(this.selectedAssetID))
-    Doc.bind(page.lockBttn, 'click', () => this.lock(this.selectedAssetID))
     Doc.bind(page.reconfigureBttn, 'click', () => this.showReconfig(this.selectedAssetID))
     Doc.bind(page.needsProviderBttn, 'click', () => this.showReconfig(this.selectedAssetID))
     Doc.bind(page.rescanWallet, 'click', () => this.rescanWallet(this.selectedAssetID))
@@ -993,10 +991,9 @@ export default class WalletsPage extends BasePage {
     Doc.hide(
       page.balanceBox, page.fiatBalanceBox, page.createWallet, page.walletDetails,
       page.sendReceive, page.connectBttnBox, page.statusLocked, page.statusReady,
-      page.statusOff, page.unlockBttnBox, page.lockBttnBox, page.connectBttnBox,
-      page.peerCountBox, page.syncProgressBox, page.statusDisabled, page.tokenInfoBox,
-      page.needsProviderBox, page.feeStateBox, page.txSyncBox, page.txProgress,
-      page.txFindingAddrs
+      page.statusOff, page.connectBttnBox, page.peerCountBox, page.syncProgressBox,
+      page.statusDisabled, page.tokenInfoBox, page.needsProviderBox, page.feeStateBox,
+      page.txSyncBox, page.txProgress, page.txFindingAddrs
     )
     this.checkNeedsProvider(assetID)
     if (token) {
@@ -1024,15 +1021,14 @@ export default class WalletsPage extends BasePage {
   updateSyncAndPeers (assetID: number) {
     const { page, selectedAssetID } = this
     if (assetID !== selectedAssetID) return
-    const { peerCount, syncProgress, syncStatus, encrypted, open, running } = app().walletMap[assetID]
+    const { peerCount, syncProgress, syncStatus, open, running } = app().walletMap[assetID]
     if (!running) return
     Doc.show(page.sendReceive, page.peerCountBox, page.syncProgressBox)
     page.peerCount.textContent = String(peerCount)
     page.syncProgress.textContent = `${(syncProgress * 100).toFixed(1)}%`
     if (open) {
       Doc.show(page.statusReady)
-      if (!app().haveActiveOrders(assetID) && encrypted) Doc.show(page.lockBttnBox)
-    } else Doc.show(page.statusLocked, page.unlockBttnBox) // wallet not unlocked
+    } else Doc.show(page.statusLocked) // wallet not unlocked
     Doc.setVis(syncStatus.txs !== undefined, page.txSyncBox)
     if (syncStatus.txs !== undefined) {
       Doc.hide(page.txProgress, page.txFindingAddrs)

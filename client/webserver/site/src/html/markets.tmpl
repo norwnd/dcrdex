@@ -266,10 +266,6 @@
               {{- /* WALLET RELATED ERRORS */ -}}
               <div id="noWallet" class="p-3 border-bottom flex-center fs16 grey d-hide"></div>
 
-              {{- /* ORDER LIMITS */ -}}
-              <div class="mt-2 p-2 text-center border fs17">
-                [[[order_form_remaining_limit]]]
-              </div>
               {{- /* REPUTATION */ -}}
               <div id="reputationAndTradingTierBox">
                 <div id="showTradingTier" class="p-2 grey fs15 hoverbg pointer">
@@ -280,9 +276,8 @@
                   <span class="ico-minus fs10 me-2"></span>
                   <span>[[[Hide trading tier info]]]</span>
                 </div>
-                <div id="tradingLimits" class="d-flex align-items-stretch fs15 mx-2 mb-2 border d-hide">
-                  <div class="d-flex flex-column flex-grow-1 align-items-stretch p-2">
-
+                <div id="tradingLimits" class="d-flex flex-stretch-column fs15 mx-2 mb-2 border d-hide">
+                  <div class="d-flex flex-column flex-grow-1 align-items-stretch p-1 border-bottom">
                     <div class="d-flex justify-content-between align-items-center">
                       <span>[[[Parcel Size]]]</span>
                       <span>
@@ -303,10 +298,8 @@
                         ~ <span id="marketLimitQuote"></span> <span id="marketLimitQuoteUnit"></span>
                       </span>
                     </div>
-
                   </div>
-                  <div class="d-flex flex-column flex-grow-1 align-items-stretch p-2 border-start">
-
+                  <div class="d-flex flex-column flex-grow-1 align-items-stretch p-1">
                     <div class="d-flex justify-content-between align-items-center">
                       <span>[[[Trading Tier]]]</span>
                       <span id="tradingTier"></span>
@@ -321,7 +314,6 @@
                       <span>[[[Current Usage]]]</span>
                       <span><span id="limitUsage"></span>%</span>
                     </div>
-
                   </div>
                 </div>
                 <div id="showTradingReputation" class="p-2 grey fs15 hoverbg pointer">
