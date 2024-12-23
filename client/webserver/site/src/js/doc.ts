@@ -391,19 +391,10 @@ export default class Doc {
   }
 
   /*
-   * formatRateAtomFourSigFigs formats atomic rate value to represent it with 4 significant digits
-   * at most, trimming non-effectual zeros if there are any.
-   */
-  static formatRateAtomFourSigFigs (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
-    const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
-    const convRate = rateAtom * r / RateEncodingFactor
-    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
-        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
-    return Doc.formatFourSigFigs(convRate, rateStepDigits)
-  }
-
-  /*
-   * formatRateAtomFourSigFigs formats number n using 4 decimals at most, sacrificing
+   * formatFourSigFigs should actually be called formatBestWeCan, but this name is
+   * left for compatibility purposes (simpler to rebase onto upstream).
+   *
+   * formatFourSigFigs formats number n using 4 decimals at most, sacrificing
    * them as needed. Parameter maxDecimals helps it figure our if it even needs all 4
    * digits or not (e.g. if maxDecimals is 2 there is no point in displaying 4 digits).
    */
