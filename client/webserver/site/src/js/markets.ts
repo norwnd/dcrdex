@@ -1667,10 +1667,10 @@ export default class MarketsPage extends BasePage {
       if (book.sells && book.sells.length) {
         return this.adjustRateAtoms((book.buys[0].msgRate + book.sells[0].msgRate) / 2)
       }
-      return this.adjustRateAtoms(book.buys[0].msgRate)
+      return this.adjustRateAtoms(book.buys[0].msgRate) // should be no-op
     }
     if (book.sells && book.sells.length) {
-      return this.adjustRateAtoms(book.sells[0].msgRate)
+      return this.adjustRateAtoms(book.sells[0].msgRate) // should be no-op
     }
     return 0
   }
@@ -2638,59 +2638,6 @@ export default class MarketsPage extends BasePage {
     this.finalizeTotalSell()
   }
 
-  /**
-   * parseRateInput parses rate(price) string (in conventional units) and returns:
-   * 1) whether there are any parsing issues (true if none, false when
-   *    parsing fails)
-   * 2) whether rounding(adjustment) to rate-step had happened (true when did)
-   * 3) adjusted rate(price) value in atoms
-   */
-  parseRateInput (value: string | undefined): [boolean, boolean, number] {
-    const page = this.page
-
-    Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
-    Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
-
-    const rateRaw = this.parseNumber(value)
-    if (rateRaw === null || isNaN(rateRaw) || rateRaw <= 0) {
-      return [false, false, 0]
-    }
-    const rateRawAtom = convertNumberToAtoms(rateRaw, this.market.rateConversionFactor)
-
-    const adjRateAtom = this.adjustRateAtoms(rateRawAtom)
-    const rounded = adjRateAtom !== rateRawAtom
-
-    return [true, rounded, adjRateAtom]
-  }
-
-  parseNumber (value: string | undefined): number | null {
-    if (!value) {
-      return null
-    }
-
-    value = value.replace(',', '.') // comma is a typical alternative to dot, allow for it
-
-    // check value doesn't contain invalid characters
-    const validPattern = /^-?\d+\.?\d*$/
-    if (!value.match(validPattern)) {
-      return null
-    }
-
-    return parseFloat(value)
-  }
-
-  lotToQty (lots: number): number {
-    return lots * this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor
-  }
-
-  /*
-  * adjustRateAtoms rounds down rateAtom to a multiple of rateStep.
-  */
-  adjustRateAtoms (rateAtom: number): number {
-    const rateStepAtom = this.market.cfg.ratestep
-    return rateAtom - (rateAtom % rateStepAtom)
-  }
-
   qtyFieldBuyInputHandler () {
     const page = this.page
     const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
@@ -2791,7 +2738,7 @@ export default class MarketsPage extends BasePage {
    * values are returned: [false, false, 0, 0].
    */
   parseQtyInput (value: string | undefined): [boolean, boolean, number, number] {
-    const { page, market: { baseUnitInfo: bui, cfg: { lotsize: lotSizeAtom } } } = this
+    const { page, market: { baseUnitInfo: bui } } = this
 
     Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
     Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
@@ -2801,14 +2748,75 @@ export default class MarketsPage extends BasePage {
       return [false, false, 0, 0]
     }
     const qtyRawAtom = convertNumberToAtoms(qtyRaw, bui.conventional.conversionFactor)
-
-    const lotsRaw = qtyRawAtom / lotSizeAtom
-    const adjLots = Math.floor(lotsRaw)
-    const adjQtyAtom = adjLots * lotSizeAtom
-    const rounded = adjQtyAtom !== qtyRawAtom
+    const [adjQtyAtom, adjLots] = this.adjustQtyAtoms(qtyRawAtom)
     const adjQty = adjQtyAtom / bui.conventional.conversionFactor
+    const rounded = adjQtyAtom !== qtyRawAtom
 
     return [true, rounded, adjLots, adjQty]
+  }
+
+  /**
+   * parseRateInput parses rate(price) string (in conventional units) and returns:
+   * 1) whether there are any parsing issues (true if none, false when
+   *    parsing fails)
+   * 2) whether rounding(adjustment) to rate-step had happened (true when did)
+   * 3) adjusted rate(price) value in atoms
+   */
+  parseRateInput (value: string | undefined): [boolean, boolean, number] {
+    const page = this.page
+
+    Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
+    Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
+
+    const rateRaw = this.parseNumber(value)
+    if (rateRaw === null || isNaN(rateRaw) || rateRaw <= 0) {
+      return [false, false, 0]
+    }
+    const rateRawAtom = convertNumberToAtoms(rateRaw, this.market.rateConversionFactor)
+    const adjRateAtom = this.adjustRateAtoms(rateRawAtom)
+    const rounded = adjRateAtom !== rateRawAtom
+
+    return [true, rounded, adjRateAtom]
+  }
+
+  parseNumber (value: string | undefined): number | null {
+    if (!value) {
+      return null
+    }
+
+    value = value.replace(',', '.') // comma is a typical alternative to dot, allow for it
+
+    // check value doesn't contain invalid characters
+    const validPattern = /^-?\d+\.?\d*$/
+    if (!value.match(validPattern)) {
+      return null
+    }
+
+    return parseFloat(value)
+  }
+
+  /*
+  * adjustQtyAtoms rounds down qtyAtom to a multiple of lot size and returns:
+  * 1) adjusted quantity
+  * 2) whole number of lots this quantity corresponds to
+  */
+  adjustQtyAtoms (qtyAtom: number): [number, number] {
+    const lotSizeAtom = this.market.cfg.lotsize
+    const adjQtyAtom = qtyAtom - (qtyAtom % lotSizeAtom)
+    const lots = adjQtyAtom / lotSizeAtom
+    return [adjQtyAtom, lots]
+  }
+
+  /*
+  * adjustRateAtoms rounds down rateAtom to a multiple of rateStep.
+  */
+  adjustRateAtoms (rateAtom: number): number {
+    const rateStepAtom = this.market.cfg.ratestep
+    return rateAtom - (rateAtom % rateStepAtom)
+  }
+
+  lotToQty (lots: number): number {
+    return lots * this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor
   }
 
   /* loadTable reloads the table from the current order book information. */
@@ -3176,7 +3184,7 @@ export function marketID (b: string, q: string) { return `${b}_${q}` }
 
 /* convertNumberToAtoms converts the float string to atoms. */
 function convertNumberToAtoms (v: number, conversionFactor: number) {
-  return Math.round(v * conversionFactor)
+  return Math.floor(v * conversionFactor)
 }
 
 /*
