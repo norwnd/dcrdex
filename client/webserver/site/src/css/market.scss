@@ -486,6 +486,9 @@ div[data-handler=markets] {
 }
 
 #recentMatchesTable {
+  table-layout: fixed; // helps to align columns more evenly (than default `auto`)
+  width: 100%; // must be set for `fixed` layout to work I guess
+
   th {
     align-items: center;
 
@@ -498,7 +501,6 @@ div[data-handler=markets] {
       visibility: hidden;
       vertical-align: middle;
       font-size: 10px;
-      margin-left: 5px;
     }
 
     &.sorted-dsc {

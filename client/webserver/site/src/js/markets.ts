@@ -334,56 +334,16 @@ export default class MarketsPage extends BasePage {
     bindForm(page.verifyForm, page.vSubmit, async () => { this.submitVerifiedOrder() })
     // Cancel order form.
     bindForm(page.cancelForm, page.cancelSubmit, async () => { this.submitCancel() })
-    // Bind active orders list's header sort events.
-    page.recentMatchesTable.querySelectorAll('[data-ordercol]')
-      .forEach((th: HTMLElement) => bind(
-        th, 'click', () => setRecentMatchesSortCol(th.dataset.ordercol || '')
-      ))
-
-    const setRecentMatchesSortCol = (key: string) => {
-      // First unset header's current sorted col classes.
-      unsetRecentMatchesSortColClasses()
-      if (this.recentMatchesSortKey === key) {
-        this.recentMatchesSortDirection *= -1
-      } else {
-        this.recentMatchesSortKey = key
-        this.recentMatchesSortDirection = 1
-      }
-      this.refreshRecentMatchesTable()
-      setRecentMatchesSortColClasses()
-    }
-
-    // sortClassByDirection receives a sort direction and return a class based on it.
-    const sortClassByDirection = (element: 1 | -1) => {
-      if (element === 1) return 'sorted-asc'
-      return 'sorted-dsc'
-    }
-
-    const unsetRecentMatchesSortColClasses = () => {
-      page.recentMatchesTable.querySelectorAll('[data-ordercol]')
-        .forEach(th => th.classList.remove('sorted-asc', 'sorted-dsc'))
-    }
-
-    const setRecentMatchesSortColClasses = () => {
-      const key = this.recentMatchesSortKey
-      const sortCls = sortClassByDirection(this.recentMatchesSortDirection)
-      Doc.safeSelector(page.recentMatchesTable, `[data-ordercol=${key}]`).classList.add(sortCls)
-    }
-
-    // Set default's sorted col header classes.
-    setRecentMatchesSortColClasses()
 
     const closePopups = () => {
       this.forms.close()
     }
-
     this.keyup = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         closePopups()
       }
     }
     bind(document, 'keyup', this.keyup)
-
     page.forms.querySelectorAll('.form-closer').forEach(el => {
       bind(el, 'click', () => { closePopups() })
     })
@@ -493,10 +453,8 @@ export default class MarketsPage extends BasePage {
       }
     }, 1000)
 
-    this.init(pageParams)
-  }
+    this.initMatchesSection()
 
-  async init (pageParams?: MarketsPageParams) {
     // Fetch the first market in the list, or the users last selected market, if
     // it exists.
     let selected
@@ -511,8 +469,43 @@ export default class MarketsPage extends BasePage {
     }
     if (selected) this.setMarket(selected.host, selected.base, selected.quote)
 
-    // set the initial state for the registration status
-    this.setRegistrationStatusVisibility()
+    this.setRegistrationStatusVisibility() // set the initial state for the registration status
+  }
+
+  initMatchesSection () {
+    const page = this.page
+
+    // Bind active orders list's header sort events.
+    page.recentMatchesTable.querySelectorAll('[data-ordercol]').forEach((th: HTMLElement) => bind(
+      th, 'click', () => setRecentMatchesSortCol(th.dataset.ordercol || '')
+    ))
+    const setRecentMatchesSortCol = (key: string) => {
+      // First unset header's current sorted col classes.
+      unsetRecentMatchesSortColClasses()
+      if (this.recentMatchesSortKey === key) {
+        this.recentMatchesSortDirection *= -1
+      } else {
+        this.recentMatchesSortKey = key
+        this.recentMatchesSortDirection = 1
+      }
+      this.refreshRecentMatchesTable()
+      setRecentMatchesSortColClasses()
+    }
+    // sortClassByDirection receives a sort direction and return a class based on it.
+    const sortClassByDirection = (element: 1 | -1) => {
+      if (element === 1) return 'sorted-asc'
+      return 'sorted-dsc'
+    }
+    const unsetRecentMatchesSortColClasses = () => {
+      page.recentMatchesTable.querySelectorAll('[data-ordercol]').forEach(th => th.classList.remove('sorted-asc', 'sorted-dsc'))
+    }
+    const setRecentMatchesSortColClasses = () => {
+      const key = this.recentMatchesSortKey
+      const sortCls = sortClassByDirection(this.recentMatchesSortDirection)
+      Doc.safeSelector(page.recentMatchesTable, `[data-ordercol=${key}]`).classList.add(sortCls)
+    }
+    // Set default's sorted col header classes.
+    setRecentMatchesSortColClasses()
   }
 
   startLoadingAnimations () {
@@ -1224,6 +1217,11 @@ export default class MarketsPage extends BasePage {
     this.reputationMeter.setHost(dex.host)
     this.updateReputation()
     this.loadUserOrders()
+
+    // update header for "matches" section
+    page.priceHdr.textContent = `Price (${Doc.shortSymbol(this.market.quote.symbol)})`
+    page.ageHdr.textContent = 'Age'
+    page.qtyHdr.textContent = `Size (${Doc.shortSymbol(this.market.base.symbol)})`
   }
 
   /*
@@ -2448,7 +2446,7 @@ export default class MarketsPage extends BasePage {
 
   recentMatchesSorted (sortBy: string, direction: number): RecentMatch[] {
     switch (sortBy) {
-      case 'rate':
+      case 'price':
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.rate - b.rate))
       case 'qty':
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.qty - b.qty))
@@ -2470,7 +2468,7 @@ export default class MarketsPage extends BasePage {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
-      tmpl.rate.textContent = Doc.formatRateAtomFullPrecision(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+      tmpl.price.textContent = Doc.formatRateAtomFullPrecision(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
       tmpl.qty.textContent = Doc.formatCoinValue(match.qty, mkt.baseUnitInfo)
       tmpl.age.textContent = Doc.timeSince(match.stamp)
       tmpl.age.dataset.sinceStamp = String(match.stamp)

@@ -392,21 +392,30 @@
               </div>{{- /* END USER ORDERS */ -}}
 
               {{- /* RECENT MATCHES */ -}}
-              <div id=recentMatchesBox  class="flex-stretch-column pb-4 border-top">
+              <div id=recentMatchesBox class="flex-stretch-column pb-4 border-top">
                 <div class="text-center fs20 my-3">[[[Recent Matches]]]</div>
                 <table id="recentMatchesTable" class="row-border row-hover lh1">
                   <thead>
                     <tr class="pointer">
-                      <th data-ordercol="age" class="text-nowrap">[[[Age]]] <span class="ico-arrowdown"></span></th>
-                      <th data-ordercol="rate" class="text-end pe-2 text-nowrap"><span class="ico-arrowdown"></span> [[[Rate]]]</th>
-                      <th data-ordercol="qty" class="text-end text-nowrap"><span class="ico-arrowdown"></span> [[[Size]]]</th>
+                      <th data-ordercol="price" class="text-start text-nowrap">
+                        <span id="priceHdr"></span>
+                        <span class="ico-arrowdown"></span>
+                      </th>
+                      <th data-ordercol="qty" class="text-end text-nowrap">
+                        <span class="ico-arrowdown"></span>
+                        <span id="qtyHdr"></span>
+                      </th>
+                      <th data-ordercol="age" class="text-end text-nowrap">
+                        <span class="ico-arrowdown"></span>
+                        <span id="ageHdr"></span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody id="recentMatchesLiveList">
                     <tr id="recentMatchesTemplate">
-                      <td data-tmpl="age"></td>
-                      <td data-tmpl="rate" class="text-end pe-2"></td>
+                      <td data-tmpl="price" class="text-start"></td>
                       <td data-tmpl="qty" class="text-end"></td>
+                      <td data-tmpl="age" class="text-end"></td>
                     </tr>
                   </tbody>
                 </table>
