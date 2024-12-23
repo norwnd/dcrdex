@@ -2830,6 +2830,12 @@ export default class MarketsPage extends BasePage {
     const adjRateAtom = this.adjustRateAtoms(rateRawAtom)
     const rounded = adjRateAtom !== rateRawAtom
 
+    // TODO
+    console.log('rateRawAtom:')
+    console.log(rateRawAtom)
+    console.log('adjRateAtom:')
+    console.log(adjRateAtom)
+
     return [true, rounded, adjRateAtom]
   }
 
@@ -3278,9 +3284,14 @@ function makeMarket (host: string, base?: number, quote?: number) {
 /* marketID creates a DEX-compatible market name from the ticker symbols. */
 export function marketID (b: string, q: string) { return `${b}_${q}` }
 
-/* convertNumberToAtoms converts the float string to atoms. */
-function convertNumberToAtoms (v: number, conversionFactor: number) {
-  return Math.floor(v * conversionFactor)
+/* convertNumberToAtoms converts number to atoms using provided conversion factor. */
+function convertNumberToAtoms (v: number, conversionFactor: number): number {
+  // since atomic number is always an integer we need to round it to the nearest
+  // integer here, note we are rounding to the closest integer (that should be
+  // sufficient to resolve any floating-point errors that might have crept up
+  // during floating-point arithmetic) and not just down for example - which would
+  // actually result in changing the original value to a slightly different one
+  return Math.round(v * conversionFactor)
 }
 
 /*
