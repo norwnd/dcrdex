@@ -8,8 +8,8 @@ export default class OrderBook {
   baseSymbol: string
   quote: number
   quoteSymbol: string
-  buys: MiniOrder[]
-  sells: MiniOrder[]
+  buys: MiniOrder[] // includes epoch orders
+  sells: MiniOrder[] // includes epoch orders
 
   constructor (mktBook: MarketOrderBook, baseSymbol: string, quoteSymbol: string) {
     this.base = mktBook.base
@@ -109,7 +109,12 @@ export default class OrderBook {
 
   // bestOrder will return the best order in book-side if one exists
   // (including epoch-orders) or null if there are no orders in book-side
-  bestOrder (side: MiniOrder[]): MiniOrder | null {
+  bestOrder (sell: boolean): MiniOrder | null {
+    let side = this.buys
+    if (sell) {
+      side = this.sells
+    }
+
     if (side.length > 0) {
       return side[0]
     }
@@ -117,7 +122,7 @@ export default class OrderBook {
   }
 
   bestBuyRateAtom (): number {
-    const bestBuy = this.bestOrder(this.buys)
+    const bestBuy = this.bestOrder(false)
     if (!bestBuy) {
       return 0
     }
@@ -125,11 +130,46 @@ export default class OrderBook {
   }
 
   bestSellRateAtom (): number {
-    const bestSell = this.bestOrder(this.sells)
+    const bestSell = this.bestOrder(true)
     if (!bestSell) {
       return 0
     }
     return bestSell.msgRate
+  }
+
+  // heaviestOrder will return the order in book-side of highest quantity if one exists
+  // (including epoch-orders) or null if there are no orders in book-side, the
+  // bestPriceDriftTolerance parameter value is between 0 and 1 (when set) allows for
+  // skipping orders with price that's too far from best price for this side of the book
+  heaviestOrder (sell: boolean, bestPriceDriftTolerance: number): MiniOrder | null {
+    let side = this.buys
+    if (sell) {
+      side = this.sells
+    }
+    if (side.length <= 0) {
+      return null
+    }
+
+    const bestOrder = this.bestOrder(sell)
+    if (!bestOrder) {
+      return null
+    }
+
+    let heaviestOrder = side[0]
+    side.forEach((order: MiniOrder) => {
+      if (bestPriceDriftTolerance > 0 && bestPriceDriftTolerance <= 1) {
+        if (!sell && (bestOrder.msgRate - order.msgRate > bestPriceDriftTolerance * bestOrder.msgRate)) {
+          return // order price drifted too far to consider it relevant
+        }
+        if (sell && (order.msgRate - bestOrder.msgRate > bestPriceDriftTolerance * bestOrder.msgRate)) {
+          return // order price drifted too far to consider it relevant
+        }
+      }
+      if (order.qtyAtomic > heaviestOrder.qtyAtomic) {
+        heaviestOrder = order
+      }
+    })
+    return heaviestOrder
   }
 }
 

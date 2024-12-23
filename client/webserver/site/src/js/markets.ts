@@ -2913,11 +2913,16 @@ export default class MarketsPage extends BasePage {
     const tbody = sell ? this.page.sellRows : this.page.buyRows
     Doc.empty(tbody)
     if (!bookSide || !bookSide.length) return
+
     let orderBins = this.binOrdersByRateAndEpoch(bookSide)
     // trim order bins list to fit only 14 of them on the screen per book-side (otherwise
     // we'd need to scroll the UI which is undesirable)
     orderBins = orderBins.slice(0, orderBookSideMaxCapacity)
-    orderBins.forEach(bin => { tbody.appendChild(this.orderTableRow(bin)) })
+    orderBins.forEach(bin => {
+      const tableRow = this.newOrderTableRow(bin)
+      this.setTableOrderRowBackground(tableRow)
+      tbody.appendChild(tableRow)
+    })
   }
 
   /* addTableOrder adds a single order to the appropriate table. */
@@ -2930,8 +2935,10 @@ export default class MarketsPage extends BasePage {
       // This is a market order.
       if (row && row.manager.getRate() === 0) {
         row.manager.insertOrder(order)
+        this.setTableOrderRowBackground(row)
       } else {
-        row = this.orderTableRow([order])
+        row = this.newOrderTableRow([order])
+        this.setTableOrderRowBackground(row)
         // make sure we don't exceed book-side max capacity
         if (tbody.childElementCount >= orderBookSideMaxCapacity) {
           tbody.lastChild?.remove()
@@ -2945,9 +2952,11 @@ export default class MarketsPage extends BasePage {
     while (row) {
       if (row.manager.compare(order) === 0) {
         row.manager.insertOrder(order)
+        this.setTableOrderRowBackground(row)
         return
       } else if (row.manager.compare(order) > 0) {
-        const tr = this.orderTableRow([order])
+        const tr = this.newOrderTableRow([order])
+        this.setTableOrderRowBackground(tr)
         // make sure we don't exceed book-side max capacity
         if (tbody.childElementCount >= orderBookSideMaxCapacity) {
           tbody.lastChild?.remove()
@@ -2957,7 +2966,8 @@ export default class MarketsPage extends BasePage {
       }
       row = row.nextSibling as OrderRow
     }
-    const tr = this.orderTableRow([order])
+    const tr = this.newOrderTableRow([order])
+    this.setTableOrderRowBackground(tr)
     // make sure we don't exceed book-side max capacity
     if (tbody.childElementCount >= orderBookSideMaxCapacity) {
       tbody.lastChild?.remove()
@@ -2981,10 +2991,42 @@ export default class MarketsPage extends BasePage {
     for (const tbody of [this.page.sellRows, this.page.buyRows]) {
       for (const tr of (Array.from(tbody.children) as OrderRow[])) {
         if (tr.manager.updateOrderQty(u)) {
+          this.setTableOrderRowBackground(tr)
           return
         }
       }
     }
+  }
+
+  /* setTableOrderRowBackground updates background to represent order weight visually */
+  setTableOrderRowBackground (row: OrderRow) {
+    // see how much order price drifted from best in the book (>= 10% would mean the
+    // order is completely irrelevant)
+    const maxPriceDivergence = 0.10
+    let priceDivergence = maxPriceDivergence
+    const bestOrder = this.book.bestOrder(row.manager.sell)
+    if (!bestOrder) {
+      return null
+    }
+    if (row.manager.sell) {
+      priceDivergence = Math.min((row.manager.msgRate - bestOrder.msgRate) / bestOrder.msgRate, maxPriceDivergence)
+    } else {
+      priceDivergence = Math.min((bestOrder.msgRate - row.manager.msgRate) / bestOrder.msgRate, maxPriceDivergence)
+    }
+    const priceRelevance = (maxPriceDivergence - priceDivergence) / maxPriceDivergence
+
+    const heaviestOrder = this.book.heaviestOrder(row.manager.sell, maxPriceDivergence)
+    if (!heaviestOrder) return
+    const rowQtyAtom = row.manager.qtyAtom()
+    // rowWeightRatio is capped at 1.0 because heaviestOrder is not necessarily the heaviest
+    // in the book (it gotta be heaviest relevant one)
+    const rowWeightRatio = Math.min(rowQtyAtom / heaviestOrder.qtyAtomic, 1.0)
+
+    let rowRelevanceColor = State.isDark() ? '#35141D' : '#E6F8F1'
+    if (row.manager.sell) {
+      rowRelevanceColor = State.isDark() ? '#102821' : '#FEF1F2'
+    }
+    row.style.background = `linear-gradient(to left, ${rowRelevanceColor} ${priceRelevance * rowWeightRatio * 100}%, transparent 0%)`
   }
 
   /*
@@ -3006,10 +3048,10 @@ export default class MarketsPage extends BasePage {
   }
 
   /*
-   * orderTableRow creates a new <tr> element to insert into an order table.
+   * newOrderTableRow creates a new <tr> element to insert into an order table.
      Takes a bin of orders with the same rate, and displays the total quantity.
    */
-  orderTableRow (orderBin: MiniOrder[]): OrderRow {
+  newOrderTableRow (orderBin: MiniOrder[]): OrderRow {
     const tr = this.page.orderRowTmpl.cloneNode(true) as OrderRow
     tr.manager = new OrderTableRowManager(tr, orderBin, this.market)
     return tr
@@ -3288,14 +3330,18 @@ class OrderTableRowManager {
     this.redrawOrderRowEl()
   }
 
+  // qty returns total qty in this row (summing up across all orders in this row)
+  qtyAtom (): number {
+    return this.orderBin.reduce((total, curr) => total + curr.qtyAtomic, 0)
+  }
+
   // updateQtyNumOrdersEl populates the quantity element in the row, displays the
   // number of orders if there is more than one order in the order bin, and also
   // displays "own marker" if the row contains order(s) that belong to the user.
   redrawOrderRowEl () {
     const { page, market, orderBin } = this
-    const qty = orderBin.reduce((total, curr) => total + curr.qtyAtomic, 0)
     const numOrders = orderBin.length
-    page.qty.innerText = Doc.formatCoinAtomToLotSizeBaseCurrency(qty, market.baseUnitInfo, market.cfg.lotsize)
+    page.qty.innerText = Doc.formatCoinAtomToLotSizeBaseCurrency(this.qtyAtom(), market.baseUnitInfo, market.cfg.lotsize)
     if (numOrders > 1) {
       page.numOrders.removeAttribute('hidden')
       page.numOrders.innerText = String(numOrders)
