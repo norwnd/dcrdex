@@ -33,7 +33,7 @@ import {
   ConnEventNote,
   EpochNote,
   Exchange,
-  Market,
+  Market, MarketOrderBook,
   MatchNote,
   MaxOrderEstimate,
   MiniOrder,
@@ -1194,7 +1194,6 @@ export default class MarketsPage extends BasePage {
       buyBalance: 0,
       bookLoaded: false
     }
-
     this.market = mkt
 
     page.lotSizeBuy.textContent = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
@@ -1267,16 +1266,39 @@ export default class MarketsPage extends BasePage {
 
   reportMouseCandle (candle: Candle | null) {
     const page = this.page
+    const mkt = this.market
+
     if (!candle) {
       Doc.hide(page.candlesLegend)
       return
     }
     Doc.show(page.candlesLegend)
-    page.candleStart.textContent = Doc.formatCoinValue(candle.startRate / this.market.rateConversionFactor)
-    page.candleEnd.textContent = Doc.formatCoinValue(candle.endRate / this.market.rateConversionFactor)
-    page.candleHigh.textContent = Doc.formatCoinValue(candle.highRate / this.market.rateConversionFactor)
-    page.candleLow.textContent = Doc.formatCoinValue(candle.lowRate / this.market.rateConversionFactor)
-    page.candleVol.textContent = Doc.formatCoinValue(candle.matchVolume, this.market.baseUnitInfo)
+
+    page.candleStart.textContent = Doc.formatRateAtomFullPrecision(
+      candle.startRate,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+    page.candleEnd.textContent = Doc.formatRateAtomFullPrecision(
+      candle.endRate,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+    page.candleHigh.textContent = Doc.formatRateAtomFullPrecision(
+      candle.highRate,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+    page.candleLow.textContent = Doc.formatRateAtomFullPrecision(
+      candle.lowRate,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+    page.candleVol.textContent = Doc.formatCoinValue(candle.matchVolume, mkt.baseUnitInfo)
   }
 
   /*
@@ -1743,7 +1765,7 @@ export default class MarketsPage extends BasePage {
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
-      let headerRateStr = Doc.formatRateAtomFourSigFigs(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      let headerRateStr = Doc.formatRateAtomFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
       let detailsRateStr = Doc.formatRateAtomFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
@@ -1848,7 +1870,7 @@ export default class MarketsPage extends BasePage {
 
   marketOrderHeaderRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-    let rateStr = Doc.formatRateAtomFourSigFigs(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    let rateStr = Doc.formatRateAtomFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
     return rateStr
   }
@@ -1885,17 +1907,51 @@ export default class MarketsPage extends BasePage {
     else document.title = `${Doc.formatCoinValue(midGapValue)} | ${bUnit}${qUnit} | ${this.ogTitle}` // more than 6 numbers it gets too big for the title.
   }
 
+  // adjRateAtomsBuy helps us make sure every order we've got is adjusted to rate-step,
+  // this is redundant but helps with the hack we do to keep rates manageable in UI
+  // (see comment that mentions "insanely large rate-step"); note, we have to round
+  // buy-order rate DOWN and sell-order rate UP so that user can actually book it in UI
+  // by inputting the rate he sees (otherwise he'll be just short of the rate he needs to set)
+  adjRateAtomsBuy (rateAtom: number): number {
+    const { cfg: { ratestep } } = this.market
+    return rateAtom - (rateAtom % ratestep) // adjusted down
+  }
+
+  // adjRateAtomsSell is similar to adjRateAtomsBuy (but helps with sell-orders)
+  adjRateAtomsSell (rateAtom: number): number {
+    const { cfg: { ratestep } } = this.market
+    const adjustedRateAtom = rateAtom - (rateAtom % ratestep)
+    if (rateAtom === adjustedRateAtom) {
+      return rateAtom // nothing to adjust up
+    }
+    return adjustedRateAtom + ratestep // adjusted up
+  }
+
   /* handleBookRoute is the handler for the 'book' notification, which is sent
    * in response to a new market subscription. The data received will contain
    * the entire order book.
    */
   handleBookRoute (note: BookUpdate) {
     app().log('book', 'handleBookRoute:', note)
-    const mktBook = note.payload
-    const { baseCfg: b, quoteCfg: q, dex: { host } } = this.market
-    if (mktBook.base !== b.id || mktBook.quote !== q.id || note.host !== host) return // user already changed markets
+    const mktBook: MarketOrderBook = note.payload
+    const { baseCfg, quoteCfg, dex: { host } } = this.market
+    if (mktBook.base !== baseCfg.id || mktBook.quote !== quoteCfg.id || note.host !== host) {
+      return // user already changed markets
+    }
 
-    const { baseCfg, quoteCfg } = this.market
+    mktBook.book.buys = mktBook.book.buys || [] // take care of null
+    mktBook.book.buys.forEach(order => {
+      order.msgRate = this.adjRateAtomsBuy(order.msgRate)
+    })
+    mktBook.book.sells = mktBook.book.sells || [] // take care of null
+    mktBook.book.sells.forEach(order => {
+      order.msgRate = this.adjRateAtomsSell(order.msgRate)
+    })
+    mktBook.book.epoch = mktBook.book.epoch || [] // take care of null
+    mktBook.book.epoch.forEach(order => {
+      order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
+    })
+
     this.book = new OrderBook(mktBook, baseCfg.symbol, quoteCfg.symbol)
     this.loadTable()
     for (const order of (mktBook.book.epoch || [])) {
@@ -1916,6 +1972,7 @@ export default class MarketsPage extends BasePage {
     app().log('book', 'handleBookOrderRoute:', data)
     if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
     const order = data.payload as MiniOrder
+    order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.rate > 0) this.book.add(order)
     this.addTableOrder(order)
     this.updateTitle()
@@ -1948,6 +2005,7 @@ export default class MarketsPage extends BasePage {
     app().log('book', 'handleEpochOrderRoute:', data)
     if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
     const order = data.payload
+    order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.msgRate > 0) this.book.add(order) // No cancels or market orders
     if (order.qtyAtomic > 0) this.addTableOrder(order) // No cancel orders
   }

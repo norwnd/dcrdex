@@ -72,10 +72,10 @@ export interface Candle {
   endStamp: number
   matchVolume: number
   quoteVolume: number
-  highRate: number
-  lowRate: number
-  startRate: number
-  endRate: number
+  highRate: number // in atoms
+  lowRate: number // in atoms
+  startRate: number // in atoms
+  endRate: number // in atoms
 }
 
 export interface CandlesPayload {
@@ -92,7 +92,7 @@ export interface Market {
   quotesymbol: string
   lotsize: number // in atoms, in base currency
   parcelsize: number
-  ratestep: number
+  ratestep: number // in atoms
   epochlen: number
   startepoch: number
   buybuffer: number
@@ -141,8 +141,8 @@ export interface Match {
   status: number
   active: boolean
   revoked: boolean
-  rate: number
-  qty: number
+  rate: number // in atoms
+  qty: number // in atoms
   side: number
   feeRate: number
   swap: Coin
@@ -162,8 +162,8 @@ export interface Spot {
   bookVolume: number // Unused?
   change24: number
   vol24: number
-  low24: number
-  high24: number
+  low24: number // in atoms
+  high24: number // in atoms
 }
 
 export interface Asset {
