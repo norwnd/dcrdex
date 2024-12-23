@@ -44,11 +44,11 @@
                 </table>
               </div>
 
-              <div class="d-flex justify-content-end py-1 px-2 fs16">
+              <div class="d-flex justify-content-start py-1 px-2 fs16">
                 <div class="flex-center">
-                  <span id="obUp" class="ico-arrowup buycolor fs14"></span>
-                  <span id="obDown" class="ico-arrowdown sellcolor fs14 d-hide"></span>
-                  <span id="obPrice" class="buycolor ms-1 fs16"></span>
+                  <span id="obPrice" class="buycolor fs16"></span>
+                  <span id="obUp" class="ico-arrowup buycolor fs14 ms-1"></span>
+                  <span id="obDown" class="ico-arrowdown sellcolor fs14 ms-1 d-hide"></span>
                 </div>
               </div>
 
@@ -58,14 +58,14 @@
                   <tbody id="buyRows">
                     {{- /* This row is used by the app as a template. */ -}}
                     <tr id="orderRowTmpl" class="d-flex justify-content-between px-2 w-100">
-                      <td class="d-flex justify-content-start align-items-center pe-2 w-100">
-                        <div data-tmpl="qty">-</div>
-                        <small class="numorders lh1 rounded3 text-center ms-2" data-tmpl="numOrders">-</small>
-                      </td>
-                      <td class="d-flex justify-content-end align-items-center text-nowrap ps-2">
-                        <span class="ico-check fs10 pe-1 d-hide" data-tmpl="epoch"></span>
-                        <span class="ico-own-book-order fs8 pe-1 d-hide" data-tmpl="ownBookOrder"></span>
+                      <td class="d-flex justify-content-start align-items-center text-nowrap pe-2">
                         <span data-tmpl="rate">-</span>
+                        <span class="ico-own-book-order fs8 ps-1 d-hide" data-tmpl="ownBookOrder"></span>
+                        <span class="ico-check fs10 ps-1 d-hide" data-tmpl="epoch"></span>
+                      </td>
+                      <td class="d-flex justify-content-end align-items-center ps-2">
+                        <small class="numorders lh1 rounded3 text-center" data-tmpl="numOrders">-</small>
+                        <div data-tmpl="qty" class="ms-2">-</div>
                       </td>
                     </tr>
                   </tbody>
