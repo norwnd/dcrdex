@@ -2191,9 +2191,9 @@ class AssetPane {
     }
     if (isQuote) {
       const basis = inv.book + inv.cex + inv.orderReserves
-      page.slippageBufferBasis.textContent = Doc.formatCoinValue(basis * ui.conventional.conversionFactor, ui)
+      page.slippageBufferBasis.textContent = Doc.formatCoinAtom(basis * ui.conventional.conversionFactor, ui)
       inv.slippageBuffer = basis * cfg.slippageBufferFactor
-      page.slippageBuffer.textContent = Doc.formatCoinValue(inv.slippageBuffer * ui.conventional.conversionFactor, ui)
+      page.slippageBuffer.textContent = Doc.formatCoinAtom(inv.slippageBuffer * ui.conventional.conversionFactor, ui)
     }
     Doc.setVis(fees.bookingFeesPerCounterLot > 0, page.redemptionFeesBox)
     if (fees.bookingFeesPerCounterLot > 0) {
@@ -2210,7 +2210,7 @@ class AssetPane {
   updateCommitTotal () {
     const { page, assetID, ui } = this
     const commit = this.commit()
-    page.commitTotal.textContent = Doc.formatCoinValue(Math.round(commit * ui.conventional.conversionFactor), ui)
+    page.commitTotal.textContent = Doc.formatCoinAtom(Math.round(commit * ui.conventional.conversionFactor), ui)
     page.commitTotalFiat.textContent = Doc.formatFourSigFigs(commit * app().fiatRatesMap[assetID])
   }
 
@@ -2218,7 +2218,7 @@ class AssetPane {
     const { page, inv, feeAssetID, feeUI, isToken } = this
     if (!isToken) return
     const feeReserves = inv.bookingFees + inv.swapFeeReserves
-    page.feeTotal.textContent = Doc.formatCoinValue(feeReserves * feeUI.conventional.conversionFactor, feeUI)
+    page.feeTotal.textContent = Doc.formatCoinAtom(feeReserves * feeUI.conventional.conversionFactor, feeUI)
     page.feeTotalFiat.textContent = Doc.formatFourSigFigs(feeReserves * app().fiatRatesMap[feeAssetID])
   }
 

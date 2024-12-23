@@ -174,18 +174,18 @@ export default class OrdersPage extends BasePage {
       if (ord.sell) {
         [fromSymbol, toSymbol] = [ord.baseSymbol, ord.quoteSymbol];
         [fromUnit, toUnit] = [baseUnitInfo.conventional.unit, quoteUnitInfo.conventional.unit]
-        fromQty = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+        fromQty = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         if (ord.type === OrderUtil.Limit) {
-          toQty = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          toQty = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
         }
       } else {
         [fromSymbol, toSymbol] = [ord.quoteSymbol, ord.baseSymbol];
         [fromUnit, toUnit] = [quoteUnitInfo.conventional.unit, baseUnitInfo.conventional.unit]
         if (ord.type === OrderUtil.Market) {
-          fromQty = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          fromQty = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         } else {
-          fromQty = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
-          toQty = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          fromQty = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          toQty = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         }
       }
 
@@ -199,7 +199,7 @@ export default class OrdersPage extends BasePage {
       tmpl.toLogo.src = Doc.logoPath(toSymbol)
       tmpl.toSymbol.textContent = toUnit
       tmpl.type.textContent = `${OrderUtil.typeString(ord)} ${OrderUtil.sellString(ord)}`
-      let rate = Doc.formatCoinValue(app().conventionalRate(ord.baseID, ord.quoteID, ord.rate, xc))
+      let rate = Doc.formatCoinAtom(app().conventionalRate(ord.baseID, ord.quoteID, ord.rate, xc))
       if (ord.type === OrderUtil.Market) rate = OrderUtil.averageMarketOrderRateString(ord)
       tmpl.rate.textContent = rate
       tmpl.status.textContent = OrderUtil.statusString(ord)

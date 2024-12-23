@@ -50,7 +50,7 @@ const BipSymbolIDs: Record<string, number> = {};
 
 const BipSymbols = Object.values(BipIDs)
 
-const RateEncodingFactor = 1e8 // same as value defined in ./orderutil
+const RateEncodingFactor = 1e8
 
 const log10RateEncodingFactor = Math.round(Math.log10(RateEncodingFactor))
 
@@ -61,17 +61,6 @@ const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0
 const fourSigFigs = new Intl.NumberFormat(languages, {
   maximumSignificantDigits: 4
 })
-
-/* A cache for formatters used for Doc.formatCoinValue. */
-const decimalFormatters: Record<number, Intl.NumberFormat> = {}
-
-/*
- * decimalFormatter gets the formatCoinValue formatter for the specified decimal
- * precision.
- */
-function decimalFormatter (prec: number) {
-  return formatter(decimalFormatters, 2, prec)
-}
 
 /* A cache for formatters used for Doc.formatFullPrecision. */
 const fullPrecisionFormatters: Record<number, Intl.NumberFormat> = {}
@@ -344,49 +333,70 @@ export default class Doc {
   }
 
   /*
-   * formatCoinValue formats the value in atomic units into a string
+   * formatCoinAtom formats the value in atomic units into a string
    * representation in conventional units. If the value happens to be an
    * integer, no decimals are displayed. Trailing zeros may be truncated.
    * By default full precision of unitInfo will be used, but `precision`
    * parameter allows for specifying the desired one (note, `precision` is
    * max number of significant digits after decimal point).
    */
-  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo, precision?: number): string {
-    const [v, precisionFull] = convertToConventional(vAtomic, unitInfo)
+  static formatCoinAtom (coinAtom: number, unitInfo?: UnitInfo, precision?: number): string {
+    const [v, precisionFull] = convertToConventional(coinAtom, unitInfo)
     if (Number.isInteger(v)) return intFormatter.format(v)
     if (!precision) {
       precision = precisionFull
     }
-    return decimalFormatter(precision).format(v)
+    return fullPrecisionFormatter(precision).format(v)
   }
 
   /*
-   * formatCoinValueFourSigFigs is similar to formatCoinValue but is more flexible
+   * formatCoinAtomToLotSize formats atomic coin value to represent it exactly at lot size
+   * precision.
+   */
+  static formatCoinAtomToLotSize (coinAtom: number, unitInfo: UnitInfo, lotSizeAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, unitInfo)
+    const [lotSize] = convertToConventional(lotSizeAtom, unitInfo)
+    const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
+    if (lotSizeDigits <= 0) {
+      // this should never happen, but handle gracefully just in case
+      return intFormatter.format(coin)
+    }
+    return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits).format(coin)
+  }
+
+  /*
+   * formatCoinAtomFourSigFigs should actually be called formatCoinAtomBestWeCan, but
+   * this name is left for compatibility purposes (simpler to rebase onto upstream).
+   *
+   * formatCoinAtomFourSigFigs is similar to formatCoinAtom but is more flexible
    * in the way it treats decimals (can omit them if necessary).
    */
-  static formatCoinValueFourSigFigs (vAtomic: number, unitInfo?: UnitInfo): string {
-    const [v, precisionFull] = convertToConventional(vAtomic, unitInfo)
+  static formatCoinAtomFourSigFigs (coinAtom: number, unitInfo?: UnitInfo): string {
+    const [v, precisionFull] = convertToConventional(coinAtom, unitInfo)
     return Doc.formatFourSigFigs(v, precisionFull)
   }
 
   /*
-   * formatRateAtomFullPrecision formats atomic rate value to represent it exactly at rate step
+   * formatRateAtomToRateStep formats atomic rate value to represent it exactly at rate step
    * precision.
    */
-  static formatRateAtomFullPrecision (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
+  static formatRateAtomToRateStep (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
     const rateConv = rateAtom * r / RateEncodingFactor
-    return Doc.formatRateFullPrecision(rateConv, bui, qui, rateStepEnc)
+    return Doc.formatRateToRateStep(rateConv, bui, qui, rateStepAtom)
   }
 
   /*
-   * formatRateAtomFullPrecision formats atomic rate value to represent it exactly at rate step
+   * formatRateToRateStep formats conventional rate value to represent it exactly at rate step
    * precision.
    */
-  static formatRateFullPrecision (rateConv: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number): string {
-    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
+  static formatRateToRateStep (rateConv: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
         Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
-    if (rateStepDigits <= 0) return intFormatter.format(rateConv)
+    if (rateStepDigits <= 0) {
+      // this should never happen, but handle gracefully just in case
+      return intFormatter.format(rateConv)
+    }
     return fullPrecisionFormatterWithPreservingZeroes(rateStepDigits).format(rateConv)
   }
 
@@ -820,7 +830,7 @@ function timeMod (t: number, dur: number) {
 }
 
 if (process.env.NODE_ENV === 'development') {
-  window.testFormatRateAtomFullPrecision = () => {
+  window.testFormatRateAtomToRateStep = () => {
     const tests: [number, number, number, number, string][] = [
       // Two utxo assets with a conventional rate of 0.15. Conventional rate
       // step is 100 / 1e8 = 1e-6, so there should be 6 decimal digits.
@@ -858,7 +868,7 @@ if (process.env.NODE_ENV === 'development') {
       for (const k in fullPrecisionFormatters) delete fullPrecisionFormatters[k] // cleanup
       const bui = { conventional: { conversionFactor: bFactor } } as any as UnitInfo
       const qui = { conventional: { conversionFactor: qFactor } } as any as UnitInfo
-      const enc = Doc.formatRateAtomFullPrecision(encRate, bui, qui, rateStep)
+      const enc = Doc.formatRateAtomToRateStep(encRate, bui, qui, rateStep)
       if (enc !== expEncoding) console.log(`TEST FAILED: f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} != ${expEncoding}`)
       else console.log(`✔️ f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} ✔️`)
     }

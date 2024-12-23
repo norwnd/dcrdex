@@ -175,10 +175,10 @@ export default class OrderPage extends BasePage {
       Doc.hide(tmpl.infoDiv, tmpl.status, tmpl.statusHdr)
 
       if (this.order.sell) {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.baseID)
       } else {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.quoteID)
       }
 
@@ -240,14 +240,14 @@ export default class OrderPage extends BasePage {
 
     if (this.order.sell) {
       tmpl.refundAsset.textContent = baseSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.baseID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.quoteID)
     } else {
       tmpl.refundAsset.textContent = quoteSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.quoteID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.baseID)
     }

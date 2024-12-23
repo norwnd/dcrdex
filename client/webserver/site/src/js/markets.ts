@@ -539,7 +539,7 @@ export default class MarketsPage extends BasePage {
         let fiatPriceFormatted = '(-)'
         if (baseFiatRate && quoteFiatRate) {
           const fiatPrice = baseFiatRate / quoteFiatRate
-          fiatPriceFormatted = Doc.formatRateFullPrecision(
+          fiatPriceFormatted = Doc.formatRateToRateStep(
             fiatPrice,
             selectedMkt.baseUnitInfo,
             selectedMkt.quoteUnitInfo,
@@ -580,7 +580,7 @@ export default class MarketsPage extends BasePage {
 
     this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
     this.stats.tmpl.bisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.stats.tmpl.bisonPrice.textContent = Doc.formatRateAtomFullPrecision(
+    this.stats.tmpl.bisonPrice.textContent = Doc.formatRateAtomToRateStep(
       mkt.spot.rate,
       selectedMkt.baseUnitInfo,
       selectedMkt.quoteUnitInfo,
@@ -592,7 +592,7 @@ export default class MarketsPage extends BasePage {
     let fiatPriceFormatted = '(-)'
     if (baseFiatRate && quoteFiatRate) {
       const fiatPrice = baseFiatRate / quoteFiatRate
-      fiatPriceFormatted = Doc.formatRateFullPrecision(
+      fiatPriceFormatted = Doc.formatRateToRateStep(
         fiatPrice,
         selectedMkt.baseUnitInfo,
         selectedMkt.quoteUnitInfo,
@@ -621,7 +621,7 @@ export default class MarketsPage extends BasePage {
     Doc.setVis(!mostRecentMatchIsBuy, this.page.obDown)
     this.page.obPrice.classList.remove('sellcolor', 'buycolor')
     this.page.obPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.page.obPrice.textContent = Doc.formatRateAtomFullPrecision(
+    this.page.obPrice.textContent = Doc.formatRateAtomToRateStep(
       mkt.spot.rate,
       selectedMkt.baseUnitInfo,
       selectedMkt.quoteUnitInfo,
@@ -705,7 +705,7 @@ export default class MarketsPage extends BasePage {
 
     let lowFormatted = '-'
     if (low > 0) {
-      lowFormatted = Doc.formatRateAtomFullPrecision(
+      lowFormatted = Doc.formatRateAtomToRateStep(
         low,
         mkt.baseUnitInfo,
         mkt.quoteUnitInfo,
@@ -715,7 +715,7 @@ export default class MarketsPage extends BasePage {
     this.stats.tmpl.low.textContent = lowFormatted
     let highFormatted = '-'
     if (high > 0) {
-      highFormatted = Doc.formatRateAtomFullPrecision(
+      highFormatted = Doc.formatRateAtomToRateStep(
         high,
         mkt.baseUnitInfo,
         mkt.quoteUnitInfo,
@@ -1189,10 +1189,10 @@ export default class MarketsPage extends BasePage {
     }
     this.market = mkt
 
-    page.lotSizeBuy.textContent = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
-    page.lotSizeSell.textContent = Doc.formatCoinValue(mkt.cfg.lotsize, mkt.baseUnitInfo)
-    page.rateStepBuy.textContent = Doc.formatCoinValue(mkt.cfg.ratestep / rateConversionFactor)
-    page.rateStepSell.textContent = Doc.formatCoinValue(mkt.cfg.ratestep / rateConversionFactor)
+    page.lotSizeBuy.textContent = Doc.formatCoinAtomToLotSize(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
+    page.lotSizeSell.textContent = Doc.formatCoinAtomToLotSize(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
+    page.rateStepBuy.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
+    page.rateStepSell.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
 
     this.displayMessageIfMissingWallet()
     this.setMarketDetails()
@@ -1272,31 +1272,31 @@ export default class MarketsPage extends BasePage {
     }
     Doc.show(page.candlesLegend)
 
-    page.candleStart.textContent = Doc.formatRateAtomFullPrecision(
+    page.candleStart.textContent = Doc.formatRateAtomToRateStep(
       candle.startRate,
       mkt.baseUnitInfo,
       mkt.quoteUnitInfo,
       mkt.cfg.ratestep
     )
-    page.candleEnd.textContent = Doc.formatRateAtomFullPrecision(
+    page.candleEnd.textContent = Doc.formatRateAtomToRateStep(
       candle.endRate,
       mkt.baseUnitInfo,
       mkt.quoteUnitInfo,
       mkt.cfg.ratestep
     )
-    page.candleHigh.textContent = Doc.formatRateAtomFullPrecision(
+    page.candleHigh.textContent = Doc.formatRateAtomToRateStep(
       candle.highRate,
       mkt.baseUnitInfo,
       mkt.quoteUnitInfo,
       mkt.cfg.ratestep
     )
-    page.candleLow.textContent = Doc.formatRateAtomFullPrecision(
+    page.candleLow.textContent = Doc.formatRateAtomToRateStep(
       candle.lowRate,
       mkt.baseUnitInfo,
       mkt.quoteUnitInfo,
       mkt.cfg.ratestep
     )
-    page.candleVol.textContent = Doc.formatCoinValue(candle.matchVolume, mkt.baseUnitInfo)
+    page.candleVol.textContent = Doc.formatCoinAtom(candle.matchVolume, mkt.baseUnitInfo)
   }
 
   /*
@@ -1357,11 +1357,11 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValueFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+        { total: Doc.formatCoinAtomFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
       )
       page.orderTotalPreviewBuyRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValueFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+        { total: Doc.formatCoinAtomFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
       )
       this.setPageElementEnabled(this.page.previewTotalBuy, true)
     } else {
@@ -1385,11 +1385,11 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValueFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+        { total: Doc.formatCoinAtomFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
       )
       page.orderTotalPreviewSellRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinValueFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+        { total: Doc.formatCoinAtomFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
       )
       this.setPageElementEnabled(this.page.previewTotalSell, true)
     } else {
@@ -1762,9 +1762,9 @@ export default class MarketsPage extends BasePage {
       details.side.textContent = mord.header.side.textContent = OrderUtil.sellString(ord)
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
-      details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinValue(ord.qty, market.baseUnitInfo)
-      let headerRateStr = Doc.formatRateAtomFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      let detailsRateStr = Doc.formatRateAtomFullPrecision(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinAtom(ord.qty, market.baseUnitInfo)
+      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
         detailsRateStr = this.marketOrderDetailsRateString(ord, market)
@@ -1868,14 +1868,14 @@ export default class MarketsPage extends BasePage {
 
   marketOrderHeaderRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-    let rateStr = Doc.formatRateAtomFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    let rateStr = Doc.formatRateAtomToRateStep(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
     return rateStr
   }
 
   marketOrderDetailsRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-    let rateStr = Doc.formatRateAtomFullPrecision(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+    let rateStr = Doc.formatRateAtomToRateStep(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
     if (ord.matches.length > 1) rateStr = '~ ' + rateStr // ~ only makes sense if the order has more than one match
     return rateStr
   }
@@ -1902,7 +1902,7 @@ export default class MarketsPage extends BasePage {
     const midGapValue = this.midGapRateConventional()
     const { baseUnitInfo: { conventional: { unit: bUnit } }, quoteUnitInfo: { conventional: { unit: qUnit } } } = this.market
     if (!midGapValue) document.title = `${bUnit}${qUnit} | ${this.ogTitle}`
-    else document.title = `${Doc.formatCoinValue(midGapValue)} | ${bUnit}${qUnit} | ${this.ogTitle}` // more than 6 numbers it gets too big for the title.
+    else document.title = `${Doc.formatCoinAtom(midGapValue)} | ${bUnit}${qUnit} | ${this.ogTitle}` // more than 6 numbers it gets too big for the title.
   }
 
   // adjRateAtomsBuy helps us make sure every order we've got is adjusted to rate-step,
@@ -2078,6 +2078,7 @@ export default class MarketsPage extends BasePage {
    */
   showVerify (order: TradeForm) {
     const page = this.page
+    const mkt = this.market
     const isSell = order.sell
     const baseAsset = app().assets[order.base]
     const quoteAsset = app().assets[order.quote]
@@ -2089,7 +2090,12 @@ export default class MarketsPage extends BasePage {
     Doc.show(page.verifyLimit)
     const orderDesc = `Limit ${buySellStr} Order`
     page.vOrderType.textContent = order.tifnow ? orderDesc + ' (immediate)' : orderDesc
-    page.vRate.textContent = Doc.formatCoinValue(order.rate / this.market.rateConversionFactor)
+    page.vRate.textContent = Doc.formatRateAtomToRateStep(
+      order.rate,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
 
     let youSpendAsset = quoteAsset
     let youSpendTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
@@ -2101,9 +2107,9 @@ export default class MarketsPage extends BasePage {
       youGetTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
       youGetAsset = quoteAsset
     }
-    page.youSpend.textContent = '-' + Doc.formatCoinValue(youSpendTotal, youSpendAsset.unitInfo)
+    page.youSpend.textContent = '-' + Doc.formatCoinAtom(youSpendTotal, youSpendAsset.unitInfo)
     page.youSpendTicker.textContent = youSpendAsset.unitInfo.conventional.unit
-    page.youGet.textContent = '+' + Doc.formatCoinValue(youGetTotal, youGetAsset.unitInfo)
+    page.youGet.textContent = '+' + Doc.formatCoinAtom(youGetTotal, youGetAsset.unitInfo)
     page.youGetTicker.textContent = youGetAsset.unitInfo.conventional.unit
     // Format total fiat value.
     this.showFiatValue(youGetAsset.id, youGetTotal, page.vFiatTotal)
@@ -2169,7 +2175,7 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const remaining = ord.qty - ord.filled
     const asset = OrderUtil.isMarketBuy(ord) ? this.market.quote : this.market.base
-    page.cancelRemain.textContent = Doc.formatCoinValue(remaining, asset.unitInfo)
+    page.cancelRemain.textContent = Doc.formatCoinAtom(remaining, asset.unitInfo)
     page.cancelUnit.textContent = asset.symbol.toUpperCase()
     Doc.hide(page.cancelErr)
     this.forms.show(page.cancelForm)
@@ -2468,8 +2474,8 @@ export default class MarketsPage extends BasePage {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
-      tmpl.price.textContent = Doc.formatRateAtomFullPrecision(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
-      tmpl.qty.textContent = Doc.formatCoinValue(match.qty, mkt.baseUnitInfo)
+      tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+      tmpl.qty.textContent = Doc.formatCoinAtomToLotSize(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
       tmpl.age.textContent = Doc.timeSince(match.stamp)
       tmpl.age.dataset.sinceStamp = String(match.stamp)
       row.classList.add(match.sell ? 'sellcolor' : 'buycolor')
@@ -3221,7 +3227,7 @@ class OrderTableRowManager {
     this.msgRate = orderBin[0].msgRate
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
-    const rateText = Doc.formatRateAtomFullPrecision(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
+    const rateText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
     Doc.setVis(this.isEpoch(), this.page.epoch)
 
     if (this.msgRate === 0) {
@@ -3241,7 +3247,7 @@ class OrderTableRowManager {
     const { page, market, orderBin } = this
     const qty = orderBin.reduce((total, curr) => total + curr.qtyAtomic, 0)
     const numOrders = orderBin.length
-    page.qty.innerText = Doc.formatFullPrecision(qty, this.baseUnitInfo)
+    page.qty.innerText = Doc.formatCoinAtomToLotSize(qty, market.baseUnitInfo, market.cfg.lotsize)
     if (numOrders > 1) {
       page.numOrders.removeAttribute('hidden')
       page.numOrders.innerText = String(numOrders)

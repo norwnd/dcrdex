@@ -1061,17 +1061,17 @@ export class RunningMarketMakerDisplay {
       const pending = report.availableDexBals[assetID] ? report.availableDexBals[assetID].pending : 0
       const locked = report.availableDexBals[assetID] ? report.availableDexBals[assetID].locked : 0
       const used = report.usedDexBals[assetID] ? report.usedDexBals[assetID] : 0
-      rowTmpl.available.textContent = Doc.formatCoinValue(available, unitInfo)
-      rowTmpl.locked.textContent = Doc.formatCoinValue(locked, unitInfo)
-      rowTmpl.required.textContent = Doc.formatCoinValue(required, unitInfo)
-      rowTmpl.remaining.textContent = Doc.formatCoinValue(remaining, unitInfo)
-      rowTmpl.pending.textContent = Doc.formatCoinValue(pending, unitInfo)
-      rowTmpl.used.textContent = Doc.formatCoinValue(used, unitInfo)
+      rowTmpl.available.textContent = Doc.formatCoinAtom(available, unitInfo)
+      rowTmpl.locked.textContent = Doc.formatCoinAtom(locked, unitInfo)
+      rowTmpl.required.textContent = Doc.formatCoinAtom(required, unitInfo)
+      rowTmpl.remaining.textContent = Doc.formatCoinAtom(remaining, unitInfo)
+      rowTmpl.pending.textContent = Doc.formatCoinAtom(pending, unitInfo)
+      rowTmpl.used.textContent = Doc.formatCoinAtom(used, unitInfo)
       const deficiency = safeSub(required, available)
-      rowTmpl.deficiency.textContent = Doc.formatCoinValue(deficiency, unitInfo)
+      rowTmpl.deficiency.textContent = Doc.formatCoinAtom(deficiency, unitInfo)
       if (deficiency > 0) rowTmpl.deficiency.classList.add('text-warning')
       const deficiencyWithPending = safeSub(deficiency, pending)
-      rowTmpl.deficiencyWithPending.textContent = Doc.formatCoinValue(deficiencyWithPending, unitInfo)
+      rowTmpl.deficiencyWithPending.textContent = Doc.formatCoinAtom(deficiencyWithPending, unitInfo)
       if (deficiencyWithPending > 0) rowTmpl.deficiencyWithPending.classList.add('text-warning')
       return [row, deficiency]
     }
@@ -1117,18 +1117,18 @@ export class RunningMarketMakerDisplay {
       const usedCexBal = report.usedCexBal ? report.usedCexBal : 0
       const deficiencyCexBal = safeSub(requiredCexBal, availableCexBal)
       const deficiencyWithPendingCexBal = safeSub(deficiencyCexBal, pendingCexBal)
-      form.cexAvailable.textContent = Doc.formatCoinValue(availableCexBal, cexAsset.unitInfo)
-      form.cexLocked.textContent = Doc.formatCoinValue(reservedCexBal, cexAsset.unitInfo)
-      form.cexRequired.textContent = Doc.formatCoinValue(requiredCexBal, cexAsset.unitInfo)
-      form.cexRemaining.textContent = Doc.formatCoinValue(remainingCexBal, cexAsset.unitInfo)
-      form.cexPending.textContent = Doc.formatCoinValue(pendingCexBal, cexAsset.unitInfo)
-      form.cexUsed.textContent = Doc.formatCoinValue(usedCexBal, cexAsset.unitInfo)
+      form.cexAvailable.textContent = Doc.formatCoinAtom(availableCexBal, cexAsset.unitInfo)
+      form.cexLocked.textContent = Doc.formatCoinAtom(reservedCexBal, cexAsset.unitInfo)
+      form.cexRequired.textContent = Doc.formatCoinAtom(requiredCexBal, cexAsset.unitInfo)
+      form.cexRemaining.textContent = Doc.formatCoinAtom(remainingCexBal, cexAsset.unitInfo)
+      form.cexPending.textContent = Doc.formatCoinAtom(pendingCexBal, cexAsset.unitInfo)
+      form.cexUsed.textContent = Doc.formatCoinAtom(usedCexBal, cexAsset.unitInfo)
       const deficient = deficiencyCexBal > 0
       Doc.setVis(deficient, form.cexDeficiencyHeader, form.cexDeficiencyWithPendingHeader,
         form.cexDeficiency, form.cexDeficiencyWithPending)
       if (deficient) {
-        form.cexDeficiency.textContent = Doc.formatCoinValue(deficiencyCexBal, cexAsset.unitInfo)
-        form.cexDeficiencyWithPending.textContent = Doc.formatCoinValue(deficiencyWithPendingCexBal, cexAsset.unitInfo)
+        form.cexDeficiency.textContent = Doc.formatCoinAtom(deficiencyCexBal, cexAsset.unitInfo)
+        form.cexDeficiencyWithPending.textContent = Doc.formatCoinAtom(deficiencyWithPendingCexBal, cexAsset.unitInfo)
         if (deficiencyWithPendingCexBal > 0) form.cexDeficiencyWithPending.classList.add('text-warning')
         else form.cexDeficiencyWithPending.classList.remove('text-warning')
       }
@@ -1143,7 +1143,7 @@ export class RunningMarketMakerDisplay {
       const baseUI = app().assets[this.mkt.baseID].unitInfo
       const quoteUI = app().assets[this.mkt.quoteID].unitInfo
       rowTmpl.priority.textContent = String(priority)
-      rowTmpl.rate.textContent = Doc.formatRateAtomFullPrecision(placement.rate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.rate.textContent = Doc.formatRateAtomToRateStep(placement.rate, baseUI, quoteUI, this.mkt.rateStep)
       rowTmpl.lots.textContent = String(placement.lots)
       rowTmpl.standingLots.textContent = String(placement.standingLots)
       rowTmpl.orderedLots.textContent = String(placement.orderedLots)
@@ -1153,7 +1153,7 @@ export class RunningMarketMakerDisplay {
         rowTmpl.orderedLots.classList.add('text-warning')
       }
       Doc.setVis(placement.counterTradeRate > 0, rowTmpl.counterTradeRate)
-      rowTmpl.counterTradeRate.textContent = Doc.formatRateAtomFullPrecision(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.counterTradeRate.textContent = Doc.formatRateAtomToRateStep(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep)
       for (const assetID of assetIDs) {
         const asset = app().assets[assetID]
         const unitInfo = asset.unitInfo
@@ -1163,10 +1163,10 @@ export class RunningMarketMakerDisplay {
         const requiredRowTmpl = Doc.parseTemplate(requiredRow)
         const usedRow = this.placementAmtRowTmpl.cloneNode(true) as HTMLElement
         const usedRowTmpl = Doc.parseTemplate(usedRow)
-        requiredRowTmpl.amt.textContent = Doc.formatCoinValue(requiredAmt, unitInfo)
+        requiredRowTmpl.amt.textContent = Doc.formatCoinAtom(requiredAmt, unitInfo)
         requiredRowTmpl.assetLogo.src = Doc.logoPath(asset.symbol)
         requiredRowTmpl.assetSymbol.textContent = asset.symbol.toUpperCase()
-        usedRowTmpl.amt.textContent = Doc.formatCoinValue(usedAmt, unitInfo)
+        usedRowTmpl.amt.textContent = Doc.formatCoinAtom(usedAmt, unitInfo)
         usedRowTmpl.assetLogo.src = Doc.logoPath(asset.symbol)
         usedRowTmpl.assetSymbol.textContent = asset.symbol.toUpperCase()
         rowTmpl.requiredDEX.appendChild(requiredRow)
@@ -1174,9 +1174,9 @@ export class RunningMarketMakerDisplay {
       }
       Doc.setVis(this.mkt.cexName, rowTmpl.requiredCEX, rowTmpl.usedCEX)
       if (this.mkt.cexName) {
-        const requiredAmt = Doc.formatCoinValue(placement.requiredCex, cexAsset.unitInfo)
+        const requiredAmt = Doc.formatCoinAtom(placement.requiredCex, cexAsset.unitInfo)
         rowTmpl.requiredCEX.textContent = `${requiredAmt} ${cexAsset.symbol.toUpperCase()}`
-        const usedAmt = Doc.formatCoinValue(placement.usedCex, cexAsset.unitInfo)
+        const usedAmt = Doc.formatCoinAtom(placement.usedCex, cexAsset.unitInfo)
         rowTmpl.usedCEX.textContent = `${usedAmt} ${cexAsset.symbol.toUpperCase()}`
       }
       Doc.setVis(anyErrors, rowTmpl.error)

@@ -638,7 +638,7 @@ export default class WalletsPage extends BasePage {
       page.unapproveTokenErr.textContent = res.msg
       Doc.show(page.unapproveTokenErr)
     } else {
-      let feeText = `${Doc.formatCoinValue(res.txFee, parentAsset.unitInfo)} ${parentAsset.unitInfo.conventional.unit}`
+      let feeText = `${Doc.formatCoinAtom(res.txFee, parentAsset.unitInfo)} ${parentAsset.unitInfo.conventional.unit}`
       const rate = app().fiatRatesMap[parentAsset.id]
       if (rate) {
         feeText += ` (${Doc.formatFiatConversion(res.txFee, rate, parentAsset.unitInfo)} USD)`
@@ -1108,7 +1108,7 @@ export default class WalletsPage extends BasePage {
     page.stakingAgendaCount.textContent = String(stakeStatus.stances.agendas.length)
     page.stakingTspendCount.textContent = String(stakeStatus.stances.tspends.length)
     page.purchaserCurrentPrice.textContent = Doc.formatFourSigFigs(stakeStatus.ticketPrice / ui.conventional.conversionFactor)
-    page.purchaserBal.textContent = Doc.formatCoinValue(wallet.balance.available, ui)
+    page.purchaserBal.textContent = Doc.formatCoinAtom(wallet.balance.available, ui)
     this.updateTicketStats(stakeStatus.stats, ui, stakeStatus.ticketPrice, stakeStatus.votingSubsidy)
     // If this is an extension wallet, we'll might to disable all controls.
     const disableStaking = app().extensionWallet(this.selectedAssetID)?.disableStaking
@@ -1493,7 +1493,7 @@ export default class WalletsPage extends BasePage {
     Doc.show(page.balanceBox, page.walletDetails)
     const totalLocked = bal.locked + bal.contractlocked + bal.bondlocked
     const totalBalance = bal.available + totalLocked + bal.immature
-    page.balance.textContent = Doc.formatCoinValue(totalBalance, ui)
+    page.balance.textContent = Doc.formatCoinAtom(totalBalance, ui)
     page.balanceUnit.textContent = ui.conventional.unit
     const rate = app().fiatRatesMap[assetID]
     if (rate) {
@@ -1511,7 +1511,7 @@ export default class WalletsPage extends BasePage {
         tmpl.tooltipMsg.dataset.tooltip = tooltipMsg
         Doc.show(tmpl.tooltipMsg)
       }
-      tmpl.balance.textContent = Doc.formatCoinValue(bal, ui)
+      tmpl.balance.textContent = Doc.formatCoinAtom(bal, ui)
       return row
     }
 
@@ -1638,17 +1638,17 @@ export default class WalletsPage extends BasePage {
       const [baseUnitInfo, quoteUnitInfo] = [app().unitInfo(ord.baseID), app().unitInfo(ord.quoteID)]
       if (ord.sell) {
         [from, to] = [app().assets[ord.baseID], app().assets[ord.quoteID]]
-        tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+        tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         if (ord.type === OrderUtil.Limit) {
-          tmpl.toQty.textContent = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          tmpl.toQty.textContent = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
         }
       } else {
         [from, to] = [app().assets[ord.quoteID], app().assets[ord.baseID]]
         if (ord.type === OrderUtil.Market) {
-          tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         } else {
-          tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
-          tmpl.toQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          tmpl.toQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         }
       }
 
@@ -1695,12 +1695,12 @@ export default class WalletsPage extends BasePage {
     tmpl.type.textContent = txType
     tmpl.id.textContent = trimStringWithEllipsis(tx.id, 12)
     tmpl.id.setAttribute('title', tx.id)
-    tmpl.fees.textContent = Doc.formatCoinValue(tx.fees, feesAssetUI)
+    tmpl.fees.textContent = Doc.formatCoinAtom(tx.fees, feesAssetUI)
     if (noAmtTxTypes.includes(tx.type)) {
       tmpl.amount.textContent = '-'
     } else {
       const [u, c] = txTypeSignAndClass(tx.type)
-      const amt = Doc.formatCoinValue(tx.amount, amtAssetUI)
+      const amt = Doc.formatCoinAtom(tx.amount, amtAssetUI)
       tmpl.amount.textContent = `${u}${amt}`
       if (c !== '') tmpl.amount.classList.add(c)
     }
@@ -1750,7 +1750,7 @@ export default class WalletsPage extends BasePage {
       if (tx.tokenID) assetID = tx.tokenID
       Doc.show(page.txDetailsAmtSection)
       const ui = app().unitInfo(assetID)
-      const amt = Doc.formatCoinValue(tx.amount, ui)
+      const amt = Doc.formatCoinAtom(tx.amount, ui)
       const [s, c] = txTypeSignAndClass(tx.type)
       page.txDetailsAmount.textContent = `${s}${amt} ${ui.conventional.unit}`
       if (c !== '') page.txDetailsAmount.classList.add(c)
@@ -1767,7 +1767,7 @@ export default class WalletsPage extends BasePage {
       }
     }
     const feeUI = app().unitInfo(feeAsset)
-    const fee = Doc.formatCoinValue(tx.fees, feeUI)
+    const fee = Doc.formatCoinAtom(tx.fees, feeUI)
     page.txDetailsFee.textContent = `${fee} ${feeUI.conventional.unit}`
 
     // Time / block number

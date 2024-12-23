@@ -131,7 +131,7 @@ export function settled (order: Order) {
 the matches that have been filled for a market order. */
 export function averageMarketOrderRateString (ord: Order): string {
   if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
-  let rateStr = Doc.formatCoinValue(app().conventionalRate(ord.baseID, ord.quoteID, averageRate(ord)))
+  let rateStr = Doc.formatCoinAtom(app().conventionalRate(ord.baseID, ord.quoteID, averageRate(ord)))
   if (ord.matches.length > 1) rateStr = '~ ' + rateStr // "~" only makes sense if the order has more than one match.
   return rateStr
 }

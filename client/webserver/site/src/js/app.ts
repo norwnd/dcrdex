@@ -696,16 +696,16 @@ export default class Application {
     tmpl.lostTxID.textContent = n.tx.id
     tmpl.lostTxID.dataset.explorerCoin = n.tx.id
     setCoinHref(token ? token.parentID : assetID, tmpl.lostTxID)
-    tmpl.txAmt.textContent = Doc.formatCoinValue(n.tx.amount, ui)
+    tmpl.txAmt.textContent = Doc.formatCoinAtom(n.tx.amount, ui)
     tmpl.amtUnit.textContent = ui.conventional.unit
     const parentUI = token ? this.unitInfo(token.parentID) : ui
     tmpl.type.textContent = txTypeString(n.tx.type)
-    tmpl.feeAmount.textContent = Doc.formatCoinValue(n.tx.fees, parentUI)
+    tmpl.feeAmount.textContent = Doc.formatCoinAtom(n.tx.fees, parentUI)
     tmpl.feeUnit.textContent = parentUI.conventional.unit
     switch (req.actionID) {
       case 'tooCheap': {
         Doc.show(tmpl.newFeesRow)
-        tmpl.newFees.textContent = Doc.formatCoinValue(n.tx.fees, parentUI)
+        tmpl.newFees.textContent = Doc.formatCoinAtom(n.tx.fees, parentUI)
         tmpl.newFeesUnit.textContent = parentUI.conventional.unit
         break
       }

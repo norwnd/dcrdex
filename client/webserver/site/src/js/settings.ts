@@ -485,6 +485,6 @@ export default class SettingsPage extends BasePage {
     setCoinHref(dcrBipID, page.gameRedeemTx)
     page.gameRedeemTx.textContent = resp.coinString
     const ui = app().unitInfo(dcrBipID)
-    page.gameRedeemValue.textContent = Doc.formatCoinValue(resp.win, ui)
+    page.gameRedeemValue.textContent = Doc.formatCoinAtom(resp.win, ui)
   }
 }
