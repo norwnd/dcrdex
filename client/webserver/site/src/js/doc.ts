@@ -350,18 +350,35 @@ export default class Doc {
   }
 
   /*
-   * formatCoinAtomToLotSize formats atomic coin value to represent it exactly at lot size
-   * precision.
+   * formatCoinAtomToLotSizeBaseCurrency formats atomic coin value to represent it exactly
+   * at lot size precision (corresponds to base currency).
    */
-  static formatCoinAtomToLotSize (coinAtom: number, unitInfo: UnitInfo, lotSizeAtom: number): string {
-    const [coin] = convertToConventional(coinAtom, unitInfo)
-    const [lotSize] = convertToConventional(lotSizeAtom, unitInfo)
+  static formatCoinAtomToLotSizeBaseCurrency (coinAtom: number, baseUnitInfo: UnitInfo, lotSizeAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, baseUnitInfo)
+    const [lotSize] = convertToConventional(lotSizeAtom, baseUnitInfo)
     const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
     if (lotSizeDigits <= 0) {
-      // this should never happen, but handle gracefully just in case
+      // no decimals, display as integer then
       return intFormatter.format(coin)
     }
     return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits).format(coin)
+  }
+
+  /*
+ * formatCoinAtomToLotSizeQuoteCurrency formats atomic coin value to represent it exactly
+ * at lot size precision that would correspond to quote currency.
+ */
+  static formatCoinAtomToLotSizeQuoteCurrency (coinAtom: number, bui: UnitInfo, qui: UnitInfo, lotSizeAtom: number, rateStepAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, qui)
+    const [lotSize] = convertToConventional(lotSizeAtom, qui)
+    const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
+        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
+    if (lotSizeDigits + rateStepDigits <= 0) {
+      // no decimals, display as integer then
+      return intFormatter.format(coin)
+    }
+    return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits + rateStepDigits).format(coin)
   }
 
   /*
@@ -394,7 +411,7 @@ export default class Doc {
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
         Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
     if (rateStepDigits <= 0) {
-      // this should never happen, but handle gracefully just in case
+      // no decimals, display as integer then
       return intFormatter.format(rateConv)
     }
     return fullPrecisionFormatterWithPreservingZeroes(rateStepDigits).format(rateConv)

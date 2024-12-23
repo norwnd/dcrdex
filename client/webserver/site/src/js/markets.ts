@@ -1189,8 +1189,8 @@ export default class MarketsPage extends BasePage {
     }
     this.market = mkt
 
-    page.lotSizeBuy.textContent = Doc.formatCoinAtomToLotSize(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
-    page.lotSizeSell.textContent = Doc.formatCoinAtomToLotSize(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
+    page.lotSizeBuy.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
+    page.lotSizeSell.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
     page.rateStepBuy.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
     page.rateStepSell.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
 
@@ -1357,11 +1357,23 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinAtomFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+        {
+          total: Doc.formatCoinAtomToLotSizeQuoteCurrency(
+            totalOut,
+            market.baseUnitInfo,
+            market.quoteUnitInfo,
+            market.cfg.lotsize,
+            market.cfg.ratestep
+          ),
+          asset: market.quoteUnitInfo.conventional.unit
+        }
       )
       page.orderTotalPreviewBuyRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinAtomFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+        {
+          total: Doc.formatCoinAtomToLotSizeBaseCurrency(totalIn, market.baseUnitInfo, market.cfg.lotsize),
+          asset: market.baseUnitInfo.conventional.unit
+        }
       )
       this.setPageElementEnabled(this.page.previewTotalBuy, true)
     } else {
@@ -1385,11 +1397,23 @@ export default class MarketsPage extends BasePage {
 
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
-        { total: Doc.formatCoinAtomFourSigFigs(totalIn, market.baseUnitInfo), asset: market.baseUnitInfo.conventional.unit }
+        {
+          total: Doc.formatCoinAtomToLotSizeBaseCurrency(totalIn, market.baseUnitInfo, market.cfg.lotsize),
+          asset: market.baseUnitInfo.conventional.unit
+        }
       )
       page.orderTotalPreviewSellRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
-        { total: Doc.formatCoinAtomFourSigFigs(totalOut, market.quoteUnitInfo), asset: market.quoteUnitInfo.conventional.unit }
+        {
+          total: Doc.formatCoinAtomToLotSizeQuoteCurrency(
+            totalOut,
+            market.baseUnitInfo,
+            market.quoteUnitInfo,
+            market.cfg.lotsize,
+            market.cfg.ratestep
+          ),
+          asset: market.quoteUnitInfo.conventional.unit
+        }
       )
       this.setPageElementEnabled(this.page.previewTotalSell, true)
     } else {
@@ -2099,17 +2123,41 @@ export default class MarketsPage extends BasePage {
 
     let youSpendAsset = quoteAsset
     let youSpendTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
+    let youSpendTotalFormatted = Doc.formatCoinAtomToLotSizeQuoteCurrency(
+      youSpendTotal,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.lotsize,
+      mkt.cfg.ratestep
+    )
     let youGetTotal = order.qty
+    let youGetTotalFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      youGetTotal,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
     let youGetAsset = baseAsset
     if (isSell) {
       youSpendTotal = order.qty
+      youSpendTotalFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(
+        youSpendTotal,
+        mkt.baseUnitInfo,
+        mkt.cfg.lotsize
+      )
       youSpendAsset = baseAsset
       youGetTotal = order.qty * order.rate / OrderUtil.RateEncodingFactor
+      youGetTotalFormatted = Doc.formatCoinAtomToLotSizeQuoteCurrency(
+        youGetTotal,
+        mkt.baseUnitInfo,
+        mkt.quoteUnitInfo,
+        mkt.cfg.lotsize,
+        mkt.cfg.ratestep
+      )
       youGetAsset = quoteAsset
     }
-    page.youSpend.textContent = '-' + Doc.formatCoinAtom(youSpendTotal, youSpendAsset.unitInfo)
+    page.youSpend.textContent = '-' + youSpendTotalFormatted
     page.youSpendTicker.textContent = youSpendAsset.unitInfo.conventional.unit
-    page.youGet.textContent = '+' + Doc.formatCoinAtom(youGetTotal, youGetAsset.unitInfo)
+    page.youGet.textContent = '+' + youGetTotalFormatted
     page.youGetTicker.textContent = youGetAsset.unitInfo.conventional.unit
     // Format total fiat value.
     this.showFiatValue(youGetAsset.id, youGetTotal, page.vFiatTotal)
@@ -2475,7 +2523,7 @@ export default class MarketsPage extends BasePage {
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
       tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
-      tmpl.qty.textContent = Doc.formatCoinAtomToLotSize(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
+      tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
       tmpl.age.textContent = Doc.timeSince(match.stamp)
       tmpl.age.dataset.sinceStamp = String(match.stamp)
       row.classList.add(match.sell ? 'sellcolor' : 'buycolor')
@@ -3247,7 +3295,7 @@ class OrderTableRowManager {
     const { page, market, orderBin } = this
     const qty = orderBin.reduce((total, curr) => total + curr.qtyAtomic, 0)
     const numOrders = orderBin.length
-    page.qty.innerText = Doc.formatCoinAtomToLotSize(qty, market.baseUnitInfo, market.cfg.lotsize)
+    page.qty.innerText = Doc.formatCoinAtomToLotSizeBaseCurrency(qty, market.baseUnitInfo, market.cfg.lotsize)
     if (numOrders > 1) {
       page.numOrders.removeAttribute('hidden')
       page.numOrders.innerText = String(numOrders)
