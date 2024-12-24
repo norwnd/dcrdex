@@ -56,10 +56,11 @@ const log10RateEncodingFactor = Math.round(Math.log10(RateEncodingFactor))
 
 const languages = navigator.languages.filter((locale: string) => locale !== 'c')
 
-const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0 })
+const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0, useGrouping: false })
 
 const fourSigFigs = new Intl.NumberFormat(languages, {
-  maximumSignificantDigits: 4
+  maximumSignificantDigits: 4,
+  useGrouping: false
 })
 
 /* A cache for formatters used for Doc.formatFullPrecision. */
@@ -91,7 +92,8 @@ function formatter (formatters: Record<string, Intl.NumberFormat>, min: number, 
   if (!fmt) {
     fmt = new Intl.NumberFormat(locales ?? languages, {
       minimumFractionDigits: min,
-      maximumFractionDigits: max
+      maximumFractionDigits: max,
+      useGrouping: false
     })
     formatters[k] = fmt
   }
