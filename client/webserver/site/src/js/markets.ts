@@ -113,11 +113,6 @@ interface CurrentMarket {
   bookLoaded: boolean
 }
 
-interface LoadTracker {
-  loaded: () => void
-  timer: number
-}
-
 interface OrderRow extends HTMLElement {
   manager: OrderTableRowManager
 }
@@ -164,7 +159,7 @@ export default class MarketsPage extends BasePage {
   metaOrders: Record<string, MetaOrder>
   hovers: HTMLElement[]
   ogTitle: string
-  candleChart: CandleChart
+  candleChart: CandleChart // reused across different markets
   candleDur: string
   marketList: MarketList
   newWalletForm: NewWalletForm
@@ -173,7 +168,6 @@ export default class MarketsPage extends BasePage {
   reputationMeter: ReputationMeter
   keyup: (e: KeyboardEvent) => void
   secondTicker: number
-  candlesLoading: LoadTracker | null
   accelerateOrderForm: AccelerateOrderForm
   recentMatches: RecentMatch[]
   recentMatchesSortKey: string
@@ -200,11 +194,11 @@ export default class MarketsPage extends BasePage {
     this.ogTitle = document.title
     this.runningErrAnimations = []
     this.forms = new Forms(page.forms)
-
     const candleReporters: CandleReporters = {
       mouse: c => { this.reportMouseCandle(c) }
     }
     this.candleChart = new CandleChart(page.candlesChart, candleReporters)
+    this.loadingAnimations = {}
 
     const success = () => { /* do nothing */ }
     // Do not call cleanTemplates before creating the AccelerateOrderForm
@@ -396,7 +390,6 @@ export default class MarketsPage extends BasePage {
       // nothing to do if this market is already set/chosen
       const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
       if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
-      this.startLoadingAnimations()
       this.setMarket(host, baseID, quoteID)
     }
     // Prepare the list of markets.
@@ -439,9 +432,6 @@ export default class MarketsPage extends BasePage {
         // nothing to do, we don't support displaying MM form at the moment
       }
     })
-
-    this.loadingAnimations = {}
-    this.startLoadingAnimations()
 
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
@@ -508,11 +498,14 @@ export default class MarketsPage extends BasePage {
     setRecentMatchesSortColClasses()
   }
 
-  startLoadingAnimations () {
-    const { page, loadingAnimations: anis, candleChart } = this
-    candleChart.canvas.classList.add('invisible')
-    if (anis.candles) anis.candles.stop()
-    anis.candles = new Wave(page.candlesChart, { message: intl.prep(intl.ID_CANDLES_LOADING) })
+  // showCandlesLoadingAnimation hides candle chart and displays loading animation, must
+  // be done before 'loadmarket' request is issued to properly handle its response
+  showCandlesLoadingAnimation () {
+    if (this.loadingAnimations.candles) {
+      return
+    }
+    this.candleChart.canvas.classList.add('invisible')
+    this.loadingAnimations.candles = new Wave(this.page.candlesChart, { message: intl.prep(intl.ID_CANDLES_LOADING) })
   }
 
   /* hasPendingBonds is true if there are pending bonds */
@@ -843,7 +836,7 @@ export default class MarketsPage extends BasePage {
 
     if (this.canTradeBuy()) {
       // reset limit-order buy form inputs to defaults
-      const defaultRateAtom = this.book.bestBuyRateAtom()
+      const defaultRateAtom = this.book?.bestBuyRateAtom() || 0
       const adjQtyBuy = this.lotToQty(1)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
       page.qtyFieldBuy.value = String(adjQtyBuy)
@@ -867,7 +860,7 @@ export default class MarketsPage extends BasePage {
 
     if (this.canTradeSell()) {
       // reset limit-order sell form inputs to defaults
-      const defaultRateAtom = this.book.bestSellRateAtom()
+      const defaultRateAtom = this.book?.bestSellRateAtom() || 0
       const adjQtySell = this.lotToQty(1)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
       page.qtyFieldSell.value = String(adjQtySell)
@@ -1198,6 +1191,7 @@ export default class MarketsPage extends BasePage {
     this.setMarketDetails()
     this.setCurrMarketPrice()
 
+    this.showCandlesLoadingAnimation()
     ws.request('loadmarket', makeMarket(host, baseID, quoteID))
 
     State.storeLocal(State.lastMarketLK, {
@@ -1430,7 +1424,7 @@ export default class MarketsPage extends BasePage {
       console.warn('assertion failed, no quote wallet in app assets for:', mkt.quote.id)
       return false
     }
-    return quoteWallet.balance.available > 0
+    return true
   }
 
   canTradeSell (): boolean {
@@ -1440,7 +1434,7 @@ export default class MarketsPage extends BasePage {
       console.warn('assertion failed, no base wallet in app assets for:', mkt.base.id)
       return false
     }
-    return baseWallet.balance.available >= mkt.cfg.lotsize
+    return true
   }
 
   /**
@@ -2034,19 +2028,21 @@ export default class MarketsPage extends BasePage {
 
   /* handleCandlesRoute is the handler for 'candles' notifications. */
   handleCandlesRoute (data: BookUpdate) {
-    if (this.candlesLoading) {
-      clearTimeout(this.candlesLoading.timer)
-      this.candlesLoading.loaded()
-      this.candlesLoading = null
-    }
     if (data.host !== this.market.dex.host || data.marketID !== this.market.cfg.name) return
     const dur = data.payload.dur
     this.market.candleCaches[dur] = data.payload
     this.setHighLow()
     if (this.candleDur !== dur) return
-    if (this.loadingAnimations.candles) this.loadingAnimations.candles.stop()
-    this.candleChart.canvas.classList.remove('invisible')
+    if (this.loadingAnimations.candles) {
+      this.loadingAnimations.candles.stop() // just a cleanup
+      this.loadingAnimations.candles = undefined // signals we are not on animation screen anymore
+    }
+    this.candleChart.clear() // remove the old data so that we draw on blank canvas
+    this.candleChart.setMarketId(data.marketID) // market has changed, gotta update it
     this.candleChart.setCandles(data.payload, this.market.cfg, this.market.baseUnitInfo, this.market.quoteUnitInfo)
+    this.candleChart.resize() // adjust chart size(s) according to what this market needs
+    this.candleChart.draw() // gotta redraw the chart now that new data is available
+    this.candleChart.canvas.classList.remove('invisible') // everything is ready, show the chart
   }
 
   handleEpochMatchSummary (data: BookUpdate) {
@@ -2830,12 +2826,6 @@ export default class MarketsPage extends BasePage {
     const adjRateAtom = this.adjustRateAtoms(rateRawAtom)
     const rounded = adjRateAtom !== rateRawAtom
 
-    // TODO
-    console.log('rateRawAtom:')
-    console.log(rateRawAtom)
-    console.log('adjRateAtom:')
-    console.log(adjRateAtom)
-
     return [true, rounded, adjRateAtom]
   }
 
@@ -2945,11 +2935,13 @@ export default class MarketsPage extends BasePage {
       } else {
         row = this.newOrderTableRow([order])
         this.setTableOrderRowBackground(row)
-        // make sure we don't exceed book-side max capacity
+        tbody.insertBefore(row, tbody.firstChild)
+        // make sure we don't exceed book-side max capacity, note we are doing it after
+        // `tbody.insertBefore` call from above to make sure we don't delete `tbody.firstChild`
+        // since if we do `tbody.insertBefore` would fail
         if (tbody.childElementCount >= orderBookSideMaxCapacity) {
           tbody.lastChild?.remove()
         }
-        tbody.insertBefore(row, tbody.firstChild)
       }
       return
     }
@@ -2963,22 +2955,24 @@ export default class MarketsPage extends BasePage {
       } else if (row.manager.compare(order) > 0) {
         const tr = this.newOrderTableRow([order])
         this.setTableOrderRowBackground(tr)
-        // make sure we don't exceed book-side max capacity
+        tbody.insertBefore(tr, row)
+        // make sure we don't exceed book-side max capacity, note we are doing it after
+        // `tbody.insertBefore` call from above to make sure we don't delete `row`
+        // since if we do `tbody.insertBefore` would fail
         if (tbody.childElementCount >= orderBookSideMaxCapacity) {
           tbody.lastChild?.remove()
         }
-        tbody.insertBefore(tr, row)
         return
       }
       row = row.nextSibling as OrderRow
     }
     const tr = this.newOrderTableRow([order])
     this.setTableOrderRowBackground(tr)
+    tbody.appendChild(tr)
     // make sure we don't exceed book-side max capacity
     if (tbody.childElementCount >= orderBookSideMaxCapacity) {
       tbody.lastChild?.remove()
     }
-    tbody.appendChild(tr)
   }
 
   /* removeTableOrder removes a single order from its table. */
@@ -3117,15 +3111,6 @@ export default class MarketsPage extends BasePage {
    * duration which will be requested if it is provided.
    */
   requestCandles (candleDur?: string) {
-    this.candlesLoading = {
-      loaded: () => { /* pass */ },
-      timer: window.setTimeout(() => {
-        if (this.candlesLoading) {
-          this.candlesLoading = null
-          console.error('candles not received')
-        }
-      }, 10000)
-    }
     const { dex, baseCfg, quoteCfg } = this.market
     ws.request('loadcandles', { host: dex.host, base: baseCfg.id, quote: quoteCfg.id, dur: candleDur || this.candleDur })
   }
