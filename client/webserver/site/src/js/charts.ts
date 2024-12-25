@@ -125,7 +125,6 @@ export class Chart {
   ctx: CanvasRenderingContext2D
   mousePos: Point | null
   rect: DOMRect
-  wheelLimiter: number | null
   plotRegion: Region
   xLabelsRegion: Region
   yLabelsRegion: Region
@@ -166,8 +165,6 @@ export class Chart {
     const resizeObserver = new ResizeObserver(() => this.resize())
     resizeObserver.observe(this.parent)
 
-    // Scrolling by wheel is smoother when the rate is slightly limited.
-    this.wheelLimiter = null
     bind(this.canvas, 'wheel', (e: WheelEvent) => { this.wheel(e) }, { passive: true })
     bind(this.canvas, 'click', (e: MouseEvent) => { this.click(e) })
     const setVis = () => {
@@ -179,10 +176,6 @@ export class Chart {
     }
     bind(document, 'visibilitychange', setVis)
     this.unattachers = [() => { Doc.unbind(document, 'visibilitychange', setVis) }]
-  }
-
-  wheeled () {
-    this.wheelLimiter = window.setTimeout(() => { this.wheelLimiter = null }, 20)
   }
 
   /* clear the canvas. */
@@ -248,10 +241,7 @@ export class Chart {
 
   /* zoom is called when the user scrolls the mouse wheel on the canvas. */
   zoom (bigger: boolean) {
-    if (this.wheelLimiter) return
     this.report.zoom(bigger)
-    // TODO
-    // this.wheeled()
   }
 
   /* The market handler will call unattach when the markets page is unloaded. */
@@ -588,10 +578,11 @@ export class CandleChart extends Chart {
     this.rateConversionFactor = RateEncodingFactor * qFactor / bFactor
     let n = 20 // show 20 candles at a minimum (level 0)
     this.zoomLevels = []
-    const maxCandles = Math.max(data.candles.length, 1000)
-    while (n < maxCandles) {
+    while (n < data.candles.length) {
       this.zoomLevels.push(n)
-      n += 4 // add 4 candles per level
+      // note, for whatever reason levels with even numbers result into "scrolling into blank screen",
+      // not sure why this is - the issue doesn't show up with even numbers (hence using 2 here)
+      n += 2 // add 2 candles per level
     }
     this.draw()
   }
