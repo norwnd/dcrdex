@@ -213,6 +213,8 @@ export class PlacementsChart extends Chart {
       click: (/* e: MouseEvent */) => { /* pass */ },
       zoom: (/* bigger: boolean */) => { /* pass */ }
     })
+    // pausing is only relevant for candle-chart, but we share the same code - hence gotta take care of this
+    this.unpause()
   }
 
   resized () {

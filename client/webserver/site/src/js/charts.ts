@@ -1,5 +1,4 @@
 import Doc, { Animation, clamp } from './doc'
-import { RateEncodingFactor } from './orderutil'
 import State from './state'
 import { UnitInfo, Market, Candle, CandlesPayload } from './registry'
 
@@ -115,6 +114,7 @@ const lightTheme: Theme = {
 
 // Chart is the base class for charts.
 export class Chart {
+  paused: boolean
   parent: HTMLElement
   mktId: string
   report: ChartReporters
@@ -131,6 +131,7 @@ export class Chart {
   unattachers: (() => void)[]
 
   constructor (parent: HTMLElement, reporters: ChartReporters) {
+    this.pause() // chart must be explicitly un-paused to be considered functional
     this.parent = parent
     this.report = reporters
     this.theme = State.isDark() ? darkTheme : lightTheme
@@ -178,6 +179,16 @@ export class Chart {
     this.unattachers = [() => { Doc.unbind(document, 'visibilitychange', setVis) }]
   }
 
+  // pause prevents certain candle chart functionality from running until it's ready to run it.
+  pause () {
+    this.paused = true
+  }
+
+  // unpause is the opposite of pause.
+  unpause () {
+    this.paused = false
+  }
+
   /* clear the canvas. */
   clear () {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
@@ -213,13 +224,13 @@ export class Chart {
     const yLblWidthByAsset: {
       [key: string]: number
     } = {
-      'dcr_usdc.polygon': 50,
-      'dcr_usdt.polygon': 50,
-      'ltc_usdt.polygon': 50,
-      'dcr_btc': 80,
-      'usdc.polygon_usdt.polygon': 60,
-      'btc_usdt.polygon': 60,
-      'dcr_polygon': 50
+      'dcr_usdc.polygon': 48,
+      'dcr_usdt.polygon': 48,
+      'ltc_usdt.polygon': 54,
+      'dcr_btc': 78,
+      'usdc.polygon_usdt.polygon': 56,
+      'btc_usdt.polygon': 70,
+      'dcr_polygon': 48
     }
     const yLblWidthCustom = yLblWidthByAsset[this.mktId]
     if (yLblWidthCustom) {
@@ -231,12 +242,9 @@ export class Chart {
     this.plotRegion = new Region(this.ctx, plotExtents)
     this.xLabelsRegion = new Region(this.ctx, xLblExtents)
     this.yLabelsRegion = new Region(this.ctx, yLblExtents)
-    // After changing the visibility, this.canvas.getBoundingClientRect will
-    // return nonsense until a render.
-    window.requestAnimationFrame(() => {
-      this.rect = this.canvas.getBoundingClientRect()
-      this.report.resize()
-    })
+
+    this.rect = this.canvas.getBoundingClientRect()
+    this.report.resize()
   }
 
   /* zoom is called when the user scrolls the mouse wheel on the canvas. */
@@ -365,13 +373,20 @@ export class Chart {
 export class CandleChart extends Chart {
   reporters: CandleReporters
   data: CandlesPayload
-  numToShow: number
   candleRegion: Region
   volumeRegion: Region
   resizeTimer: number
+  // zoomLevels contains a bunch of levels (from zoomed in all the way to zoomed out all the way),
+  // each level is how many candles to show on candle chart with "level 1" being 1 candle at the
+  // very least (although it's not preferable to show less than 20 candles on the chart), and
+  // "level last" being all the candle this market has
   zoomLevels: number[]
+  // numToShow is how many candles we want to show, note this value must exactly match
+  // one of zoomLevels (zooming code relies on it)
+  numToShow: number
   market: Market
-  rateConversionFactor: number
+  baseUnitInfo: UnitInfo
+  quoteUnitInfo: UnitInfo
 
   constructor (parent: HTMLElement, reporters: CandleReporters) {
     super(parent, {
@@ -380,8 +395,39 @@ export class CandleChart extends Chart {
       zoom: (bigger: boolean) => this.zoomed(bigger)
     })
     this.reporters = reporters
-    this.numToShow = 40 // for 24h duration this represents about 1 month of history (with padding)
     this.resize()
+  }
+
+  setMarketId (mktId: string) {
+    this.mktId = mktId
+  }
+
+  /* setCandles sets the candle data and redraws the chart. */
+  setCandlesAndDraw (data: CandlesPayload, market: Market, baseUnitInfo: UnitInfo, quoteUnitInfo: UnitInfo) {
+    this.data = data
+    this.market = market
+    this.baseUnitInfo = baseUnitInfo
+    this.quoteUnitInfo = quoteUnitInfo
+    this.zoomLevels = []
+    let lvl = Math.min(20, data.candles.length)
+    while (true) {
+      this.zoomLevels.push(lvl)
+      lvl += 2 // add 2 candles per level
+      if (lvl > data.candles.length) {
+        break
+      }
+    }
+    // ensure last level represents all the candles this market has
+    if (this.zoomLevels[this.zoomLevels.length - 1] !== data.candles.length) {
+      this.zoomLevels.push(data.candles.length)
+    }
+
+    // defaultLvl represents about 3 month of history for 24h duration
+    const defaultLvl = Math.min(35, this.zoomLevels.length)
+    this.numToShow = this.zoomLevels[defaultLvl - 1]
+
+    this.unpause()
+    this.draw()
   }
 
   /* resized is called when the window or parent element are resized. */
@@ -402,6 +448,7 @@ export class CandleChart extends Chart {
 
   /* zoomed zooms the current view in or out. bigger=true is zoom in. */
   zoomed (bigger: boolean) {
+    if (this.paused) return
     // bigger actually means fewer candles -> reduce zoomLevels index.
     const idx = this.zoomLevels.indexOf(this.numToShow)
     if (bigger) {
@@ -420,8 +467,12 @@ export class CandleChart extends Chart {
 
   /* render draws the chart */
   render () {
+    if (this.paused) {
+      this.renderScheduled = true
+      return
+    }
     const data = this.data
-    if (!data || !this.visible || this.canvas.width === 0 || !this.market || !this.candleRegion || !this.volumeRegion) {
+    if (!data || !this.visible || this.canvas.width === 0) {
       this.renderScheduled = true
       return
     }
@@ -430,13 +481,12 @@ export class CandleChart extends Chart {
     const allCandles = data.candles || []
     const rateStep = this.market.ratestep
 
-    const n = Math.min(this.numToShow, allCandles.length)
-    const candles = allCandles.slice(allCandles.length - n)
-
     this.clear()
 
     // If there are no candles. just don't draw anything.
-    if (n === 0) return
+    if (this.numToShow === 0) return
+
+    const candles = allCandles.slice(allCandles.length - this.numToShow)
 
     // padding definition and some helper functions to parse candles.
     const candleWidthPadding = 0.2
@@ -446,7 +496,7 @@ export class CandleChart extends Chart {
     const paddedWidth = (1 - 2 * candleWidthPadding) * candleWidth
 
     const candleFirst = candles[0]
-    const candleLast = candles[n - 1]
+    const candleLast = candles[this.numToShow - 1]
 
     const startStamp = start(candleFirst)
     const endStamp = end(candleLast)
@@ -488,10 +538,14 @@ export class CandleChart extends Chart {
     }
 
     // Draw the grid
-    const rFactor = this.rateConversionFactor
     const xLabels = makeCandleTimeLabels(candles, candleWidth, this.plotRegion.width(), 100)
     this.plotXGrid(xLabels, chartExtents.x.min, chartExtents.x.max)
-    const yLabels = this.makeYLabels(this.candleRegion, chartExtents, rateStep, v => Doc.formatFourSigFigs(v / rFactor))
+    const yLabels = this.makeYLabels(
+      this.candleRegion,
+      chartExtents,
+      rateStep,
+      v => Doc.formatRateAtomToRateStep(v, this.baseUnitInfo, this.quoteUnitInfo, this.market.ratestep)
+    )
     this.plotYGrid(this.candleRegion, yLabels, chartExtents.y.min, chartExtents.y.max)
 
     // Draw the volume bars.
@@ -564,28 +618,6 @@ export class CandleChart extends Chart {
     // Report the mouse candle.
     this.reporters.mouse(mouseCandle)
   }
-
-  setMarketId (mktId: string) {
-    this.mktId = mktId
-  }
-
-  /* setCandles sets the candle data and redraws the chart. */
-  setCandles (data: CandlesPayload, market: Market, baseUnitInfo: UnitInfo, quoteUnitInfo: UnitInfo) {
-    this.data = data
-    if (!data.candles) return
-    this.market = market
-    const [qFactor, bFactor] = [quoteUnitInfo.conventional.conversionFactor, baseUnitInfo.conventional.conversionFactor]
-    this.rateConversionFactor = RateEncodingFactor * qFactor / bFactor
-    let n = 20 // show 20 candles at a minimum (level 0)
-    this.zoomLevels = []
-    while (n < data.candles.length) {
-      this.zoomLevels.push(n)
-      // note, for whatever reason levels with even numbers result into "scrolling into blank screen",
-      // not sure why this is - the issue doesn't show up with even numbers (hence using 2 here)
-      n += 2 // add 2 candles per level
-    }
-    this.draw()
-  }
 }
 
 interface WaveOpts {
@@ -609,6 +641,8 @@ export class Wave extends Chart {
       click: (/* e: MouseEvent */) => { /* pass */ },
       zoom: (/* bigger: boolean */) => { /* pass */ }
     })
+    // pausing is only relevant for candle-chart, but we share the same code - hence gotta take care of this
+    this.unpause()
     this.canvas.classList.add('fill-abs')
     this.canvas.style.zIndex = '5'
 
@@ -890,14 +924,9 @@ function makeYLabels (
   // make the tick spacing a multiple of the step
   const tick = tickGuess + step - (tickGuess % step)
   let x = min + tick - (min % tick)
-  const absMax = Math.max(Math.abs(max), Math.abs(min))
-  // The Math.round part is the minimum precision required to see the change in the numbers.
-  // The 2 accounts for the precision of the tick.
-  const sigFigs = Math.round(Math.log10(absMax / tick)) + 2
   const pts: Label[] = []
   let widest = 0
   while (x < max) {
-    x = Number(x.toPrecision(sigFigs))
     const lbl = valFmt(x)
     widest = Math.max(widest, ctx.measureText(lbl).width)
     pts.push({

@@ -89,7 +89,7 @@ interface CancelData {
 
 interface CurrentMarket {
   dex: Exchange
-  sid: string // A string market identifier used by the DEX.
+  name: string // A string market identifier used by the DEX.
   cfg: Market
   base: SupportedAsset
   quote: SupportedAsset
@@ -499,12 +499,13 @@ export default class MarketsPage extends BasePage {
   }
 
   // showCandlesLoadingAnimation hides candle chart and displays loading animation, must
-  // be done before 'loadmarket' request is issued to properly handle its response
+  // be done before 'loadcandles' request is issued to properly handle its response
   showCandlesLoadingAnimation () {
     if (this.loadingAnimations.candles) {
       return
     }
     this.candleChart.canvas.classList.add('invisible')
+    this.candleChart.pause() // let candle chart know we are in the process of updating it
     this.loadingAnimations.candles = new Wave(this.page.candlesChart, { message: intl.prep(intl.ID_CANDLES_LOADING) })
   }
 
@@ -675,18 +676,13 @@ export default class MarketsPage extends BasePage {
       high = spot.high24
       low = spot.low24
     } else {
+      // see if we can calculate high & low based on 5m candles (but only if we have these cached)
       const cache = this.market?.candleCaches[fiveMinBinKey]
       if (!cache) {
-        if (this.candleDur !== fiveMinBinKey) {
-          this.requestCandles(fiveMinBinKey)
-          return
-        }
         this.stats.tmpl.high.textContent = '-'
         this.stats.tmpl.low.textContent = '-'
         return
       }
-
-      // Set high and low rates from candles.
       const aDayAgo = new Date().getTime() - 86400000
       for (let i = cache.candles.length - 1; i >= 0; i--) {
         const c = cache.candles[i]
@@ -1109,9 +1105,6 @@ export default class MarketsPage extends BasePage {
       bind(bttn, 'click', () => this.candleDurationSelected(dur))
       page.durBttnBox.appendChild(bttn)
     }
-
-    // load candlesticks here since we are resetting page.durBttnBox above.
-    this.loadCandles()
   }
 
   /* setMarket sets the currently displayed market. */
@@ -1161,7 +1154,7 @@ export default class MarketsPage extends BasePage {
 
     const mkt = {
       dex: dex,
-      sid: mktId, // A string market identifier used by the DEX.
+      name: mktId, // A string market identifier used by the DEX.
       cfg: dex.markets[mktId],
       // app().assets is a map of core.SupportedAsset type, which can be found at
       // client/core/types.go.
@@ -1191,8 +1184,9 @@ export default class MarketsPage extends BasePage {
     this.setMarketDetails()
     this.setCurrMarketPrice()
 
-    this.showCandlesLoadingAnimation()
     ws.request('loadmarket', makeMarket(host, baseID, quoteID))
+
+    this.loadCandles()
 
     State.storeLocal(State.lastMarketLK, {
       host: host,
@@ -1521,12 +1515,12 @@ export default class MarketsPage extends BasePage {
       return maxBuy
     }
 
-    const marketBefore = this.market.sid
+    const marketBefore = this.market.name
     const res = await this.requestMaxEstimate('/api/maxbuy', { rate: rateAtom })
     if (!res) {
       return null
     }
-    const marketAfter = this.market.sid
+    const marketAfter = this.market.name
 
     // see if user has switched to another market while we were waiting on reply
     if (marketBefore !== marketAfter) {
@@ -1546,12 +1540,12 @@ export default class MarketsPage extends BasePage {
       return maxSell
     }
 
-    const marketBefore = this.market.sid
+    const marketBefore = this.market.name
     const res = await this.requestMaxEstimate('/api/maxsell', {})
     if (!res) {
       return null
     }
-    const marketAfter = this.market.sid
+    const marketAfter = this.market.name
 
     // see if user has switched to another market while we were waiting on reply
     if (marketBefore !== marketAfter) {
@@ -1986,7 +1980,7 @@ export default class MarketsPage extends BasePage {
   /* handleBookOrderRoute is the handler for 'book_order' notifications. */
   handleBookOrderRoute (data: BookUpdate) {
     app().log('book', 'handleBookOrderRoute:', data)
-    if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
+    if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const order = data.payload as MiniOrder
     order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.rate > 0) this.book.add(order)
@@ -1997,7 +1991,7 @@ export default class MarketsPage extends BasePage {
   /* handleUnbookOrderRoute is the handler for 'unbook_order' notifications. */
   handleUnbookOrderRoute (data: BookUpdate) {
     app().log('book', 'handleUnbookOrderRoute:', data)
-    if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
+    if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const order = data.payload
     this.book.remove(order.id)
     this.removeTableOrder(order)
@@ -2010,7 +2004,7 @@ export default class MarketsPage extends BasePage {
    */
   handleUpdateRemainingRoute (data: BookUpdate) {
     app().log('book', 'handleUpdateRemainingRoute:', data)
-    if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
+    if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const update = data.payload
     this.book.updateRemaining(update.token, update.qty, update.qtyAtomic)
     this.updateTableOrder(update)
@@ -2019,7 +2013,7 @@ export default class MarketsPage extends BasePage {
   /* handleEpochOrderRoute is the handler for 'epoch_order' notifications. */
   handleEpochOrderRoute (data: BookUpdate) {
     app().log('book', 'handleEpochOrderRoute:', data)
-    if (data.host !== this.market.dex.host || data.marketID !== this.market.sid) return
+    if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const order = data.payload
     order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.msgRate > 0) this.book.add(order) // No cancels or market orders
@@ -2029,20 +2023,23 @@ export default class MarketsPage extends BasePage {
   /* handleCandlesRoute is the handler for 'candles' notifications. */
   handleCandlesRoute (data: BookUpdate) {
     if (data.host !== this.market.dex.host || data.marketID !== this.market.cfg.name) return
+    if (!data.payload || !data.payload.candles) return
+
+    // update cache
     const dur = data.payload.dur
     this.market.candleCaches[dur] = data.payload
-    this.setHighLow()
     if (this.candleDur !== dur) return
+
     if (this.loadingAnimations.candles) {
       this.loadingAnimations.candles.stop() // just a cleanup
       this.loadingAnimations.candles = undefined // signals we are not on animation screen anymore
     }
-    this.candleChart.clear() // remove the old data so that we draw on blank canvas
     this.candleChart.setMarketId(data.marketID) // market has changed, gotta update it
-    this.candleChart.setCandles(data.payload, this.market.cfg, this.market.baseUnitInfo, this.market.quoteUnitInfo)
     this.candleChart.resize() // adjust chart size(s) according to what this market needs
-    this.candleChart.draw() // gotta redraw the chart now that new data is available
+    this.candleChart.setCandlesAndDraw(data.payload, this.market.cfg, this.market.baseUnitInfo, this.market.quoteUnitInfo)
     this.candleChart.canvas.classList.remove('invisible') // everything is ready, show the chart
+
+    this.setHighLow()
   }
 
   handleEpochMatchSummary (data: BookUpdate) {
@@ -2470,7 +2467,7 @@ export default class MarketsPage extends BasePage {
   handleEpochNote (note: EpochNote) {
     app().log('book', 'handleEpochNote:', note)
     if (!this.market) return // This note can arrive before the market is set.
-    if (note.host !== this.market.dex.host || note.marketID !== this.market.sid) return
+    if (note.host !== this.market.dex.host || note.marketID !== this.market.name) return
     if (this.book) {
       this.book.setEpoch(note.epoch)
     }
@@ -3101,17 +3098,21 @@ export default class MarketsPage extends BasePage {
     const { candleCaches, cfg, baseUnitInfo, quoteUnitInfo } = this.market
     const cache = candleCaches[this.candleDur]
     if (cache) {
-      this.candleChart.setCandles(cache, cfg, baseUnitInfo, quoteUnitInfo)
+      this.candleChart.setCandlesAndDraw(cache, cfg, baseUnitInfo, quoteUnitInfo)
       return
     }
+
     this.requestCandles()
   }
 
   /* requestCandles sends the loadcandles request. It accepts an optional candle
-   * duration which will be requested if it is provided.
+   * duration which will be requested if it is provided. While request is in
+   * progress candle chart animates, the animation ends when response arrives
+   * with up-to-date candle data.
    */
   requestCandles (candleDur?: string) {
     const { dex, baseCfg, quoteCfg } = this.market
+    this.showCandlesLoadingAnimation()
     ws.request('loadcandles', { host: dex.host, base: baseCfg.id, quote: quoteCfg.id, dur: candleDur || this.candleDur })
   }
 
