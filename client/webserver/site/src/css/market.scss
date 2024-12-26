@@ -271,11 +271,11 @@ div[data-handler=markets] {
 
       width: 100%; // firefox needs, for some reason
       z-index: 2;
-      background-color: transparent;
+      background-color: transparent; // must be transparent for `ico-search` to show in background
+      border: none;
       text-align: center;
       font-family: $demi-sans;
-      font-variant: small-caps;
-      border: none;
+      text-transform: uppercase;
 
       & + .ico-search {
         position: absolute;
@@ -300,8 +300,9 @@ div[data-handler=markets] {
       height: 100%;
 
       & > div {
-        &:focus {
-          background-color: var(--body-bg-lower-opacity);
+        &:focus,
+        &.selected {
+          background-color: var(--tertiary-bg);
         }
       }
     }
@@ -375,7 +376,7 @@ div[data-handler=markets] {
       }
 
       &:hover,
-      &:focus {
+      &.selected {
         border-color: var(--text-warning);
         color: var(--text-warning);
       }

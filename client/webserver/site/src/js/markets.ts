@@ -71,8 +71,8 @@ const orderBookSideMaxCapacity = 14
 const buyBtnClass = 'buygreen-bg'
 const sellBtnClass = 'sellred-bg'
 
-const fiveMinBinKey = '5m'
-const oneHrBinKey = '1h'
+const candleBinKey5m = '5m'
+const candleBinKey24h = '24h'
 
 interface MetaOrder {
   div: HTMLElement
@@ -205,9 +205,6 @@ export default class MarketsPage extends BasePage {
     this.accelerateOrderForm = new AccelerateOrderForm(page.accelerateForm, success)
 
     this.approveTokenForm = new TokenApprovalForm(page.approveTokenForm)
-
-    // Set user's last known candle duration.
-    this.candleDur = State.fetchLocal(State.lastCandleDurationLK) || oneHrBinKey
 
     // Setup the register to trade button.
     // TODO: Use dexsettings page?
@@ -381,6 +378,7 @@ export default class MarketsPage extends BasePage {
       Doc.hide(page.orderBook)
       State.storeLocal(State.leftMarketDockLK, '1')
       Doc.show(page.leftMarketDock)
+      page.marketSearchV1.focus()
     }
     bind(this.stats.tmpl.marketSelect, 'click', () => {
       if (page.leftMarketDock.clientWidth === 0) openMarketsList()
@@ -677,7 +675,7 @@ export default class MarketsPage extends BasePage {
       low = spot.low24
     } else {
       // see if we can calculate high & low based on 5m candles (but only if we have these cached)
-      const cache = this.market?.candleCaches[fiveMinBinKey]
+      const cache = this.market?.candleCaches[candleBinKey5m]
       if (!cache) {
         this.stats.tmpl.high.textContent = '-'
         this.stats.tmpl.low.textContent = '-'
@@ -1105,6 +1103,10 @@ export default class MarketsPage extends BasePage {
       bind(bttn, 'click', () => this.candleDurationSelected(dur))
       page.durBttnBox.appendChild(bttn)
     }
+
+    // Set user's last known candle duration.
+    this.candleDur = State.fetchLocal(State.lastCandleDurationLK) || candleBinKey24h
+    this.candleDurationSelected(this.candleDur)
   }
 
   /* setMarket sets the currently displayed market. */
@@ -3078,9 +3080,9 @@ export default class MarketsPage extends BasePage {
   }
 
   /* candleDurationSelected sets the candleDur and loads the candles. It will
-  default to the oneHrBinKey if dur is not valid. */
+  default to the candleBinKey24h if dur is not valid. */
   candleDurationSelected (dur: string) {
-    if (!this.market?.dex?.candleDurs.includes(dur)) dur = oneHrBinKey
+    if (!this.market?.dex?.candleDurs.includes(dur)) dur = candleBinKey24h
     this.candleDur = dur
     this.loadCandles()
     State.storeLocal(State.lastCandleDurationLK, dur)
@@ -3315,7 +3317,8 @@ class OrderTableRowManager {
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
     const rateText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
-    Doc.setVis(this.isEpoch(), this.page.epoch)
+    Doc.setVis(this.isEpoch() && !this.isSell(), this.page.epochBuy)
+    Doc.setVis(this.isEpoch() && this.isSell(), this.page.epochSell)
 
     if (this.msgRate === 0) {
       page.rate.innerText = 'market'

@@ -12,7 +12,7 @@
             <div id="leftMarketDock" class="d-flex flex-stretch-column d-hide">
               <div class="d-flex flex-stretch-column align-items-stretch border-bottom" id="searchBoxV1">
                 <form class="flex-grow-1 p-1 position-relative" autocomplete="off">
-                  <input type="text" id="marketSearchV1" placeholder=" " spellcheck="false" class="my-1 fs18">
+                  <input type="text" id="marketSearchV1" placeholder=" " spellcheck="false" class="my-1 fs24">
                   <div class="ico-search fs24"></div>
                 </form>
               </div>
@@ -61,7 +61,8 @@
                       <td class="d-flex justify-content-start align-items-center text-nowrap pe-2">
                         <span data-tmpl="rate">-</span>
                         <span class="ico-own-book-order fs8 ps-1 d-hide" data-tmpl="ownBookOrder"></span>
-                        <span class="ico-check fs10 ps-1 d-hide" data-tmpl="epoch"></span>
+                        <span class="ico-check-buy fs10 ps-1 d-hide" data-tmpl="epochBuy"></span>
+                        <span class="ico-check-sell fs10 ps-1 d-hide" data-tmpl="epochSell"></span>
                       </td>
                       <td class="d-flex justify-content-end align-items-center ps-2">
                         <small class="numorders lh1 rounded3 text-center" data-tmpl="numOrders">-</small>
@@ -119,14 +120,14 @@
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxBuy">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select bg1 order-form-input" id="rateFieldBuy">
+                      <input type="text" class="form-control select order-form-input" id="rateFieldBuy">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxBuy">
                     <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select bg1 order-form-input" id="qtyFieldBuy">
+                      <input type="text" class="form-control select order-form-input" id="qtyFieldBuy">
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
@@ -168,14 +169,14 @@
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="priceBoxSell">
                     <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
                     <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select bg1 order-form-input" id="rateFieldSell">
+                      <input type="text" class="form-control select order-form-input" id="rateFieldSell">
                       <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
                     </div>
                   </div>
                   <div class="d-flex justify-content-between m-1 fs18 disabled" id="qtyBoxSell">
                     <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
                     <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select bg1 order-form-input" id="qtyFieldSell">
+                      <input type="text" class="form-control select order-form-input" id="qtyFieldSell">
                       <span class="unit unitbox" data-base-ticker></span>
                     </div>
                   </div>
