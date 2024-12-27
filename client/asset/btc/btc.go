@@ -5635,7 +5635,15 @@ func (btc *baseWallet) idUnknownTx(tx *ListTransactionsResult) (*asset.WalletTra
 		}
 		return
 	}
-	if v := txPaysToScriptHash(msgTx); tx.Send && v > 0 {
+	if v := txPaysToScriptHash(msgTx); v > 0 {
+		if tx.Send {
+			return &asset.WalletTransaction{
+				ID:     tx.TxID,
+				Type:   asset.Send,
+				Amount: v,
+				Fees:   fee,
+			}, nil
+		}
 		return &asset.WalletTransaction{
 			ID:     tx.TxID,
 			Type:   asset.SwapOrSend,
@@ -5661,7 +5669,7 @@ func (btc *baseWallet) idUnknownTx(tx *ListTransactionsResult) (*asset.WalletTra
 				// not segwit
 				const scriptVer = 0
 				tokenizer := txscript.MakeScriptTokenizer(scriptVer, txIn.SignatureScript)
-				for i := 0; i <= idx; i++ { // contract is 5th item item in redemption and 4th in refund
+				for i := 0; i <= idx; i++ { // contract is 5th item in redemption and 4th in refund
 					if !tokenizer.Next() {
 						continue txinloop
 					}
