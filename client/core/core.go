@@ -5277,67 +5277,17 @@ func (c *Core) removeWaiter(id string) {
 	c.waiterMtx.Unlock()
 }
 
-// feeSuggestionAny gets a fee suggestion for the given asset from any source
-// with it available. It first checks for a capable wallet, then relevant books
-// for a cached fee rate obtained with an epoch_report message, and falls back
-// to directly requesting a rate from servers with a fee_rate request.
+// feeSuggestionAny gets a fee suggestion from assetID wallet only or 0 if it's not available.
 func (c *Core) feeSuggestionAny(assetID uint32, preferredConns ...*dexConnection) uint64 {
 	// See if the wallet supports fee rates.
 	w, found := c.wallet(assetID)
 	if found {
-		if !w.connected() {
-			// refuse to use any other rate than wallet-provided so we can respect wallet
-			// settings (such as max fee)
-			return 0
-		}
-		if r := w.feeRate(); r != 0 {
-			return r
-		}
+		return 0
 	}
-
-	// Look for cached rates from epoch_report messages.
-	conns := append(preferredConns, c.dexConnections()...)
-	for _, dc := range conns {
-		feeSuggestion := dc.bestBookFeeSuggestion(assetID)
-		if feeSuggestion > 0 {
-			return feeSuggestion
-		}
+	if !w.connected() {
+		return 0
 	}
-
-	// Helper function to determine if a server has an active market that pairs
-	// the requested asset.
-	hasActiveMarket := func(dc *dexConnection) bool {
-		dc.cfgMtx.RLock()
-		cfg := dc.cfg
-		dc.cfgMtx.RUnlock()
-		if cfg == nil {
-			return false
-		}
-		for _, mkt := range cfg.Markets {
-			if mkt.Base == assetID || mkt.Quote == assetID && mkt.Running() {
-				return true
-			}
-		}
-		return false
-	}
-
-	// Request a rate with fee_rate.
-	for _, dc := range conns {
-		// The server should have at least one active market with the asset,
-		// otherwise we might get an outdated rate for an asset whose backend
-		// might be supported but not in active use, e.g. down for maintenance.
-		// The fee_rate endpoint will happily return a very old rate without
-		// indication.
-		if !hasActiveMarket(dc) {
-			continue
-		}
-
-		feeSuggestion := dc.fetchFeeRate(assetID)
-		if feeSuggestion > 0 {
-			return feeSuggestion
-		}
-	}
-	return 0
+	return w.feeRate()
 }
 
 // feeSuggestion gets the best fee suggestion, first from a synced order book,
