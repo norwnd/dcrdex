@@ -5636,14 +5636,6 @@ func (btc *baseWallet) idUnknownTx(tx *ListTransactionsResult) (*asset.WalletTra
 		return
 	}
 	if v := txPaysToScriptHash(msgTx); v > 0 {
-		if tx.Send {
-			return &asset.WalletTransaction{
-				ID:     tx.TxID,
-				Type:   asset.Send,
-				Amount: v,
-				Fees:   fee,
-			}, nil
-		}
 		return &asset.WalletTransaction{
 			ID:     tx.TxID,
 			Type:   asset.SwapOrSend,
