@@ -329,7 +329,6 @@ func wsLoadCandles(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error
 
 	feed, msgErr := loadMarket(s, cl, &req.marketLoad)
 	if msgErr != nil {
-		cl.feedMtx.RUnlock()
 		return msgErr
 	}
 	err = feed.Candles(req.Dur)
