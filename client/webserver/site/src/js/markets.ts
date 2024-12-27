@@ -1103,7 +1103,7 @@ export default class MarketsPage extends BasePage {
       bind(bttn, 'click', () => {
         const dur = bttn.textContent
         if (!dur) {
-          return // should never happen since we are initializing button textContent guranteed
+          return // should never happen since we are initializing button textContent guaranteed
         }
         State.storeLocal(State.lastCandleDurationLK, dur)
         this.selectCandleDurationElem(dur)
