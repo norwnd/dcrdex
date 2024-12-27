@@ -11,7 +11,6 @@ import {
 import { postJSON } from './http'
 import {
   NewWalletForm,
-  AccelerateOrderForm,
   DepositAddress,
   TokenApprovalForm,
   bind as bindForm,
@@ -172,7 +171,6 @@ export default class MarketsPage extends BasePage {
   reputationMeter: ReputationMeter
   keyup: (e: KeyboardEvent) => void
   secondTicker: number
-  accelerateOrderForm: AccelerateOrderForm
   recentMatches: RecentMatch[]
   recentMatchesSortKey: string
   recentMatchesSortDirection: 1 | -1
@@ -203,10 +201,6 @@ export default class MarketsPage extends BasePage {
     }
     this.candleChart = new CandleChart(page.candlesChart, candleReporters)
     this.loadingAnimations = {}
-
-    const success = () => { /* do nothing */ }
-    // Do not call cleanTemplates before creating the AccelerateOrderForm
-    this.accelerateOrderForm = new AccelerateOrderForm(page.accelerateForm, success)
 
     this.approveTokenForm = new TokenApprovalForm(page.approveTokenForm)
 
@@ -1816,24 +1810,13 @@ export default class MarketsPage extends BasePage {
         this.showCancel(div, orderID)
       }
 
-      const showAccelerate = (e: Event) => {
-        e.stopPropagation()
-        this.showAccelerate(ord)
-      }
-
       if (!orderID) {
-        Doc.hide(details.accelerateBttn)
         Doc.hide(details.cancelBttn)
         Doc.hide(details.link)
       } else {
         if (OrderUtil.isCancellable(ord)) {
           Doc.show(details.cancelBttn)
           bind(details.cancelBttn, 'click', (e: Event) => { showCancel(e) })
-        }
-
-        bind(details.accelerateBttn, 'click', (e: Event) => { showAccelerate(e) })
-        if (app().canAccelerateOrder(ord)) {
-          Doc.show(details.accelerateBttn)
         }
 
         details.link.href = `order/${orderID}`
@@ -1878,7 +1861,6 @@ export default class MarketsPage extends BasePage {
         }
 
         if (OrderUtil.isCancellable(ord)) addButton(details.cancelBttn, (e: Event) => { showCancel(e) })
-        if (app().canAccelerateOrder(ord)) addButton(details.accelerateBttn, (e: Event) => { showAccelerate(e) })
         floater.appendChild(details.link.cloneNode(true))
 
         const ogScrollY = page.orderScroller.scrollTop
@@ -2250,14 +2232,6 @@ export default class MarketsPage extends BasePage {
     }
   }
 
-  /* showAccelerate shows the accelerate order form. */
-  showAccelerate (order: Order) {
-    const loaded = app().loading(this.main)
-    this.accelerateOrderForm.refresh(order)
-    loaded()
-    this.forms.show(this.page.accelerateForm)
-  }
-
   /* showCreate shows the new wallet creation form. */
   showCreate (asset: SupportedAsset) {
     const page = this.page
@@ -2447,8 +2421,6 @@ export default class MarketsPage extends BasePage {
       (match.side === OrderUtil.MatchSideMaker && match.status === OrderUtil.MakerRedeemed) ||
       (match.side === OrderUtil.MatchSideTaker && match.status === OrderUtil.MatchComplete)
     ) this.updateReputation()
-    if (app().canAccelerateOrder(mord.ord)) Doc.show(mord.details.accelerateBttn)
-    else Doc.hide(mord.details.accelerateBttn)
   }
 
   /*
@@ -2473,8 +2445,6 @@ export default class MarketsPage extends BasePage {
     mord.ord = ord
     if (note.topic === 'MissedCancel') Doc.show(mord.details.cancelBttn)
     if (ord.filled === ord.qty) Doc.hide(mord.details.cancelBttn)
-    if (app().canAccelerateOrder(ord)) Doc.show(mord.details.accelerateBttn)
-    else Doc.hide(mord.details.accelerateBttn)
     this.updateMetaOrder(mord)
     // Only reset markers if there is a change, since the chart is redrawn.
     if (

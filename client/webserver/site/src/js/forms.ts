@@ -789,7 +789,7 @@ export class WalletConfigForm {
  */
 export class ConfirmRegistrationForm {
   form: HTMLElement
-  success: () => void
+  success: () => Promise<void>
   page: Record<string, PageElement>
   xc: Exchange
   certFile: string
@@ -797,7 +797,7 @@ export class ConfirmRegistrationForm {
   tier: number
   fees: number
 
-  constructor (form: HTMLElement, success: () => void, goBack: () => void) {
+  constructor (form: HTMLElement, success: () => Promise<void>, goBack: () => Promise<void>) {
     this.form = form
     this.success = success
     this.page = Doc.parseTemplate(form)
@@ -893,7 +893,7 @@ export class ConfirmRegistrationForm {
       Doc.show(page.regErr)
       return
     }
-    this.success()
+    await this.success()
   }
 }
 
@@ -1232,8 +1232,7 @@ function setReadyMessage (el: PageElement, asset: SupportedAsset) {
  */
 export class WalletWaitForm {
   form: HTMLElement
-  success: () => void
-  goBack: () => void
+  success: () => Promise<void>
   page: Record<string, PageElement>
   assetID: number
   parentID?: number
@@ -1246,7 +1245,7 @@ export class WalletWaitForm {
   bondFeeBuffer: number // in parent asset
   parentAssetSynced: boolean
 
-  constructor (form: HTMLElement, success: () => void, goBack: () => void) {
+  constructor (form: HTMLElement, success: () => Promise<void>, goBack: () => Promise<void>) {
     this.form = form
     this.success = success
     this.page = Doc.parseTemplate(form)
@@ -1277,7 +1276,7 @@ export class WalletWaitForm {
   }
 
   /* setWallet must be called before showing the WalletWaitForm. */
-  setWallet (assetID: number, bondFeeBuffer: number, tier: number) {
+  async setWallet (assetID: number, bondFeeBuffer: number, tier: number) {
     this.assetID = assetID
     this.progressCache = []
     this.progressed = false
@@ -1340,24 +1339,24 @@ export class WalletWaitForm {
     if (synced) {
       this.progressed = true
     }
-    this.reportBalance(assetID)
+    await this.reportBalance(assetID)
   }
 
   /*
    * reportWalletState sets the progress and balance, ultimately calling the
    * success function if conditions are met.
    */
-  reportWalletState (wallet: WalletState) {
+  async reportWalletState (wallet: WalletState) {
     if (this.progressed && this.funded) return
-    if (wallet.assetID === this.assetID) this.reportProgress(wallet.synced, wallet.syncProgress)
-    this.reportBalance(wallet.assetID)
+    if (wallet.assetID === this.assetID) await this.reportProgress(wallet.synced, wallet.syncProgress)
+    await this.reportBalance(wallet.assetID)
   }
 
   /*
    * reportBalance sets the balance display and calls success if we go over the
    * threshold.
    */
-  reportBalance (assetID: number) {
+  async reportBalance (assetID: number) {
     if (this.funded || this.assetID === -1) return
     if (assetID !== this.assetID && assetID !== this.parentID) return
     const page = this.page
@@ -1381,21 +1380,21 @@ export class WalletWaitForm {
     Doc.show(page.balCheck)
     Doc.hide(page.balUncheck, page.balanceBox, page.sendEnough)
     this.funded = true
-    if (this.progressed) this.success()
+    if (this.progressed) await this.success()
   }
 
   /*
    * reportProgress sets the progress display and calls success if we are fully
    * synced.
    */
-  reportProgress (synced: boolean, prog: number) {
+  async reportProgress (synced: boolean, prog: number) {
     const page = this.page
     if (synced) {
       page.progress.textContent = '100'
       Doc.hide(page.syncUncheck, page.syncRemainBox, page.syncSpinner)
       Doc.show(page.syncCheck)
       this.progressed = true
-      if (this.funded) this.success()
+      if (this.funded) await this.success()
       return
     } else if (prog === 1) {
       Doc.hide(page.syncUncheck)
@@ -1573,7 +1572,7 @@ export class AccelerateOrderForm {
     })
     Doc.empty(page.sliderContainer)
     page.sliderContainer.appendChild(rangeHandler.control)
-    this.updateAccelerationEstimate()
+    await this.updateAccelerationEstimate()
   }
 
   // updateAccelerationEstimate makes an accelerate estimate request to the

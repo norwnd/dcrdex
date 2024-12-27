@@ -894,7 +894,7 @@ export default class WalletsPage extends BasePage {
   async showNewWallet (assetID: number) {
     const page = this.page
     const box = page.newWalletForm
-    this.newWalletForm.setAsset(assetID)
+    await this.newWalletForm.setAsset(assetID)
     const defaultsLoaded = this.newWalletForm.loadDefaults()
     await this.showForm(box)
     await defaultsLoaded
@@ -1337,7 +1337,7 @@ export default class WalletsPage extends BasePage {
   }
 
   async showTicketHistory () {
-    this.showForm(this.page.ticketHistoryForm)
+    await this.showForm(this.page.ticketHistoryForm)
     await this.ticketPageN(this.ticketPage.number)
   }
 
@@ -2138,7 +2138,7 @@ export default class WalletsPage extends BasePage {
 
   /* Display a deposit address. */
   async showDeposit (assetID: number) {
-    this.depositAddrForm.setAsset(assetID)
+    await this.depositAddrForm.setAsset(assetID)
     this.showForm(this.page.deposit)
   }
 

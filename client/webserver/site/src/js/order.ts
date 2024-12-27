@@ -455,7 +455,7 @@ export default class OrderPage extends BasePage {
   /* showAccelerateForm shows a form to accelerate an order */
   async showAccelerateForm () {
     const loaded = app().loading(this.page.accelerateBttn)
-    this.accelerateOrderForm.refresh(this.order)
+    await this.accelerateOrderForm.refresh(this.order)
     loaded()
     this.showForm(this.page.accelerateForm)
   }

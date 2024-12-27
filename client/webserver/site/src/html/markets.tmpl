@@ -352,7 +352,6 @@
                   </div>
                   <div data-tmpl="details" class="order-details border-top border-bottom d-hide">
                     <div class="user-order-datum full-span d-flex flex-row justify-content-start align-items-center border-bottom fs14">
-                      <span data-tmpl="accelerateBttn" class="ico-rocket pointer hoverbg d-hide py-2 px-3 me-1" data-tooltip="[[[accelerate_order]]]"></span>
                       <span data-tmpl="cancelBttn" class="ico-cross pointer hoverbg fs11 d-hide py-2 px-3 mx-1" data-tooltip="[[[cancel_order]]]"></span>
                       <a data-tmpl="link" class="ico-open pointer hoverbg fs13 plainlink py-2 px-3 ms-1" data-tooltip="[[[order details]]]"></a>
                     </div>
@@ -512,9 +511,6 @@
     {{- /* CANCEL ORDER FORM */ -}}
     <form class="d-hide" id="cancelForm" autocomplete="off">
       {{template "cancelOrderForm" .}}
-    </form>
-    <form class="d-hide" id="accelerateForm">
-      {{template "accelerateForm" .}}
     </form>
 
     <form class="position-relative d-hide" id="orderReportForm" autocomplete="off">

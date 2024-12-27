@@ -95,24 +95,24 @@ export default class SettingsPage extends BasePage {
         const bondsFeeBuffer = await this.getBondsFeeBuffer(assetID, page.regAssetForm)
         this.confirmRegisterForm.setAsset(assetID, tier, bondsFeeBuffer)
         if (wallet.synced && wallet.balance.available >= 2 * bondAsset.amount + bondsFeeBuffer) {
-          this.animateConfirmForm(page.regAssetForm)
+          await this.animateConfirmForm(page.regAssetForm)
           return
         }
-        this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
-        this.slideSwap(page.walletWait)
+        await this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
+        await this.slideSwap(page.walletWait)
         return
       }
 
       this.confirmRegisterForm.setAsset(assetID, tier, 0)
-      this.newWalletForm.setAsset(assetID)
-      this.slideSwap(page.newWalletForm)
+      await this.newWalletForm.setAsset(assetID)
+      await this.slideSwap(page.newWalletForm)
     })
 
     // Approve fee payment
-    this.confirmRegisterForm = new forms.ConfirmRegistrationForm(page.confirmRegForm, () => {
-      this.registerDEXSuccess()
-    }, () => {
-      this.animateRegAsset(page.confirmRegForm)
+    this.confirmRegisterForm = new forms.ConfirmRegistrationForm(page.confirmRegForm, async () => {
+      await this.registerDEXSuccess()
+    }, async () => {
+      await this.animateRegAsset(page.confirmRegForm)
     })
 
     // Create a new wallet
@@ -122,9 +122,9 @@ export default class SettingsPage extends BasePage {
       () => this.animateRegAsset(page.newWalletForm)
     )
 
-    this.walletWaitForm = new forms.WalletWaitForm(page.walletWait, () => {
-      this.animateConfirmForm(page.walletWait)
-    }, () => { this.animateRegAsset(page.walletWait) })
+    this.walletWaitForm = new forms.WalletWaitForm(page.walletWait, async () => {
+      await this.animateConfirmForm(page.walletWait)
+    }, async () => { await this.animateRegAsset(page.walletWait) })
 
     // Enter an address for a new DEX
     this.dexAddrForm = new forms.DEXAddressForm(page.dexAddrForm, async (xc: Exchange, certFile: string) => {
@@ -251,8 +251,8 @@ export default class SettingsPage extends BasePage {
    * slideSwap animates the replacement of the currently shown form with the
    * newForm and sets this.currentForm.
    */
-  slideSwap (newForm: PageElement) {
-    forms.slideSwap(this.currentForm, newForm)
+  async slideSwap (newForm: PageElement) {
+    await forms.slideSwap(this.currentForm, newForm)
     this.currentForm = newForm
   }
 
@@ -282,8 +282,8 @@ export default class SettingsPage extends BasePage {
       return
     }
 
-    this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
-    this.slideSwap(page.walletWait)
+    await this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
+    await this.slideSwap(page.walletWait)
   }
 
   async onAccountFileChange () {
