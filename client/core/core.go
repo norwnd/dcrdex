@@ -5287,7 +5287,12 @@ func (c *Core) removeWaiter(id string) {
 func (c *Core) feeSuggestionAny(assetID uint32, preferredConns ...*dexConnection) uint64 {
 	// See if the wallet supports fee rates.
 	w, found := c.wallet(assetID)
-	if found && w.connected() {
+	if found {
+		if !w.connected() {
+			// refuse to use any other rate than wallet-provided so we can respect wallet
+			// settings (such as max fee)
+			return 0
+		}
 		if r := w.feeRate(); r != 0 {
 			return r
 		}
