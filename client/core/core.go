@@ -6192,56 +6192,46 @@ func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexC
 		return nil
 	}
 
-	// to prevent accidental placement of orders with unreasonable rates we'll
-	// limit ourselves to only those orders that aren't immediately matched
+	// to prevent accidental placement of orders with unreasonable rates we'll warn
+	// the caller when he is trying to place a trade that:
+	// 1) is immediately matched
+	// 2) will execute and result into slippage of 1% or more
+
 	book := dc.bookie(market)
 	bisonOrders, found, err := book.BestNOrders(1, false)
 	if err != nil {
 		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
 			"fetch best buy order in Bison book: %v", err))
 	}
-	if sell && found && rate <= bisonOrders[0].Rate {
-		return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-			"trying to place trade with rate %d "+
-			"that would immediately match a buy order in Bison book", rate))
+	bestBisonBuyRate := bisonOrders[0].Rate
+	if sell && found {
+		if rate <= bestBisonBuyRate {
+			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+				"trying to place trade with rate %d "+
+				"that would immediately match a buy order in Bison book", rate))
+		}
+		if float64(rate) < (float64(bestBisonBuyRate) - 0.01*float64(bestBisonBuyRate)) {
+			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+				"trying to place trade with rate %d "+
+				"that'd result into slippage of more than 1 percent (best Bison buy rate = %d)", rate, bestBisonBuyRate))
+		}
 	}
 	bisonOrders, found, err = book.BestNOrders(1, true)
 	if err != nil {
 		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
 			"fetch best sell order in Bison book: %v", err))
 	}
-	if !sell && found && rate >= bisonOrders[0].Rate {
-		return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-			"trying to place trade with rate %d "+
-			"that would immediately match a sell order in Bison book", rate))
-	}
-
-	// sanity check we are placing a trade that doesn't significantly diverge from the price
-	// on Bison market (25% seems like a worrisome divergence we don't want to permit),
-	// BUT we can only check this if order-book isn't empty (skip this check otherwise),
-	// note, we can't use "spot price" here because its value reflects the price of last
-	// trade which might have happened hours/days ago - and hence is too stale to rely on
-	//bisonRate := dc.coreMarket(market).SpotPrice.Rate
-	bisonRate, err := dc.midGapMkt(market)
-	if err == nil {
-		if math.Abs(float64(rate)-float64(bisonRate)) > (0.25 * float64(bisonRate)) {
+	bestBisonSellRate := bisonOrders[0].Rate
+	if !sell && found {
+		if rate >= bestBisonSellRate {
 			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
 				"trying to place trade with rate %d "+
-				"that's diverging from Bison rate %d for more than 25 percent", rate, bisonRate))
+				"that would immediately match a sell order in Bison book", rate))
 		}
-		// additionally, prevent placing limit-orders that might result into slippage of 1% or more
-		if sell {
-			if float64(rate) < (float64(bisonRate) - 0.01*float64(bisonRate)) {
-				return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-					"trying to place trade with rate %d "+
-					"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
-			}
-		} else {
-			if float64(rate) > (float64(bisonRate) + 0.01*float64(bisonRate)) {
-				return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-					"trying to place trade with rate %d "+
-					"that'd result into slippage of more than 1 percent (Bison rate = %d)", rate, bisonRate))
-			}
+		if float64(rate) > (float64(bestBisonSellRate) + 0.01*float64(bestBisonSellRate)) {
+			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
+				"trying to place trade with rate %d "+
+				"that'd result into slippage of more than 1 percent (best Bison sell rate = %d)", rate, bestBisonSellRate))
 		}
 	}
 
