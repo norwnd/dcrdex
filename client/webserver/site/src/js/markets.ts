@@ -160,7 +160,11 @@ export default class MarketsPage extends BasePage {
   hovers: HTMLElement[]
   ogTitle: string
   candleChart: CandleChart // reused across different markets
-  candleDur: string
+  // reqCandleDuration is used to differentiate between ws responses coming as a results of requests
+  // with different durations, note - that only covers the most common case of concurrent candles
+  // request(s), if racy concurrent candles requests prove to be a problem in practice we'll need
+  // to add a request ID that would allow to only apply the results of the latest request.
+  reqCandleDuration: string
   marketList: MarketList
   newWalletForm: NewWalletForm
   depositAddrForm: DepositAddress
@@ -384,20 +388,20 @@ export default class MarketsPage extends BasePage {
       if (page.leftMarketDock.clientWidth === 0) openMarketsList()
       else closeMarketsList()
     })
-    const loadMarket = (mkt: ExchangeMarket) => {
+    const initMarket = (mkt: ExchangeMarket) => {
       // nothing to do if this market is already set/chosen
       const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
       if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
-      this.setMarket(host, baseID, quoteID)
+      this.switchToMarket(host, baseID, quoteID)
     }
     // Prepare the list of markets.
     this.marketList = new MarketList(page.marketListV1)
     for (const row of this.marketList.markets) {
       bind(row.node, 'click', () => {
-        loadMarket(row.mkt)
+        initMarket(row.mkt)
       })
       bind(row.node, 'dblclick', () => {
-        loadMarket(row.mkt)
+        initMarket(row.mkt)
         closeMarketsList()
       })
     }
@@ -455,7 +459,7 @@ export default class MarketsPage extends BasePage {
       const first = this.marketList.first()
       if (first) selected = { host: first.mkt.xc.host, base: first.mkt.baseid, quote: first.mkt.quoteid }
     }
-    if (selected) this.setMarket(selected.host, selected.base, selected.quote)
+    if (selected) this.switchToMarket(selected.host, selected.base, selected.quote)
 
     this.setRegistrationStatusVisibility() // set the initial state for the registration status
   }
@@ -524,11 +528,11 @@ export default class MarketsPage extends BasePage {
       this.stats.tmpl.volume24Unit.textContent = 'USD'
       this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
       this.stats.tmpl.bisonPrice.textContent = '-'
-      this.stats.tmpl.fiatPrice.textContent = '(-)'
+      this.stats.tmpl.fiatPrice.textContent = '-'
       if (mkt) {
         const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
         const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
-        let fiatPriceFormatted = '(-)'
+        let fiatPriceFormatted = '?'
         if (baseFiatRate && quoteFiatRate) {
           const fiatPrice = baseFiatRate / quoteFiatRate
           fiatPriceFormatted = Doc.formatRateToRateStep(
@@ -537,7 +541,7 @@ export default class MarketsPage extends BasePage {
             selectedMkt.quoteUnitInfo,
             selectedMkt.cfg.ratestep
           )
-          fiatPriceFormatted = `(~${fiatPriceFormatted})`
+          fiatPriceFormatted = `${fiatPriceFormatted}`
         }
         this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
       }
@@ -581,7 +585,7 @@ export default class MarketsPage extends BasePage {
 
     const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
     const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
-    let fiatPriceFormatted = '(-)'
+    let fiatPriceFormatted = '?'
     if (baseFiatRate && quoteFiatRate) {
       const fiatPrice = baseFiatRate / quoteFiatRate
       fiatPriceFormatted = Doc.formatRateToRateStep(
@@ -590,7 +594,7 @@ export default class MarketsPage extends BasePage {
         selectedMkt.quoteUnitInfo,
         selectedMkt.cfg.ratestep
       )
-      fiatPriceFormatted = `(~${fiatPriceFormatted})`
+      fiatPriceFormatted = `${fiatPriceFormatted}`
     }
     this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
 
@@ -1096,21 +1100,38 @@ export default class MarketsPage extends BasePage {
 
   setCandleDurBttns () {
     const { page, market } = this
+
     Doc.empty(page.durBttnBox)
+
     for (const dur of market.dex.candleDurs) {
       const bttn = page.durBttnTemplate.cloneNode(true)
       bttn.textContent = dur
-      bind(bttn, 'click', () => this.candleDurationSelected(dur))
+      bind(bttn, 'click', () => {
+        const dur = bttn.textContent
+        if (!dur) {
+          return // should never happen since we are initializing button textContent guranteed
+        }
+        State.storeLocal(State.lastCandleDurationLK, dur)
+        this.selectCandleDurationElem(dur)
+        this.loadCandles(dur)
+      })
       page.durBttnBox.appendChild(bttn)
     }
-
-    // Set user's last known candle duration.
-    this.candleDur = State.fetchLocal(State.lastCandleDurationLK) || candleBinKey24h
-    this.candleDurationSelected(this.candleDur)
   }
 
-  /* setMarket sets the currently displayed market. */
-  async setMarket (host: string, baseID: number, quoteID: number) {
+  // selectCandleDurationElem draws in UI which candle duration was chosen.
+  selectCandleDurationElem (dur: string) {
+    for (const bttn of Doc.kids(this.page.durBttnBox)) {
+      if (bttn.textContent === dur) {
+        bttn.classList.add('selected')
+        continue
+      }
+      bttn.classList.remove('selected')
+    }
+  }
+
+  /* switchToMarket sets the currently displayed market. */
+  async switchToMarket (host: string, baseID: number, quoteID: number) {
     const dex = app().user.exchanges[host]
     const page = this.page
 
@@ -1186,9 +1207,11 @@ export default class MarketsPage extends BasePage {
     this.setMarketDetails()
     this.setCurrMarketPrice()
 
-    ws.request('loadmarket', makeMarket(host, baseID, quoteID))
-
-    this.loadCandles()
+    this.setCandleDurBttns()
+    // use user's last known candle duration (or 24h) as "initial default"
+    const candleDur = State.fetchLocal(State.lastCandleDurationLK) || candleBinKey24h
+    this.selectCandleDurationElem(candleDur)
+    this.loadCandles(candleDur)
 
     State.storeLocal(State.lastMarketLK, {
       host: host,
@@ -1202,7 +1225,6 @@ export default class MarketsPage extends BasePage {
     this.setRegistrationStatusVisibility()
     this.resolveOrderVsMMForm(true)
     this.setOrderBttnText()
-    this.setCandleDurBttns()
     this.updateTitle()
     this.reputationMeter.setHost(dex.host)
     this.updateReputation()
@@ -2030,7 +2052,7 @@ export default class MarketsPage extends BasePage {
     // update cache
     const dur = data.payload.dur
     this.market.candleCaches[dur] = data.payload
-    if (this.candleDur !== dur) return
+    if (this.reqCandleDuration !== dur) return
 
     if (this.loadingAnimations.candles) {
       this.loadingAnimations.candles.stop() // just a cleanup
@@ -2063,7 +2085,7 @@ export default class MarketsPage extends BasePage {
       if (last.startStamp === candle.startStamp) candles[candles.length - 1] = candle
       else candles.push(candle)
     }
-    if (this.candleDur !== dur) return
+    if (this.reqCandleDuration !== dur) return
     this.candleChart.draw()
   }
 
@@ -3079,32 +3101,19 @@ export default class MarketsPage extends BasePage {
     this.marketList.setFilter(filter)
   }
 
-  /* candleDurationSelected sets the candleDur and loads the candles. It will
-  default to the candleBinKey24h if dur is not valid. */
-  candleDurationSelected (dur: string) {
-    if (!this.market?.dex?.candleDurs.includes(dur)) dur = candleBinKey24h
-    this.candleDur = dur
-    this.loadCandles()
-    State.storeLocal(State.lastCandleDurationLK, dur)
-  }
-
   /*
    * loadCandles loads the candles for the current candleDur. If a cache is already
    * active, the cache will be used without a loadcandles request.
    */
-  loadCandles () {
-    for (const bttn of Doc.kids(this.page.durBttnBox)) {
-      if (bttn.textContent === this.candleDur) bttn.classList.add('selected')
-      else bttn.classList.remove('selected')
-    }
+  loadCandles (duration: string) {
     const { candleCaches, cfg, baseUnitInfo, quoteUnitInfo } = this.market
-    const cache = candleCaches[this.candleDur]
+    const cache = candleCaches[duration]
     if (cache) {
       this.candleChart.setCandlesAndDraw(cache, cfg, baseUnitInfo, quoteUnitInfo)
       return
     }
-
-    this.requestCandles()
+    this.reqCandleDuration = duration
+    this.requestCandles(duration)
   }
 
   /* requestCandles sends the loadcandles request. It accepts an optional candle
@@ -3112,10 +3121,10 @@ export default class MarketsPage extends BasePage {
    * progress candle chart animates, the animation ends when response arrives
    * with up-to-date candle data.
    */
-  requestCandles (candleDur?: string) {
+  requestCandles (candleDur: string) {
     const { dex, baseCfg, quoteCfg } = this.market
     this.showCandlesLoadingAnimation()
-    ws.request('loadcandles', { host: dex.host, base: baseCfg.id, quote: quoteCfg.id, dur: candleDur || this.candleDur })
+    ws.request('loadcandles', { host: dex.host, base: baseCfg.id, quote: quoteCfg.id, dur: candleDur })
   }
 
   /*

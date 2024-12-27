@@ -292,6 +292,13 @@ func wsLoadMarket(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error 
 }
 
 func loadMarket(s *Server, cl *wsClient, req *marketLoad) (*bookFeed, *msgjson.Error) {
+	cl.feedMtx.Lock()
+	defer cl.feedMtx.Unlock()
+
+	if cl.feed != nil && cl.feed.host == req.Host && cl.feed.base == req.Base && cl.feed.quote == req.Quote {
+		return cl.feed, nil
+	}
+
 	name, err := dex.MarketName(req.Base, req.Quote)
 	if err != nil {
 		return nil, msgjson.NewError(msgjson.UnknownMarketError, "unknown market: %v", err)
@@ -302,8 +309,6 @@ func loadMarket(s *Server, cl *wsClient, req *marketLoad) (*bookFeed, *msgjson.E
 		return nil, msgjson.NewError(msgjson.RPCOrderBookError, "error getting order feed: %v", err)
 	}
 
-	cl.feedMtx.Lock()
-	defer cl.feedMtx.Unlock()
 	cl.shutDownFeed()
 	cl.feed = &bookFeed{
 		BookFeed: feed,
@@ -321,20 +326,11 @@ func wsLoadCandles(s *Server, cl *wsClient, msg *msgjson.Message) *msgjson.Error
 	if err != nil {
 		return msgjson.NewError(msgjson.RPCInternal, "error unmarshalling candlesLoad payload: %v", err)
 	}
-	cl.feedMtx.RLock()
-	feed := cl.feed
-	cl.feedMtx.RUnlock()
-	// If market hasn't been initialized/chosen yet (client should do it in a separate
-	// 'loadmarket' request), or if client wants to change currently chosen market (requesting
-	// candles for market that's different from currently chosen implies that) - we can
-	// try to load it here.
-	if feed == nil ||
-		(feed.host != req.Host || feed.base != req.Base || feed.quote != req.Quote) {
-		var msgErr *msgjson.Error
-		feed, msgErr = loadMarket(s, cl, &req.marketLoad)
-		if msgErr != nil {
-			return msgErr
-		}
+
+	feed, msgErr := loadMarket(s, cl, &req.marketLoad)
+	if msgErr != nil {
+		cl.feedMtx.RUnlock()
+		return msgErr
 	}
 	err = feed.Candles(req.Dur)
 	if err != nil {
