@@ -155,7 +155,9 @@ export default class MarketsPage extends BasePage {
   currentCreate: SupportedAsset
   book: OrderBook
   cancelData: CancelData
-  metaOrders: Record<string, MetaOrder>
+  // userOrders contains the latest snapshot of known user orders which is kept up-to-date
+  // by various events
+  userOrders: Record<string, MetaOrder>
   hovers: HTMLElement[]
   ogTitle: string
   candleChart: CandleChart // reused across different markets
@@ -186,7 +188,7 @@ export default class MarketsPage extends BasePage {
     if (!this.main.parentElement) return // Not gonna happen, but TypeScript cares.
     this.maxBuyLastReqID = 0
     this.maxSellLastReqID = 0
-    this.metaOrders = {}
+    this.userOrders = {}
     this.recentMatches = []
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
@@ -435,7 +437,7 @@ export default class MarketsPage extends BasePage {
 
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
-      for (const mord of Object.values(this.metaOrders)) {
+      for (const mord of Object.values(this.userOrders)) {
         mord.details.age.textContent = Doc.timeSince(mord.ord.submitTime)
       }
       for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=age]')) {
@@ -1718,7 +1720,7 @@ export default class MarketsPage extends BasePage {
   // loadUserOrders draws user orders section on markets page.
   async loadUserOrders () {
     const { base: b, quote: q, dex: { host }, cfg: { name: mktID } } = this.market
-    for (const oid in this.metaOrders) delete this.metaOrders[oid]
+    for (const oid in this.userOrders) delete this.userOrders[oid]
     if (!b || !q) return this.resolveUserOrders([]) // unsupported asset
 
     const activeOrders = app().orders(host, mktID)
@@ -1746,13 +1748,13 @@ export default class MarketsPage extends BasePage {
   }
 
   resolveUserOrders (orders: Order[]) {
-    const { page, metaOrders, market } = this
+    const { page, userOrders, market } = this
     const cfg = market.cfg
 
     const orderIsActive = (ord: Order) => ord.status < OrderUtil.StatusExecuted || OrderUtil.hasActiveMatches(ord)
 
-    for (const ord of orders) metaOrders[ord.id] = { ord: ord } as MetaOrder
-    let sortedOrders = Object.keys(metaOrders).map((oid: string) => metaOrders[oid])
+    for (const ord of orders) userOrders[ord.id] = { ord: ord } as MetaOrder
+    let sortedOrders = Object.keys(userOrders).map((oid: string) => userOrders[oid])
     sortedOrders.sort((a: MetaOrder, b: MetaOrder) => {
       const [aActive, bActive] = [orderIsActive(a.ord), orderIsActive(b.ord)]
       if (aActive && !bActive) return -1
@@ -1762,7 +1764,7 @@ export default class MarketsPage extends BasePage {
     const n = this.maxUserOrderCount()
     if (sortedOrders.length > n) { sortedOrders = sortedOrders.slice(0, n) }
 
-    for (const oid in metaOrders) delete metaOrders[oid]
+    for (const oid in userOrders) delete userOrders[oid]
 
     Doc.empty(page.userOrders)
     Doc.setVis(sortedOrders?.length, page.userOrders)
@@ -1786,7 +1788,7 @@ export default class MarketsPage extends BasePage {
 
       // No need to track in-flight orders here. We've already added it to
       // display.
-      if (orderID) metaOrders[orderID] = mord
+      if (orderID) userOrders[orderID] = mord
 
       if (!ord.readyToTick && OrderUtil.hasActiveMatches(ord)) {
         tmpl.header.classList.add('unready-user-order')
@@ -1855,7 +1857,12 @@ export default class MarketsPage extends BasePage {
         floater.style.top = `${y - 1}px` // - 1 to hide border on header div
         floater.style.left = `${m.bodyLeft}px`
         // Get the updated version of the order
-        const mord = this.metaOrders[orderID]
+        const mord = this.userOrders[orderID]
+        // if the order isn't among user orders it means we are still showing it in UI, yet it's
+        // no longer relevant - do nothing in that case (it will get removed from UI eventually)
+        if (!mord) {
+          return
+        }
         const ord = mord.ord
 
         const addButton = (baseBttn: PageElement, cb: ((e: Event) => void)) => {
@@ -2223,7 +2230,7 @@ export default class MarketsPage extends BasePage {
 
   /* showCancel shows a form to confirm submission of a cancel order. */
   showCancel (row: HTMLElement, orderID: string) {
-    const ord = this.metaOrders[orderID].ord
+    const ord = this.userOrders[orderID].ord
     const page = this.page
     const remaining = ord.qty - ord.filled
     const asset = OrderUtil.isMarketBuy(ord) ? this.market.quote : this.market.base
@@ -2411,7 +2418,7 @@ export default class MarketsPage extends BasePage {
   }
 
   handleMatchNote (note: MatchNote) {
-    const mord = this.metaOrders[note.orderID]
+    const mord = this.userOrders[note.orderID]
     const match = note.match
     if (!mord) return this.refreshActiveOrders()
     else if (mord.ord.type === OrderUtil.Market && match.status === OrderUtil.NewlyMatched) { // Update the average market rate display.
@@ -2434,11 +2441,11 @@ export default class MarketsPage extends BasePage {
    */
   handleOrderNote (note: OrderNote) {
     const ord = note.order
-    const mord = this.metaOrders[ord.id]
+    const mord = this.userOrders[ord.id]
     // - If metaOrder doesn't exist for the given order it means it was created
-    //  via bwctl and the GUI isn't aware of it or it was an inflight order.
+    //  via bwctl and the GUI isn't aware of it, or it was an inflight order.
     //  refreshActiveOrders must be called to grab this order.
-    // - If an OrderLoaded notification is recieved, it means an order that was
+    // - If an OrderLoaded notification is received, it means an order that was
     //   previously not "ready to tick" (due to its wallets not being connected
     //   and unlocked) has now become ready to tick. The active orders section
     //   needs to be refreshed.
@@ -2472,7 +2479,7 @@ export default class MarketsPage extends BasePage {
     }
 
     this.clearOrderTableEpochs()
-    for (const { ord, details, header } of Object.values(this.metaOrders)) {
+    for (const { ord, details, header } of Object.values(this.userOrders)) {
       const alreadyMatched = note.epoch > ord.epoch
       switch (true) {
         case ord.type === OrderUtil.Limit && ord.status === OrderUtil.StatusEpoch && alreadyMatched: {
