@@ -21,7 +21,7 @@ button {
   &:hover {
     text-decoration: none;
     border-color: var(--btn-hover-border-color);
-    background-color: #7772;
+    background-color: var(--tertiary-bg);
   }
 
   &.small {
@@ -147,7 +147,7 @@ table {
 
   &.striped {
     tr:nth-of-type(even) {
-      background-color: #7772;
+      background-color: var(--tertiary-bg);
     }
   }
 }

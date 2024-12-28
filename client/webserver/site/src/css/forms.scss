@@ -252,7 +252,7 @@ div[data-handler=register] {
 
     &:hover,
     &.selected {
-      background-color: #7772;
+      background-color: var(--tertiary-bg);
     }
   }
 }

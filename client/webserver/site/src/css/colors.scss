@@ -5,8 +5,10 @@ body:not(.dark) {
   --body-bg: #fafafa;
   --body-bg-lower-opacity: #fafafa;
   --section-bg: #f6f6f6;
+  --section-bg-strong: #ececec;
   --form-bg: #f0f0f0;
   --tertiary-bg: #7772;
+  --quaternary-bg: #7777;
   --text-color: #333;
   --text-color-secondary: #4a4949;
   --text-danger: #d22;
@@ -73,8 +75,10 @@ body.dark {
   --body-bg: #040b14;
   --body-bg-lower-opacity: #040b1488;
   --section-bg: #071627;
+  --section-bg-strong: #071627;
   --form-bg: #0a1e34;
   --tertiary-bg: #78787822;
+  --quaternary-bg: #7772;
   --text-color: #dfe2e1;
   --text-color-secondary: #a1a1a1;
   --text-danger: #ec6a6a;

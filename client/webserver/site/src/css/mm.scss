@@ -2,6 +2,12 @@ div[data-handler=mmsettings],
 div[data-handler=mmarchives],
 div[data-handler=mmlogs],
 div[data-handler=mm] {
+  #overview {
+    section {
+      background-color: var(--section-bg-strong);
+    }
+  }
+
   #gapStrategySelect {
     width: 300px;
   }
@@ -47,7 +53,7 @@ div[data-handler=mm] {
 
       &.selected {
         outline: 2px solid $success;
-        background-color: #7772;
+        background-color: var(--tertiary-bg);
       }
     }
   }
@@ -100,7 +106,7 @@ div[data-handler=mm] {
         &.selected {
           border-color: $success !important;
           border-width: 2px !important;
-          background-color: #7772 !important;
+          background-color: var(--tertiary-bg) !important;
         }
       }
     }
