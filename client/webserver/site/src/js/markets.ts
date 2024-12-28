@@ -339,10 +339,14 @@ export default class MarketsPage extends BasePage {
 
     // Limit order buy: event listeners for handling user interactions.
     bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyInputHandler() })
+    bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyChangeHandler() })
     bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyInputHandler() })
+    bind(page.qtyFieldBuy, 'change', () => { this.qtyFieldBuyChangeHandler() })
     // Limit order sell: event listeners for handling user interactions.
     bind(page.rateFieldSell, 'input', () => { this.rateFieldSellInputHandler() })
+    bind(page.rateFieldSell, 'input', () => { this.rateFieldSellChangeHandler() })
     bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellInputHandler() })
+    bind(page.qtyFieldSell, 'change', () => { this.qtyFieldSellChangeHandler() })
 
     // Market search input bindings.
     bind(page.marketSearchV1, ['change', 'keyup'], () => { this.filterMarkets() })
@@ -2598,11 +2602,11 @@ export default class MarketsPage extends BasePage {
   }
 
   rateFieldBuyInputHandler () {
-    const page = this.page
-
     const rateFieldValue = this.page.rateFieldBuy.value?.trim()
 
-    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input since
+    // the input might not be "final", let the 'change' handler to take care of it in case it
+    // is "final"
     if ((rateFieldValue && rateFieldValue.length > 0) &&
         ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
         rateFieldValue.indexOf('.') === rateFieldValue.length - 1) ||
@@ -2613,21 +2617,12 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
-      // Let the user know that rate he's entered is invalid or was rounded down.
-      this.animateErrors(highlightOutlineRed(page.rateFieldBuy), highlightBackgroundRed(page.rateStepBoxBuy))
-    }
-    if (!inputValid) {
-      this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
-      this.setPageElementEnabled(this.page.qtyBoxBuy, false)
-      this.setPageElementEnabled(this.page.qtySliderBuy, false)
-      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
-      this.setOrderBttnBuyEnabled(false, 'choose your price')
+      // we don't want to do any further processing here since the input might not be "final",
+      // let the 'change' handler to take care of it in case it is "final"
       return
     }
-    if (adjusted) {
-      const adjRate = adjRateAtom / this.market.rateConversionFactor
-      page.rateFieldBuy.value = String(adjRate)
-    }
+
+    // process "perfect" user input
 
     this.chosenRateBuyAtom = adjRateAtom
 
@@ -2638,12 +2633,48 @@ export default class MarketsPage extends BasePage {
     this.finalizeTotalBuy()
   }
 
-  rateFieldSellInputHandler () {
+  rateFieldBuyChangeHandler () {
     const page = this.page
 
+    const rateFieldValue = this.page.rateFieldBuy.value?.trim()
+
+    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
+    if (!inputValid || adjusted) {
+      // Let the user know that rate he's entered is invalid or was rounded down.
+      this.animateErrors(highlightOutlineRed(page.rateFieldBuy), highlightBackgroundRed(page.rateStepBoxBuy))
+    }
+    if (!inputValid || (adjusted && adjRateAtom === 0)) {
+      this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
+      this.setPageElementEnabled(this.page.qtyBoxBuy, false)
+      this.setPageElementEnabled(this.page.qtySliderBuy, false)
+      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+      this.setOrderBttnBuyEnabled(false, 'choose your price')
+      return
+    }
+    if (!adjusted) {
+      // non-adjusted user input has already been processed by 'input' handler, nothing to do here
+      return
+    }
+
+    // process "imperfect" (adjusted) user input
+
+    const adjRate = adjRateAtom / this.market.rateConversionFactor
+    page.rateFieldBuy.value = String(adjRate)
+    this.chosenRateBuyAtom = adjRateAtom
+
+    this.setPageElementEnabled(this.page.qtyBoxBuy, true)
+    this.setPageElementEnabled(this.page.qtySliderBuy, true)
+
+    // recalculate maxbuy value because it does change with every rate change
+    this.finalizeTotalBuy()
+  }
+
+  rateFieldSellInputHandler () {
     const rateFieldValue = this.page.rateFieldSell.value?.trim()
 
-    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input since
+    // the input might not be "final", let the 'change' handler to take care of it in case it
+    // is "final"
     if ((rateFieldValue && rateFieldValue.length > 0) &&
         ((rateFieldValue.charAt(rateFieldValue.length - 1) === '.' &&
           rateFieldValue.indexOf('.') === rateFieldValue.length - 1) ||
@@ -2654,10 +2685,34 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
+      // we don't want to do any further processing here since the input might not be "final",
+      // let the 'change' handler to take care of it in case it is "final"
+      return
+    }
+
+    // process "perfect" user input
+
+    this.chosenRateSellAtom = adjRateAtom
+
+    this.setPageElementEnabled(this.page.qtyBoxSell, true)
+    this.setPageElementEnabled(this.page.qtySliderSell, true)
+
+    // unlike with buy orders there is no need to recalculate maxsell value
+    // because it doesn't change with the rate/price change.
+    this.finalizeTotalSell()
+  }
+
+  rateFieldSellChangeHandler () {
+    const page = this.page
+
+    const rateFieldValue = this.page.rateFieldSell.value?.trim()
+
+    const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
+    if (!inputValid || adjusted) {
       // Let the user know that rate he's entered is invalid or was rounded down.
       this.animateErrors(highlightOutlineRed(page.rateFieldSell), highlightBackgroundRed(page.rateStepBoxSell))
     }
-    if (!inputValid) {
+    if (!inputValid || (adjusted && adjRateAtom === 0)) {
       this.chosenRateSellAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.qtyBoxSell, false)
       this.setPageElementEnabled(this.page.qtySliderSell, false)
@@ -2665,11 +2720,15 @@ export default class MarketsPage extends BasePage {
       this.setOrderBttnSellEnabled(false, 'choose your price')
       return
     }
-    if (adjusted) {
-      const adjRate = adjRateAtom / this.market.rateConversionFactor
-      page.rateFieldSell.value = String(adjRate)
+    if (!adjusted) {
+      // non-adjusted user input has already been processed by 'input' handler, nothing to do here
+      return
     }
 
+    // process "imperfect" (adjusted) user input
+
+    const adjRate = adjRateAtom / this.market.rateConversionFactor
+    page.rateFieldSell.value = String(adjRate)
     this.chosenRateSellAtom = adjRateAtom
 
     this.setPageElementEnabled(this.page.qtyBoxSell, true)
@@ -2686,7 +2745,9 @@ export default class MarketsPage extends BasePage {
 
     const qtyFieldValue = page.qtyFieldBuy.value?.trim()
 
-    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input since
+    // the input might not be "final", let the 'change' handler to take care of it in case it
+    // is "final"
     if ((qtyFieldValue && qtyFieldValue.length > 0) &&
         ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
           qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) ||
@@ -2697,19 +2758,52 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
+      // we don't want to do any further processing here since the input might not be "final",
+      // let the 'change' handler to take care of it in case it is "final"
+      return
+    }
+
+    // process "perfect" user input
+
+    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
+
+    // Update slider accordingly, assume max buy has already been fetched and rate has
+    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise),
+    // still handle absent maxBuy case gracefully.
+    const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
+    if (maxBuy) {
+      const sliderValue = Math.min(1, adjLots / maxBuy.swap.lots)
+      page.qtySliderBuyInput.value = String(sliderValue)
+    }
+
+    this.finalizeTotalBuy()
+  }
+
+  qtyFieldBuyChangeHandler () {
+    const page = this.page
+    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+
+    const qtyFieldValue = page.qtyFieldBuy.value?.trim()
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
       this.animateErrors(highlightOutlineRed(page.qtyFieldBuy), highlightBackgroundRed(page.lotSizeBoxBuy))
     }
-    if (!inputValid) {
+    if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
       this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your quantity')
       return
     }
-    if (adjusted) {
-      page.qtyFieldBuy.value = String(adjQty)
+    if (!adjusted) {
+      // non-adjusted user input has already been processed by 'input' handler, nothing to do here
+      return
     }
 
+    // process "imperfect" (adjusted) user input
+
+    page.qtyFieldBuy.value = String(adjQty)
     this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
     // Update slider accordingly, assume max buy has already been fetched and rate has
@@ -2730,7 +2824,9 @@ export default class MarketsPage extends BasePage {
 
     const qtyFieldValue = page.qtyFieldSell.value?.trim()
 
-    // allow a '.' (or ',') that's typical for decimals - just wait for the next input
+    // allow a '.' (or ',') that's typical for decimals - just wait for the next input since
+    // the input might not be "final", let the 'change' handler to take care of it in case it
+    // is "final"
     if ((qtyFieldValue && qtyFieldValue.length > 0) &&
         ((qtyFieldValue.charAt(qtyFieldValue.length - 1) === '.' &&
           qtyFieldValue.indexOf('.') === qtyFieldValue.length - 1) ||
@@ -2741,19 +2837,52 @@ export default class MarketsPage extends BasePage {
 
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
+      // we don't want to do any further processing here since the input might not be "final",
+      // let the 'change' handler to take care of it in case it is "final"
+      return
+    }
+
+    // process "perfect" user input
+
+    this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
+
+    // Update slider accordingly, assume max sell has already been fetched (don't
+    // let user touch lot/qty/slider fields otherwise), still handle absent maxSell
+    // case gracefully.
+    const maxSell = this.market.maxSell
+    if (maxSell) {
+      const sliderValue = Math.min(1, adjLots / maxSell.swap.lots)
+      page.qtySliderSellInput.value = String(sliderValue)
+    }
+
+    this.finalizeTotalSell()
+  }
+
+  qtyFieldSellChangeHandler () {
+    const page = this.page
+    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+
+    const qtyFieldValue = page.qtyFieldSell.value?.trim()
+
+    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
       this.animateErrors(highlightOutlineRed(page.qtyFieldSell), highlightBackgroundRed(page.lotSizeBoxSell))
     }
-    if (!inputValid) {
+    if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtySellAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setPageElementEnabled(this.page.previewTotalSell, false)
       this.setOrderBttnSellEnabled(false, 'choose your quantity')
       return
     }
-    if (adjusted) {
-      page.qtyFieldSell.value = String(adjQty)
+    if (!adjusted) {
+      // non-adjusted user input has already been processed by 'input' handler, nothing to do here
+      return
     }
 
+    // process "imperfect" (adjusted) user input
+
+    page.qtyFieldSell.value = String(adjQty)
     this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
     // Update slider accordingly, assume max sell has already been fetched (don't
