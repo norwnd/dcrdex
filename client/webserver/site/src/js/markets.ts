@@ -522,27 +522,28 @@ export default class MarketsPage extends BasePage {
       this.stats.tmpl.volume24Unit.textContent = 'USD'
       this.stats.tmpl.bisonPrice.classList.remove('sellcolor', 'buycolor')
       this.stats.tmpl.bisonPrice.textContent = '-'
-      this.stats.tmpl.fiatPrice.textContent = '-'
+      let externalPriceFormatted = '-'
       if (mkt) {
         const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
         const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
-        let fiatPriceFormatted = '?'
+        externalPriceFormatted = '?'
         if (baseFiatRate && quoteFiatRate) {
-          const fiatPrice = baseFiatRate / quoteFiatRate
-          fiatPriceFormatted = Doc.formatRateToRateStep(
-            fiatPrice,
+          const externalPrice = baseFiatRate / quoteFiatRate
+          externalPriceFormatted = Doc.formatRateToRateStep(
+            externalPrice,
             selectedMkt.baseUnitInfo,
             selectedMkt.quoteUnitInfo,
             selectedMkt.cfg.ratestep
           )
-          fiatPriceFormatted = `${fiatPriceFormatted}`
         }
-        this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
       }
+      this.stats.tmpl.externalPrice.textContent = externalPriceFormatted
+      this.page.obExternalPrice.textContent = externalPriceFormatted
+
       Doc.hide(this.page.obUp)
       Doc.hide(this.page.obDown)
-      this.page.obPrice.classList.remove('sellcolor', 'buycolor')
-      this.page.obPrice.textContent = '-'
+      this.page.obBisonPrice.classList.remove('sellcolor', 'buycolor')
+      this.page.obBisonPrice.textContent = '-'
     }
 
     if (!selectedMkt) {
@@ -579,18 +580,17 @@ export default class MarketsPage extends BasePage {
 
     const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
     const quoteFiatRate = app().fiatRatesMap[selectedMkt.quote.id]
-    let fiatPriceFormatted = '?'
+    let externalPriceFormatted = '?'
     if (baseFiatRate && quoteFiatRate) {
-      const fiatPrice = baseFiatRate / quoteFiatRate
-      fiatPriceFormatted = Doc.formatRateToRateStep(
-        fiatPrice,
+      const externalPrice = baseFiatRate / quoteFiatRate
+      externalPriceFormatted = Doc.formatRateToRateStep(
+        externalPrice,
         selectedMkt.baseUnitInfo,
         selectedMkt.quoteUnitInfo,
         selectedMkt.cfg.ratestep
       )
-      fiatPriceFormatted = `${fiatPriceFormatted}`
     }
-    this.stats.tmpl.fiatPrice.textContent = fiatPriceFormatted
+    this.stats.tmpl.externalPrice.textContent = externalPriceFormatted
 
     const sign = mkt.spot.change24 > 0 ? '+' : ''
     this.stats.tmpl.change24.classList.remove('buycolor', 'sellcolor')
@@ -609,14 +609,15 @@ export default class MarketsPage extends BasePage {
     // updates order-book affiliated values
     Doc.setVis(mostRecentMatchIsBuy, this.page.obUp)
     Doc.setVis(!mostRecentMatchIsBuy, this.page.obDown)
-    this.page.obPrice.classList.remove('sellcolor', 'buycolor')
-    this.page.obPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.page.obPrice.textContent = Doc.formatRateAtomToRateStep(
+    this.page.obBisonPrice.classList.remove('sellcolor', 'buycolor')
+    this.page.obBisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
+    this.page.obBisonPrice.textContent = Doc.formatRateAtomToRateStep(
       mkt.spot.rate,
       selectedMkt.baseUnitInfo,
       selectedMkt.quoteUnitInfo,
       selectedMkt.cfg.ratestep
     )
+    this.page.obExternalPrice.textContent = externalPriceFormatted
   }
 
   /* setMarketDetails updates the currency names on the stats displays. */
