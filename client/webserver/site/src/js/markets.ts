@@ -3418,6 +3418,7 @@ class OrderTableRowManager {
   msgRate: number
   epoch: boolean
   baseUnitInfo: UnitInfo
+  deleted: boolean
 
   constructor (tableRow: HTMLElement, orderBin: MiniOrder[], market: CurrentMarket) {
     const { baseUnitInfo, quoteUnitInfo, cfg: { ratestep: rateStepAtom } } = market
@@ -3430,46 +3431,70 @@ class OrderTableRowManager {
     this.msgRate = orderBin[0].msgRate
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
+    this.deleted = false
+
+    Doc.setVis(this.isEpoch() && !this.isSell(), this.page.epochBuy)
+    Doc.setVis(this.isEpoch() && this.isSell(), this.page.epochSell)
 
     if (this.msgRate === 0) {
       page.rate.innerText = 'market'
+      this.redrawOrderRowEl()
     } else {
       const colorSellOrBuy = this.isSell() ? 'sellcolor' : 'buycolor'
 
       page.rate.innerText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
       page.rate.classList.add(colorSellOrBuy)
 
-      const convRate = orderBin[0].rate
-      const baseFiatRate = app().fiatRatesMap[market.base.id]
-      const quoteFiatRate = app().fiatRatesMap[market.quote.id]
-      let priceDeltaFormatted = '(?)'
-      if (baseFiatRate && quoteFiatRate) {
-        const externalPrice = baseFiatRate / quoteFiatRate
+      const updatePriceDelta = () => {
+        // make sure this order row hasn't been deleted, otherwise there is no need to keep
+        // updating external price (and we want it to get garbage-collected)
+        if (this.isDeleted()) {
+          return
+        }
 
-        // calculate the difference between order price and external (e.g. Binance) price
-        // note, priceDelta might be negative and that's fine (negative sign will show up in UI)
-        let priceDelta: number
-        if (this.isSell()) {
-          priceDelta = ((convRate - externalPrice) / externalPrice) * 100
-        } else {
-          priceDelta = ((externalPrice - convRate) / externalPrice) * 100
+        const convRate = orderBin[0].rate
+        const baseFiatRate = app().fiatRatesMap[market.base.id]
+        const quoteFiatRate = app().fiatRatesMap[market.quote.id]
+        let priceDeltaFormatted = '(?)'
+        if (baseFiatRate && quoteFiatRate) {
+          const externalPrice = baseFiatRate / quoteFiatRate
+
+          // calculate the difference between order price and external (e.g. Binance) price
+          // note, priceDelta might be negative and that's fine (negative sign will show up in UI)
+          let priceDelta: number
+          if (this.isSell()) {
+            priceDelta = ((convRate - externalPrice) / externalPrice) * 100
+          } else {
+            priceDelta = ((externalPrice - convRate) / externalPrice) * 100
+          }
+          // cap price delta for clean UI looks since there is no point to show the exact price
+          // delta when it's higher than 9.94% (0.04 will get rounded down to 0.0 guaranteed, it's
+          // a simple cut off threshold we can settle for)
+          priceDeltaFormatted = '(∞)'
+          if (priceDelta < 9.94) {
+            priceDeltaFormatted = `(${Doc.formatOneDecimalPrecision(priceDelta)}%)`
+          }
         }
-        // cap price delta for clean UI looks since there is no point to show the exact price
-        // delta when it's higher than 9.94% (0.04 will get rounded down to 0.0 guaranteed, it's
-        // a simple cut off threshold we can settle for)
-        priceDeltaFormatted = '(∞)'
-        if (priceDelta < 9.94) {
-          priceDeltaFormatted = `(${Doc.formatOneDecimalPrecision(priceDelta)}%)`
-        }
+        page.rateDelta.innerText = priceDeltaFormatted
+        page.rateDelta.classList.add(colorSellOrBuy)
+
+        this.redrawOrderRowEl()
+
+        // periodically update price delta since external price changes all the time while order row
+        // is sitting there in UI
+        setTimeout(() => {
+          updatePriceDelta()
+        }, 5 * 60 * 1000) // 5 minutes delay
       }
-      page.rateDelta.innerText = priceDeltaFormatted
-      page.rateDelta.classList.add(colorSellOrBuy)
+
+      // note, updatePriceDelta will also draw this order row hence it's important to call this only
+      // after we are done initializing all the row data needed for drawing
+      updatePriceDelta()
     }
+  }
 
-    Doc.setVis(this.isEpoch() && !this.isSell(), this.page.epochBuy)
-    Doc.setVis(this.isEpoch() && this.isSell(), this.page.epochSell)
-
-    this.redrawOrderRowEl()
+  isDeleted (): boolean {
+    return this.deleted
   }
 
   // qty returns total qty in this row (summing up across all orders in this row)
@@ -3565,8 +3590,12 @@ class OrderTableRowManager {
     const index = this.orderBin.findIndex(order => order.id === id)
     if (index < 0) return false
     this.orderBin.splice(index, 1)
-    if (!this.orderBin.length) this.tableRow.remove()
-    else this.redrawOrderRowEl()
+    if (!this.orderBin.length) {
+      this.deleted = true
+      this.tableRow.remove()
+      return true
+    }
+    this.redrawOrderRowEl()
     return true
   }
 
