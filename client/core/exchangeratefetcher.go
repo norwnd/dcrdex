@@ -53,7 +53,9 @@ var (
 
 // fiatRateFetchers is the list of all supported fiat rate fetchers.
 var fiatRateFetchers = map[string]rateFetcher{
-	// TODO - testing
+	// disabling these for now because Binance is the only rate source that provides reasonably fresh
+	// prices (coinpaprika and messari for example have string rate limits, and dcrdataDotOrg probably
+	// has quite stale data)
 	//coinpaprika:   FetchCoinpaprikaRates,
 	//dcrdataDotOrg: FetchDcrdataRates,
 	//messari:       FetchMessariRates,
