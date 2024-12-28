@@ -594,7 +594,7 @@ export class CandleChart extends Chart {
       this.xLabelsRegion.plot(new Extents(chartExtents.x.min, chartExtents.x.max, yExt.min, yExt.max), (ctx, tools) => {
         if (!mouseCandle) return // For TypeScript. Duh.
         this.applyLabelStyle()
-        const rangeTxt = `${new Date(start(mouseCandle)).toLocaleString()} - ${new Date(end(mouseCandle)).toLocaleString()}`
+        const rangeTxt = Doc.ymdhmSinceFromMS(start(mouseCandle))
         const [xPad, yPad] = [25, 2]
         const rangeWidth = ctx.measureText(rangeTxt).width + 2 * xPad
         const rangeHeight = 16

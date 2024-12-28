@@ -651,7 +651,7 @@ export default class Doc {
 
   /*
    * timeFromMs returns a string representation of the timestamp specified
-   * as unix timestamp (milliseconds) formatted as HH:MM:SS.
+   * as unix timestamp (milliseconds) formatted as hh:mm:ss.
    */
   static timeFromMs (ms: number): string {
     const date = new Date(ms)
@@ -673,7 +673,7 @@ export default class Doc {
 
   /*
    * hmsSinceFromS returns a time duration since the specified unix timestamp
-   * formatted as HH:MM:SS.
+   * formatted as hh:mm:ss.
    */
   static hmsSinceFromS (secs: number): string {
     let r = (new Date().getTime() / 1000) - secs
@@ -689,6 +689,20 @@ export default class Doc {
    */
   static hmsSinceFromMs (ms: number): string {
     return Doc.hmsSinceFromS(ms / 1000)
+  }
+
+  /*
+ * hmsSinceFromS returns a time duration since the specified unix timestamp
+ * formatted as YYYY/MM/DD hh:mm.
+ */
+  static ymdhmSinceFromMS (ms: number): string {
+    const date = new Date(ms)
+    const year = String(date.getFullYear())
+    const month = String(date.getMonth() + 1).padStart(2, '0') // JS enumerates months as 0-11
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}/${month}/${day} ${hours}:${minutes}`
   }
 
   /* formatDuration returns a string representation of the duration */
