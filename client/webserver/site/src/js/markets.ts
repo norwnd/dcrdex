@@ -2048,14 +2048,15 @@ export default class MarketsPage extends BasePage {
     this.market.candleCaches[dur] = data.payload
     if (this.reqCandleDuration !== dur) return
 
-    if (this.loadingAnimations.candles) {
-      this.loadingAnimations.candles.stop() // just a cleanup
-      this.loadingAnimations.candles = undefined // signals we are not on animation screen anymore
-    }
     this.candleChart.setMarketId(data.marketID) // market has changed, gotta update it
     this.candleChart.resize() // adjust chart size(s) according to what this market needs
     this.candleChart.setCandlesAndDraw(data.payload, this.market.cfg, this.market.baseUnitInfo, this.market.quoteUnitInfo)
-    this.candleChart.canvas.classList.remove('invisible') // everything is ready, show the chart
+
+    if (this.loadingAnimations.candles) {
+      this.loadingAnimations.candles.stop() // just a cleanup
+      this.loadingAnimations.candles = undefined // signals we are not on animation screen anymore
+      this.candleChart.canvas.classList.remove('invisible') // everything is ready, show the chart
+    }
 
     this.setHighLow()
   }
