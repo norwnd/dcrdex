@@ -312,12 +312,12 @@ div[data-handler=markets] {
     & > section {
       &:first-child { // leftmost section
         order: 1;
-        flex-basis: 18%; /* width/height - depending on flex-direction */
+        flex-basis: 22%; /* width/height - depending on flex-direction */
       }
 
       &:nth-child(2) { // middle section
         order: 2;
-        flex-basis: 57%; /* width/height - depending on flex-direction */
+        flex-basis: 56%; /* width/height - depending on flex-direction */
 
         & > section {
           &:first-child { // candle chart
@@ -346,7 +346,7 @@ div[data-handler=markets] {
 
       &:last-child { // user orders, recent matches
         order: 3;
-        flex-basis: 25%; /* width/height - depending on flex-direction */
+        flex-basis: 22%; /* width/height - depending on flex-direction */
       }
     }
 
@@ -363,7 +363,7 @@ div[data-handler=markets] {
         & > div.flex-as-column {
           &:nth-child(1) { // bison price (last match) with up/down arrow
             order: 1;
-            flex-basis: 40%; /* width/height - depending on flex-direction */
+            flex-basis: 35%; /* width/height - depending on flex-direction */
           }
 
           &:nth-child(2) { // external price

@@ -545,12 +545,13 @@ export default class MarketsPage extends BasePage {
         }
       }
       this.stats.tmpl.externalPrice.textContent = externalPriceFormatted
-      this.page.obExternalPrice.textContent = externalPriceFormatted
 
+      // updates order-book affiliated values
       Doc.hide(this.page.obUp)
       Doc.hide(this.page.obDown)
       this.page.obBisonPrice.classList.remove('sellcolor', 'buycolor')
       this.page.obBisonPrice.textContent = '-'
+      this.page.obExternalPrice.textContent = `~${externalPriceFormatted}`
     }
 
     if (!selectedMkt) {
@@ -624,7 +625,7 @@ export default class MarketsPage extends BasePage {
       selectedMkt.quoteUnitInfo,
       selectedMkt.cfg.ratestep
     )
-    this.page.obExternalPrice.textContent = externalPriceFormatted
+    this.page.obExternalPrice.textContent = `~${externalPriceFormatted}`
   }
 
   /* setMarketDetails updates the currency names on the stats displays. */
@@ -3443,17 +3444,45 @@ class OrderTableRowManager {
     this.msgRate = orderBin[0].msgRate
     this.epoch = !!orderBin[0].epoch
     this.baseUnitInfo = baseUnitInfo
-    const rateText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
-    Doc.setVis(this.isEpoch() && !this.isSell(), this.page.epochBuy)
-    Doc.setVis(this.isEpoch() && this.isSell(), this.page.epochSell)
 
     if (this.msgRate === 0) {
       page.rate.innerText = 'market'
     } else {
-      const cssClass = this.isSell() ? 'sellcolor' : 'buycolor'
-      page.rate.innerText = rateText
-      page.rate.classList.add(cssClass)
+      const colorSellOrBuy = this.isSell() ? 'sellcolor' : 'buycolor'
+
+      page.rate.innerText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
+      page.rate.classList.add(colorSellOrBuy)
+
+      const convRate = orderBin[0].rate
+      const baseFiatRate = app().fiatRatesMap[market.base.id]
+      const quoteFiatRate = app().fiatRatesMap[market.quote.id]
+      let priceDeltaFormatted = '(?)'
+      if (baseFiatRate && quoteFiatRate) {
+        const externalPrice = baseFiatRate / quoteFiatRate
+
+        // calculate the difference between order price and external (e.g. Binance) price
+        // note, priceDelta might be negative and that's fine (negative sign will show up in UI)
+        let priceDelta: number
+        if (this.isSell()) {
+          priceDelta = ((convRate - externalPrice) / externalPrice) * 100
+        } else {
+          priceDelta = ((externalPrice - convRate) / externalPrice) * 100
+        }
+        // cap price delta for clean UI looks since there is no point to show the exact price
+        // delta when it's higher than 9.94% (0.04 will get rounded down to 0.0 guaranteed, it's
+        // a simple cut off threshold we can settle for)
+        priceDeltaFormatted = '(∞)'
+        if (priceDelta < 9.94) {
+          priceDeltaFormatted = `(${Doc.formatOneDecimalPrecision(priceDelta)}%)`
+        }
+      }
+      page.rateDelta.innerText = priceDeltaFormatted
+      page.rateDelta.classList.add(colorSellOrBuy)
     }
+
+    Doc.setVis(this.isEpoch() && !this.isSell(), this.page.epochBuy)
+    Doc.setVis(this.isEpoch() && this.isSell(), this.page.epochSell)
+
     this.redrawOrderRowEl()
   }
 

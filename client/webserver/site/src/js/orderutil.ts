@@ -92,15 +92,15 @@ export function statusString (order: Order): string {
     case StatusEpoch: return intl.prep(intl.ID_EPOCH)
     case StatusBooked:
       if (order.cancelling) return intl.prep(intl.ID_CANCELING)
-      return isLive ? `${intl.prep(intl.ID_BOOKED)}/${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_BOOKED)
+      return isLive ? `${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_BOOKED)
     case StatusExecuted:
       if (isLive) return intl.prep(intl.ID_SETTLING)
       if (order.filled === 0 && order.type !== Cancel) return intl.prep(intl.ID_NO_MATCH)
       return intl.prep(intl.ID_EXECUTED)
     case StatusCanceled:
-      return isLive ? `${intl.prep(intl.ID_CANCELED)}/${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_CANCELED)
+      return isLive ? `${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_CANCELED)
     case StatusRevoked:
-      return isLive ? `${intl.prep(intl.ID_REVOKED)}/${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_REVOKED)
+      return isLive ? `${intl.prep(intl.ID_SETTLING)}` : intl.prep(intl.ID_REVOKED)
   }
   return intl.prep(intl.ID_UNKNOWN)
 }

@@ -62,14 +62,15 @@
                     {{- /* This row is used by the app as a template. */ -}}
                     <tr id="orderRowTmpl" class="d-flex justify-content-between px-2 w-100">
                       <td class="d-flex justify-content-start align-items-center text-nowrap pe-2">
-                        <span data-tmpl="rate">-</span>
+                        <span data-tmpl="rate" class="fs16">-</span>
+                        <span data-tmpl="rateDelta" class="fs12 ps-1">(-)</span>
                         <span class="ico-own-book-order fs8 ps-1 d-hide" data-tmpl="ownBookOrder"></span>
                         <span class="ico-check-buy fs10 ps-1 d-hide" data-tmpl="epochBuy"></span>
                         <span class="ico-check-sell fs10 ps-1 d-hide" data-tmpl="epochSell"></span>
                       </td>
                       <td class="d-flex justify-content-end align-items-center ps-2">
                         <small class="numorders lh1 rounded3 text-center" data-tmpl="numOrders">-</small>
-                        <div data-tmpl="qty" class="ms-2">-</div>
+                        <div data-tmpl="qty" class="fs16 ms-2">-</div>
                       </td>
                     </tr>
                   </tbody>

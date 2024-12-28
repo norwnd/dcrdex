@@ -472,7 +472,11 @@ export default class Doc {
   }
 
   static formatFiatValue (value: number): string {
-    return fullPrecisionFormatter(2).format(value)
+    return fullPrecisionFormatterWithPreservingZeroes(2).format(value)
+  }
+
+  static formatOneDecimalPrecision (value: number): string {
+    return fullPrecisionFormatterWithPreservingZeroes(1).format(value)
   }
 
   /*
