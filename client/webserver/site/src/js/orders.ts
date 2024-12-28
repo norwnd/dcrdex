@@ -206,7 +206,7 @@ export default class OrdersPage extends BasePage {
       tmpl.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
       tmpl.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
       const dateTime = new Date(ord.submitTime).toLocaleString()
-      tmpl.timeAgo.textContent = `${Doc.timeSince(ord.submitTime)} ago`
+      tmpl.timeAgo.textContent = `${Doc.timeSinceFromMs(ord.submitTime)} ago`
       tmpl.time.textContent = dateTime
       const link = Doc.tmplElement(tr, 'link')
       link.href = `order/${ord.id}`

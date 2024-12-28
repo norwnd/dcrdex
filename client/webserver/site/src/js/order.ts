@@ -46,7 +46,7 @@ export default class OrderPage extends BasePage {
 
     const setStamp = () => {
       for (const span of this.stampers) {
-        span.textContent = Doc.timeSince(parseInt(span.dataset.stamp || ''))
+        span.textContent = Doc.timeSinceFromMs(parseInt(span.dataset.stamp || ''))
       }
     }
     setStamp()
@@ -159,7 +159,7 @@ export default class OrderPage extends BasePage {
     })
 
     tmpl.matchTimeAgo.dataset.stamp = match.stamp.toString()
-    tmpl.matchTimeAgo.textContent = Doc.timeSince(match.stamp)
+    tmpl.matchTimeAgo.textContent = Doc.timeSinceFromMs(match.stamp)
     this.stampers.push(tmpl.matchTimeAgo)
 
     const orderPortion = OrderUtil.orderPortion(this.order, match)

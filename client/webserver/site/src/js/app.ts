@@ -898,7 +898,7 @@ export default class Application {
 
   setNoteTimes (noteList: HTMLElement) {
     for (const el of (Array.from(noteList.children) as NoteElement[])) {
-      Doc.safeSelector(el, 'span.note-time').textContent = Doc.timeSince(el.note.stamp)
+      Doc.safeSelector(el, 'span.note-time').textContent = Doc.timeSinceFromMs(el.note.stamp)
     }
   }
 

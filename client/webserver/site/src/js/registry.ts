@@ -565,9 +565,9 @@ export interface OrderNote extends CoreNote {
 }
 
 export interface RecentMatch {
-  rate: number
-  qty: number
-  stamp: number
+  rate: number // in atoms
+  qty: number // in atoms
+  stamp: number // in milliseconds
   sell: boolean
 }
 

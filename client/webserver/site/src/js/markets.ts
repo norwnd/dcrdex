@@ -173,6 +173,7 @@ export default class MarketsPage extends BasePage {
   reputationMeter: ReputationMeter
   keyup: (e: KeyboardEvent) => void
   secondTicker: number
+  // recentMatches contains matches made on the currently chosen market
   recentMatches: RecentMatch[]
   recentMatchesSortKey: string
   recentMatchesSortDirection: 1 | -1
@@ -192,7 +193,7 @@ export default class MarketsPage extends BasePage {
     this.recentMatches = []
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
-    this.recentMatchesSortKey = 'age'
+    this.recentMatchesSortKey = 'time'
     this.recentMatchesSortDirection = -1
     // store original title so we can re-append it when updating market value.
     this.ogTitle = document.title
@@ -438,10 +439,10 @@ export default class MarketsPage extends BasePage {
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
       for (const mord of Object.values(this.userOrders)) {
-        mord.details.age.textContent = Doc.timeSince(mord.ord.submitTime)
+        mord.details.age.textContent = Doc.timeSinceFromMs(mord.ord.submitTime)
       }
-      for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=age]')) {
-        td.textContent = Doc.timeSince(parseFloat(td.dataset.sinceStamp ?? '0'))
+      for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=time]')) {
+        td.textContent = Doc.timeFromMs(parseFloat(td.dataset.timestampMs ?? '0'))
       }
     }, 1000)
 
@@ -566,7 +567,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const recentMatches = this.recentMatchesSorted('age', -1) // freshest first
+    const recentMatches = this.recentMatchesSorted('time', -1) // freshest first
     if (recentMatches.length === 0) {
       // not enough info to display current market price
       setDummyValues()
@@ -1233,7 +1234,7 @@ export default class MarketsPage extends BasePage {
 
     // update header for "matches" section
     page.priceHdr.textContent = `Price (${Doc.shortSymbol(this.market.quote.symbol)})`
-    page.ageHdr.textContent = 'Age'
+    page.timeHdr.textContent = 'Time'
     page.qtyHdr.textContent = `Size (${Doc.shortSymbol(this.market.base.symbol)})`
   }
 
@@ -1918,7 +1919,7 @@ export default class MarketsPage extends BasePage {
     if (ord.status <= OrderUtil.StatusBooked || OrderUtil.hasActiveMatches(ord)) header.activeLight.classList.add('active')
     else header.activeLight.classList.remove('active')
     details.status.textContent = header.status.textContent = OrderUtil.statusString(ord)
-    details.age.textContent = Doc.timeSince(ord.submitTime)
+    details.age.textContent = Doc.timeSinceFromMs(ord.submitTime)
     details.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
     details.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
   }
@@ -2504,7 +2505,7 @@ export default class MarketsPage extends BasePage {
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.rate - b.rate))
       case 'qty':
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.qty - b.qty))
-      case 'age':
+      case 'time':
         return this.recentMatches.sort((a: RecentMatch, b:RecentMatch) => direction * (a.stamp - b.stamp))
       default:
         return []
@@ -2516,16 +2517,24 @@ export default class MarketsPage extends BasePage {
     const mkt = this.market
 
     Doc.empty(page.recentMatchesLiveList)
-    const recentMatchesSorted = this.recentMatchesSorted(this.recentMatchesSortKey, this.recentMatchesSortDirection)
+    let recentMatchesSorted = this.recentMatchesSorted(this.recentMatchesSortKey, this.recentMatchesSortDirection)
     if (!recentMatchesSorted) return
+
+    // filter out older matches to keep list reasonably short and show only relevant ones
+    const now = new Date().getTime()
+    const hour = 60 * 60 * 1000
+    recentMatchesSorted = recentMatchesSorted.filter(match => {
+      return now - match.stamp <= 24 * hour
+    })
+
     for (const match of recentMatchesSorted) {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
       tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
       tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
-      tmpl.age.textContent = Doc.timeSince(match.stamp)
-      tmpl.age.dataset.sinceStamp = String(match.stamp)
+      tmpl.time.textContent = Doc.timeFromMs(match.stamp)
+      tmpl.time.dataset.timestampMs = String(match.stamp)
       row.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       page.recentMatchesLiveList.append(row)
     }

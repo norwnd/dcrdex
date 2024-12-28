@@ -911,7 +911,7 @@ export class RunningMarketMakerDisplay {
   }
 
   setTicker () {
-    this.page.runTime.textContent = Doc.hmsSince(this.startTime)
+    this.page.runTime.textContent = Doc.hmsSinceFromS(this.startTime)
   }
 
   update () {

@@ -650,24 +650,45 @@ export default class Doc {
   }
 
   /*
-   * timeSince returns a string representation of the duration since the
+   * timeFromMs returns a string representation of the timestamp specified
+   * as unix timestamp (milliseconds) formatted as HH:MM:SS.
+   */
+  static timeFromMs (ms: number): string {
+    const date = new Date(ms)
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
+  }
+
+  /*
+   * timeSinceFromMs returns a string representation of the duration since the
    * specified unix timestamp (milliseconds).
    */
-  static timeSince (ms: number): string {
+  static timeSinceFromMs (ms: number): string {
     return Doc.formatDuration((new Date().getTime()) - ms)
   }
 
   /*
-   * hmsSince returns a time duration since the specified unix timestamp
-   * formatted as HH:MM:SS
+   * hmsSinceFromS returns a time duration since the specified unix timestamp
+   * formatted as HH:MM:SS.
    */
-  static hmsSince (secs: number) {
+  static hmsSinceFromS (secs: number): string {
     let r = (new Date().getTime() / 1000) - secs
     const h = String(Math.floor(r / 3600))
     r = r % 3600
     const m = String(Math.floor(r / 60))
     const s = String(Math.floor(r % 60))
     return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`
+  }
+
+  /*
+   * hmsSinceFromMs is same as hmsSinceFromS for milliseconds.
+   */
+  static hmsSinceFromMs (ms: number): string {
+    return Doc.hmsSinceFromS(ms / 1000)
   }
 
   /* formatDuration returns a string representation of the duration */
