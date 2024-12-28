@@ -2532,10 +2532,11 @@ export default class MarketsPage extends BasePage {
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
       tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+      tmpl.price.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
+      tmpl.qty.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       tmpl.time.textContent = Doc.timeFromMs(match.stamp)
       tmpl.time.dataset.timestampMs = String(match.stamp)
-      row.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       page.recentMatchesLiveList.append(row)
     }
   }

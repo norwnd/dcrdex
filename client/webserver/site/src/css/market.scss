@@ -85,7 +85,7 @@ div[data-handler=markets] {
     }
 
     button {
-      opacity: 0.95;
+      opacity: 0.85;
       padding: 5px 25px;
       border-radius: 3px;
       background-color: var(--section-bg);
@@ -192,7 +192,7 @@ div[data-handler=markets] {
         }
 
         &.sell {
-          background-color: var(--market-sell-color);
+          background-color: var(--sell-color);
         }
 
         &.inactive {
@@ -361,14 +361,14 @@ div[data-handler=markets] {
 
       #obMidSection {
         & > div.flex-as-column {
-          &:nth-child(1) { // external price
+          &:nth-child(1) { // bison price (last match) with up/down arrow
             order: 1;
-            flex-basis: 30%; /* width/height - depending on flex-direction */
+            flex-basis: 40%; /* width/height - depending on flex-direction */
           }
 
-          &:nth-child(2) { // bison price (last match) with up/down arrow
+          &:nth-child(2) { // external price
             order: 2;
-            flex-basis: 40%; /* width/height - depending on flex-direction */
+            flex-basis: 30%; /* width/height - depending on flex-direction */
           }
         }
       }
