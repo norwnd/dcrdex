@@ -547,10 +547,6 @@ export default class MarketsPage extends BasePage {
       this.stats.tmpl.externalPrice.textContent = externalPriceFormatted
 
       // updates order-book affiliated values
-      Doc.hide(this.page.obUp)
-      Doc.hide(this.page.obDown)
-      this.page.obBisonPrice.classList.remove('sellcolor', 'buycolor')
-      this.page.obBisonPrice.textContent = '-'
       this.page.obExternalPrice.textContent = `~${externalPriceFormatted}`
     }
 
@@ -615,16 +611,6 @@ export default class MarketsPage extends BasePage {
     }
 
     // updates order-book affiliated values
-    Doc.setVis(mostRecentMatchIsBuy, this.page.obUp)
-    Doc.setVis(!mostRecentMatchIsBuy, this.page.obDown)
-    this.page.obBisonPrice.classList.remove('sellcolor', 'buycolor')
-    this.page.obBisonPrice.classList.add(mostRecentMatchIsBuy ? 'buycolor' : 'sellcolor')
-    this.page.obBisonPrice.textContent = Doc.formatRateAtomToRateStep(
-      mkt.spot.rate,
-      selectedMkt.baseUnitInfo,
-      selectedMkt.quoteUnitInfo,
-      selectedMkt.cfg.ratestep
-    )
     this.page.obExternalPrice.textContent = `~${externalPriceFormatted}`
   }
 

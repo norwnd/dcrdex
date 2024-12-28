@@ -358,20 +358,6 @@ div[data-handler=markets] {
     #orderBook {
       width: 100%; // takes care of stretching to full parent size
       height: 100%; // takes care of stretching to full parent size
-
-      #obMidSection {
-        & > div.flex-as-column {
-          &:nth-child(1) { // bison price (last match) with up/down arrow
-            order: 1;
-            flex-basis: 35%; /* width/height - depending on flex-direction */
-          }
-
-          &:nth-child(2) { // external price
-            order: 2;
-            flex-basis: 30%; /* width/height - depending on flex-direction */
-          }
-        }
-      }
     }
   }
 
