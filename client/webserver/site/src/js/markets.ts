@@ -3440,7 +3440,7 @@ class OrderTableRowManager {
       page.rate.innerText = 'market'
       this.redrawOrderRowEl()
     } else {
-      const colorSellOrBuy = this.isSell() ? 'sellcolor' : 'buycolor'
+      let colorSellOrBuy = this.isSell() ? 'sellcolor' : 'buycolor'
 
       page.rate.innerText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
       page.rate.classList.add(colorSellOrBuy)
@@ -3473,6 +3473,11 @@ class OrderTableRowManager {
           priceDeltaFormatted = '(∞)'
           if (priceDelta < 9.94) {
             priceDeltaFormatted = `(${Doc.formatOneDecimalPrecision(priceDelta)}%)`
+          }
+          // invert price delta color in case order row is on the other side of "where it should be"
+          // compared to external price - to make it clearly visible in UI
+          if (priceDelta < 0.0) {
+            colorSellOrBuy = this.isSell() ? 'buycolor' : 'sellcolor'
           }
         }
         page.rateDelta.innerText = priceDeltaFormatted
