@@ -595,7 +595,7 @@ export class CandleChart extends Chart {
         if (!mouseCandle) return // For TypeScript. Duh.
         this.applyLabelStyle()
         const rangeTxt = Doc.ymdhmSinceFromMS(start(mouseCandle))
-        const [xPad, yPad] = [25, 2]
+        const [xPad, yPad] = [2, 2]
         const rangeWidth = ctx.measureText(rangeTxt).width + 2 * xPad
         const rangeHeight = 16
         let centerX = tools.x((start(mouseCandle) + end(mouseCandle)) / 2)
