@@ -6212,8 +6212,8 @@ func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexC
 		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
 			"fetch best buy order in Bison book: %v", err))
 	}
-	bestBisonBuyRate := bisonOrders[0].Rate
 	if sell && found {
+		bestBisonBuyRate := bisonOrders[0].Rate
 		if rate <= bestBisonBuyRate {
 			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
 				"trying to place trade with rate %d "+
@@ -6230,8 +6230,8 @@ func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexC
 		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
 			"fetch best sell order in Bison book: %v", err))
 	}
-	bestBisonSellRate := bisonOrders[0].Rate
 	if !sell && found {
+		bestBisonSellRate := bisonOrders[0].Rate
 		if rate >= bestBisonSellRate {
 			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
 				"trying to place trade with rate %d "+
