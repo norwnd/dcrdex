@@ -62,7 +62,7 @@
                         <span class="ico-check-sell fs10 ps-1 d-hide" data-tmpl="epochSell"></span>
                       </td>
                       <td class="d-flex justify-content-end align-items-center ps-2">
-                        <small class="numorders lh1 rounded3 text-center" data-tmpl="numOrders">-</small>
+                        <small class="numorders lh1 border-rounded3 text-center" data-tmpl="numOrders">-</small>
                         <div data-tmpl="qty" class="fs16 ms-2">-</div>
                       </td>
                     </tr>
@@ -78,7 +78,7 @@
             <section class="d-flex flex-stretch-column">
               <div class="flex-grow-1 flex-stretch-column position-relative">
                 <div id="candlesChart" class="market-chart">
-                  <div id="durBttnBox"><button class="candle-dur-bttn border rounded3" id="durBttnTemplate"></button></div>
+                  <div id="candleDurBttnBox"><button id="candleDurBttnTemplate" class="candle-dur-bttn"></button></div>
                 </div>
                 <div id="chartErrMsg" class="position-absolute w-100 d-inline-flex text-danger p-2 "></div>
                 <div id="candlesLegend" class="grey p-1 d-hide border-bottom border-start">
@@ -143,7 +143,7 @@
                     <span id="orderTotalPreviewBuyDelimiter" class="d-flex align-items-center mx-2 fs24">⇄</span>
                     <div id="orderTotalPreviewBuyRight" class="d-flex align-items-center justify-content-start mx-2 fs18"></div>
                   </div>
-                  <button id="submitBttnBuy" type="button" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center buygreen-bg"></button> {{/* textContent set by script */}}
+                  <button id="submitBttnBuy" type="button" class="flex-center border pointer hoverbg border-rounded3 m-1 submit fs18 text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
                 </form>
               </section>
@@ -192,7 +192,7 @@
                     <span id="orderTotalPreviewSellDelimiter" class="d-flex align-items-center mx-2 fs24">⇄</span>
                     <div id="orderTotalPreviewSellRight" class="d-flex align-items-center justify-content-start mx-2 fs18"></div>
                   </div>
-                  <button id="submitBttnSell" type="button" class="flex-center border pointer hoverbg rounded3 m-1 submit fs18 text-center sellred-bg"></button> {{/* textContent set by script */}}
+                  <button id="submitBttnSell" type="button" class="flex-center border pointer hoverbg border-rounded3 m-1 submit fs18 text-center sellred-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs16 pt-3 text-center d-hide text-danger text-break" id="orderErrSell"></div>
                 </form>
               </section>
@@ -327,82 +327,84 @@
                 </div>
               </div>
 
-              {{- /* USER ORDERS */ -}}
-              <div class="text-center fs20 mb-2">
-                [[[Your Orders]]]
-              </div>
-              <div id="unreadyOrdersMsg" class="d-hide px-3 py-1 flex-center fs15 text-danger">[[[unready_wallets_msg]]]</div>
-              <div id="userNoOrders" class="p-3 flex-center fs15 grey">no active orders</div>
-              <div id="userOrders" class="border-bottom">
-                <div id="userOrderTmpl" class="user-order border-top">
-                  <div data-tmpl="header" class="user-order-header pointer">
-                    <div data-tmpl="sideLight" class="side-indicator"></div>
-                    <span data-tmpl="side" class="fs14"></span>
-                    <span data-tmpl="qty" class="ms-1 fs15"></span>
-                    <span data-tmpl="baseSymbol" class="ms-1 grey fs15"></span>
-                    <span data-tmpl="rate" class="ms-1 fs15"></span>
-                    <span class="flex-grow-1 d-flex align-items-center justify-content-end">
-                      <span data-tmpl="status" class="fs15"></span>
-                      <span data-tmpl="activeLight" class="active-indicator active"></span>
-                    </span>
-                    <!-- <span class="fs11 ico-open ms-2"></span> -->
+              {{- /* USER ORDER TEMPLATE */ -}}
+              <div id="userOrderTmpl" class="user-order border-top border-bottom">
+                <div data-tmpl="header" class="user-order-header pointer">
+                  <div data-tmpl="sideLight" class="side-indicator"></div>
+                  <span data-tmpl="side" class="fs14"></span>
+                  <span data-tmpl="qty" class="ms-1 fs15"></span>
+                  <span data-tmpl="baseSymbol" class="ms-1 grey fs15"></span>
+                  <span data-tmpl="rate" class="ms-1 fs15"></span>
+                  <span class="flex-grow-1 d-flex align-items-center justify-content-end">
+                    <span data-tmpl="status" class="fs15"></span>
+                  </span>
+                  <!-- <span class="fs11 ico-open ms-2"></span> -->
+                </div>
+                <div data-tmpl="details" class="order-details border-top border-bottom d-hide">
+                  <div class="user-order-datum full-span d-flex flex-row justify-content-start align-items-center border-bottom fs14">
+                    <span data-tmpl="cancelBttn" class="ico-cross pointer hoverbg fs11 d-hide py-2 px-3 mx-1" data-tooltip="[[[cancel_order]]]"></span>
+                    <a data-tmpl="link" class="ico-open pointer hoverbg fs13 plainlink py-2 px-3 ms-1" data-tooltip="[[[order details]]]"></a>
                   </div>
-                  <div data-tmpl="details" class="order-details border-top border-bottom d-hide">
-                    <div class="user-order-datum full-span d-flex flex-row justify-content-start align-items-center border-bottom fs14">
-                      <span data-tmpl="cancelBttn" class="ico-cross pointer hoverbg fs11 d-hide py-2 px-3 mx-1" data-tooltip="[[[cancel_order]]]"></span>
-                      <a data-tmpl="link" class="ico-open pointer hoverbg fs13 plainlink py-2 px-3 ms-1" data-tooltip="[[[order details]]]"></a>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Type]]]</span>
-                      <span data-tmpl="type"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Side]]]</span>
-                      <span data-tmpl="side"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Status]]]</span>
-                      <span data-tmpl="status"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Age]]]</span>
-                      <span data-tmpl="age"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Quantity]]]</span>
-                      <span data-tmpl="qty"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Rate]]]</span>
-                      <span data-tmpl="rate"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Filled]]]</span>
-                      <span data-tmpl="filled"></span>
-                    </div>
-                    <div class="user-order-datum">
-                      <span>[[[Settled]]]</span>
-                      <span data-tmpl="settled"></span>
-                    </div>
+                  <div class="user-order-datum">
+                    <span>[[[Type]]]</span>
+                    <span data-tmpl="type"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Side]]]</span>
+                    <span data-tmpl="side"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Status]]]</span>
+                    <span data-tmpl="status"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Age]]]</span>
+                    <span data-tmpl="age"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Quantity]]]</span>
+                    <span data-tmpl="qty"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Rate]]]</span>
+                    <span data-tmpl="rate"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Filled]]]</span>
+                    <span data-tmpl="filled"></span>
+                  </div>
+                  <div class="user-order-datum">
+                    <span>[[[Settled]]]</span>
+                    <span data-tmpl="settled"></span>
                   </div>
                 </div>
-              </div>{{- /* END USER ORDERS */ -}}
+              </div>
+              {{- /* END USER ORDER TEMPLATE */ -}}
+
+              {{- /* OPEN ORDERS */ -}}
+              <div class="my-1 border-top">
+                <div class="text-center bold fs20 p-1">[[[Open Orders]]]</div>
+                <div id="unreadyOrdersMsg" class="d-hide px-3 flex-center fs15 p-1 border-bottom text-danger">[[[unready_wallets_msg]]]</div>
+                <div id="recentlyActiveNoUserOrders" class="flex-center fs15 pb-1 border-bottom grey">no recent activity</div>
+                <div id="recentlyActiveUserOrders" class="mb-1"></div>
+              </div>
+              {{- /* END OPEN ORDERS */ -}}
 
               {{- /* RECENT MATCHES */ -}}
-              <div id=recentMatchesBox class="flex-stretch-column pb-4 border-top">
-                <div class="text-center fs20 my-3">[[[Recent Matches]]]</div>
-                <table id="recentMatchesTable" class="row-border row-hover lh1">
+              <div id=recentMatchesBox class="flex-stretch-column my-1 border-top">
+                <div class="text-center bold fs20 p-1">[[[Recent Matches]]]</div>
+                <table id="recentMatchesTable" class="row-border row-hover lh1 border-bottom">
                   <thead>
                     <tr class="pointer">
-                      <th data-ordercol="price" class="text-start text-nowrap">
+                      <th data-ordercol="price" class="text-start text-nowrap grey">
                         <span id="priceHdr"></span>
                         <span class="ico-arrowdown"></span>
                       </th>
-                      <th data-ordercol="qty" class="text-end text-nowrap">
+                      <th data-ordercol="qty" class="text-end text-nowrap grey">
                         <span class="ico-arrowdown"></span>
                         <span id="qtyHdr"></span>
                       </th>
-                      <th data-ordercol="time" class="text-end text-nowrap">
+                      <th data-ordercol="time" class="text-end text-nowrap grey">
                         <span class="ico-arrowdown"></span>
                         <span id="timeHdr"></span>
                       </th>
@@ -416,7 +418,19 @@
                     </tr>
                   </tbody>
                 </table>
-              </div>{{- /* END RECENT MATCHES */ -}}
+              </div>
+              {{- /* END RECENT MATCHES */ -}}
+
+              {{- /* COMPLETED ORDERS */ -}}
+              <div class="my-1 border-top">
+                <div class="text-center bold fs20 p-1">[[[Completed Orders]]]</div>
+                <div id="completedOrderHistoryDurBttnBox" class="d-flex flex-stretch-row justify-content-between px-2 pb-2">
+                  <button id="completedOrderDurBttnTemplate" class="completed-order-dur-bttn fs15 px-1 grey"></button>
+                </div>
+                <div id="completedNoUserOrders" class="flex-center fs15 pb-1 grey">no past history</div>
+                <div id="completedUserOrders" class="mb-1"></div>
+              </div>
+              {{- /* END COMPLETED ORDERS */ -}}
             </div>
           </section>
         </div>

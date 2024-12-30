@@ -745,11 +745,13 @@ export interface OrderFilterMarket {
 
 export interface OrderFilter {
   n?: number
+  fresherThanUnixMs?: number
   offset?: string
   hosts?: string[]
   assets?: number[]
   market?: OrderFilterMarket
   statuses?: number[]
+  filledOnly?: boolean
 }
 
 export interface OrderPlacement {
@@ -1306,7 +1308,7 @@ export interface Application {
   prependNoteElement (note: CoreNote, skipSave?: boolean): void
   prependListElement (noteList: HTMLElement, note: CoreNote, el: NoteElement): void
   loading (el: HTMLElement): () => void
-  orders (host: string, mktID: string): Order[]
+  recentOrders (host: string, mktID: string): Order[]
   haveActiveOrders (assetID: number): boolean
   order (oid: string): Order | null
   canAccelerateOrder(order: Order): boolean

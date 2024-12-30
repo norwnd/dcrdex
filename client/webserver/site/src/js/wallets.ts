@@ -255,7 +255,7 @@ export default class WalletsPage extends BasePage {
     const setStamp = () => {
       for (const span of this.stampers) {
         if (span.dataset.stamp) {
-          span.textContent = Doc.timeSinceFromMs(parseInt(span.dataset.stamp || '') * 1000)
+          span.textContent = Doc.ageSinceFromMs(parseInt(span.dataset.stamp || '') * 1000)
         }
       }
     }
@@ -425,7 +425,7 @@ export default class WalletsPage extends BasePage {
     setInterval(() => {
       for (const row of this.page.txHistoryTableBody.children) {
         const age = Doc.tmplElement(row as PageElement, 'age')
-        age.textContent = Doc.timeSinceFromMs(parseInt(age.dataset.timestamp as string))
+        age.textContent = Doc.ageSinceFromMs(parseInt(age.dataset.timestamp as string))
       }
     }, 5000)
   }
@@ -1288,7 +1288,7 @@ export default class WalletsPage extends BasePage {
       page.ticketHistoryRows.appendChild(tr)
       app().bindUrlHandlers(tr)
       const tmpl = Doc.parseTemplate(tr)
-      tmpl.age.textContent = Doc.timeSinceFromMs(tx.stamp * 1000)
+      tmpl.age.textContent = Doc.ageSinceFromMs(tx.stamp * 1000)
       tmpl.price.textContent = Doc.formatFullPrecision(tx.ticketPrice, ui)
       tmpl.status.textContent = intl.prep(ticketStatusTranslationKeys[status])
       tmpl.hashStart.textContent = tx.hash.slice(0, 6)
@@ -1659,7 +1659,7 @@ export default class WalletsPage extends BasePage {
       tmpl.toSymbol.appendChild(Doc.symbolize(to, true))
       tmpl.status.textContent = OrderUtil.statusString(ord)
       tmpl.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
-      tmpl.age.textContent = Doc.timeSinceFromMs(ord.submitTime)
+      tmpl.age.textContent = Doc.ageSinceFromMs(ord.submitTime)
       tmpl.link.href = `order/${ord.id}`
       app().bindInternalNavigation(row)
     }
@@ -1681,7 +1681,7 @@ export default class WalletsPage extends BasePage {
     }
     const amtAssetUI = app().unitInfo(amtAssetID)
     const feesAssetUI = app().unitInfo(feesAssetID)
-    tmpl.age.textContent = Doc.timeSinceFromMs(tx.timestamp * 1000)
+    tmpl.age.textContent = Doc.ageSinceFromMs(tx.timestamp * 1000)
     tmpl.age.dataset.timestamp = String(tx.timestamp * 1000)
     Doc.setVis(tx.timestamp === 0, tmpl.pending)
     Doc.setVis(tx.timestamp !== 0, tmpl.age)

@@ -1121,12 +1121,14 @@ type PostBondResult struct {
 // OrderFilter is almost the same as db.OrderFilter, except the Offset order ID
 // is a dex.Bytes instead of a order.OrderID.
 type OrderFilter struct {
-	N        int                 `json:"n"`
-	Offset   dex.Bytes           `json:"offset"`
-	Hosts    []string            `json:"hosts"`
-	Assets   []uint32            `json:"assets"`
-	Statuses []order.OrderStatus `json:"statuses"`
-	Market   *struct {
+	N                 int                 `json:"n"`
+	Offset            dex.Bytes           `json:"offset"`
+	FresherThanUnixMs uint64              `json:"fresherThanUnixMs"`
+	Hosts             []string            `json:"hosts"`
+	Assets            []uint32            `json:"assets"`
+	Statuses          []order.OrderStatus `json:"statuses"`
+	FilledOnly        bool                `json:"filledOnly"`
+	Market            *struct {
 		Base  uint32 `json:"baseID"`
 		Quote uint32 `json:"quoteID"`
 	} `json:"market"`

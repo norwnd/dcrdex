@@ -898,7 +898,7 @@ export default class Application {
 
   setNoteTimes (noteList: HTMLElement) {
     for (const el of (Array.from(noteList.children) as NoteElement[])) {
-      Doc.safeSelector(el, 'span.note-time').textContent = Doc.timeSinceFromMs(el.note.stamp)
+      Doc.safeSelector(el, 'span.note-time').textContent = Doc.ageSinceFromMs(el.note.stamp)
     }
   }
 
@@ -1397,10 +1397,10 @@ export default class Application {
     return () => { loader.remove() }
   }
 
-  /* orders retrieves a list of orders for the specified dex and market
-   * including inflight orders.
+  /* orders returns a list of recent user orders for the specified dex and market
+   * including inflight/canceled/revoked orders.
    */
-  orders (host: string, mktID: string): Order[] {
+  recentOrders (host: string, mktID: string): Order[] {
     let orders: Order[] = []
     const mkt = this.user.exchanges[host].markets[mktID]
     if (mkt.orders) orders = orders.concat(mkt.orders)

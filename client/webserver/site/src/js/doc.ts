@@ -668,10 +668,10 @@ export default class Doc {
   }
 
   /*
-   * timeSinceFromMs returns a string representation of the duration since the
+   * ageSinceFromMs returns a string representation of the duration since the
    * specified unix timestamp (milliseconds).
    */
-  static timeSinceFromMs (ms: number): string {
+  static ageSinceFromMs (ms: number): string {
     return Doc.formatDuration((new Date().getTime()) - ms)
   }
 

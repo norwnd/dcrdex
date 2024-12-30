@@ -1218,6 +1218,12 @@ type OrderFilter struct {
 	// Statuses is a list of acceptable statuses. A zero-length Statuses means
 	// all statuses are accepted.
 	Statuses []order.OrderStatus
+	// FilledOnly is a flag that when specified limits results to only those orders
+	// that have been fully filled or partially filled.
+	FilledOnly bool
+	// FresherThanUnixMs is a unix millisecond timestamp used to filter out orders that are
+	// older than its value.
+	FresherThanUnixMs uint64
 }
 
 // noteKeySize must be <= 32.

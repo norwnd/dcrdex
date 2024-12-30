@@ -106,7 +106,7 @@ export function statusString (order: Order): string {
 }
 
 /* filled sums the quantities of non-cancel matches available. */
-export function filled (order: Order) {
+export function filled (order: Order): number {
   if (!order.matches) return 0
   const qty = isMarketBuy(order) ? (m: Match) => m.qty * m.rate / RateEncodingFactor : (m: Match) => m.qty
   return order.matches.reduce((filled, match) => {
@@ -116,7 +116,7 @@ export function filled (order: Order) {
 }
 
 /* settled sums the quantities of the matches that have completed. */
-export function settled (order: Order) {
+export function settled (order: Order): number {
   if (!order.matches) return 0
   const qty = isMarketBuy(order) ? (m: Match) => m.qty * m.rate / RateEncodingFactor : (m: Match) => m.qty
   return order.matches.reduce((settled, match) => {
@@ -168,7 +168,7 @@ export function orderPortion (order: Order, match: Match) : string {
  * matchStatusString is a string used to create a displayable string describing
  * describing the match status.
  */
-export function matchStatusString (m: Match) {
+export function matchStatusString (m: Match): string {
   if (m.revoked) {
     // When revoked, match status is less important than pending action if still
     // active, or the outcome if inactive.

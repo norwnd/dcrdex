@@ -2,12 +2,6 @@ div[data-handler=mmsettings],
 div[data-handler=mmarchives],
 div[data-handler=mmlogs],
 div[data-handler=mm] {
-  #overview {
-    section {
-      background-color: var(--section-bg-strong);
-    }
-  }
-
   #gapStrategySelect {
     width: 300px;
   }
@@ -35,7 +29,7 @@ div[data-handler=mm] {
 
   .bot-type-selector {
     @include border;
-    @extend .rounded3;
+    @extend .border-rounded3;
 
     display: flex;
     flex-direction: column;

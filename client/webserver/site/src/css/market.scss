@@ -87,7 +87,7 @@ div[data-handler=markets] {
     button {
       opacity: 0.85;
       padding: 5px 25px;
-      border-radius: 3px;
+      border-radius: 6px;
       background-color: var(--section-bg);
       color: var(--market-btn-selected-color);
 
@@ -312,7 +312,7 @@ div[data-handler=markets] {
     & > section {
       &:first-child { // leftmost section
         order: 1;
-        flex-basis: 22%; /* width/height - depending on flex-direction */
+        flex-basis: 18%; /* width/height - depending on flex-direction */
       }
 
       &:nth-child(2) { // middle section
@@ -346,7 +346,7 @@ div[data-handler=markets] {
 
       &:last-child { // user orders, recent matches
         order: 3;
-        flex-basis: 22%; /* width/height - depending on flex-direction */
+        flex-basis: 26%; /* width/height - depending on flex-direction */
       }
     }
 
@@ -361,7 +361,7 @@ div[data-handler=markets] {
     }
   }
 
-  #durBttnBox {
+  #candleDurBttnBox {
     position: absolute;
     left: 65px;
     top: 5px;
@@ -370,13 +370,14 @@ div[data-handler=markets] {
 
     .candle-dur-bttn {
       background-color: var(--section-bg);
+      border: 1px solid var(--btn-border-color);
       padding: 2px 4px;
       font-size: 14px;
       line-height: 1;
       margin: 0 2px;
 
       &:hover {
-        background-color: #7777;
+        background-color: var(--section-bg-strong);
       }
 
       &:hover,
@@ -388,7 +389,7 @@ div[data-handler=markets] {
   }
 
   #loaderMsg {
-    color: #777;
+    color: var(--text-grey);
   }
 
   #bondCreationPending {
@@ -511,6 +512,27 @@ div[data-handler=markets] {
         visibility: visible;
         transform: rotate(180deg);
       }
+    }
+  }
+}
+
+#completedOrderHistoryDurBttnBox {
+  background-color: var(--section-bg);
+  z-index: 1;
+
+  .completed-order-dur-bttn {
+    background-color: var(--section-bg);
+    border: 1px solid var(--btn-border-color);
+    line-height: 1;
+
+    &:hover {
+      background-color: var(--section-bg-strong);
+    }
+
+    &:hover,
+    &.selected {
+      border-color: var(--text-warning);
+      color: var(--text-warning);
     }
   }
 }

@@ -62,7 +62,9 @@ const unmarketRoute = 'unmarket'
 const epochMatchSummaryRoute = 'epoch_match_summary'
 
 const animationLength = 500
-const maxUserOrdersShown = 10
+
+const maxRecentlyActiveUserOrdersShown = 8
+const maxCompletedUserOrdersShown = 100
 
 // orderBookSideMaxCapacity defines how many orders in the book side will be displayed
 const orderBookSideMaxCapacity = 14
@@ -72,6 +74,12 @@ const sellBtnClass = 'sellred-bg'
 
 const candleBinKey5m = '5m'
 const candleBinKey24h = '24h'
+
+const completedOrderHistoryDurationHide = 'hide'
+const completedOrderHistoryDuration1d = '1 day'
+const completedOrderHistoryDuration1w = '1 week'
+const completedOrderHistoryDuration1m = '1 month'
+const completedOrderHistoryDuration3m = '3 month'
 
 interface MetaOrder {
   div: HTMLElement
@@ -155,9 +163,10 @@ export default class MarketsPage extends BasePage {
   currentCreate: SupportedAsset
   book: OrderBook
   cancelData: CancelData
-  // userOrders contains the latest snapshot of known user orders which is kept up-to-date
-  // by various events
-  userOrders: Record<string, MetaOrder>
+  recentlyActiveUserOrders: Record<string, MetaOrder>
+  // actionInflightCompletedOrderHistory helps coordinate which completed order history (what
+  // duration) will be displayed in UI with respect to what user actually chose
+  actionInflightCompletedOrderHistory: boolean
   hovers: HTMLElement[]
   ogTitle: string
   candleChart: CandleChart // reused across different markets
@@ -189,7 +198,7 @@ export default class MarketsPage extends BasePage {
     if (!this.main.parentElement) return // Not gonna happen, but TypeScript cares.
     this.maxBuyLastReqID = 0
     this.maxSellLastReqID = 0
-    this.userOrders = {}
+    this.recentlyActiveUserOrders = {}
     this.recentMatches = []
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
@@ -223,7 +232,8 @@ export default class MarketsPage extends BasePage {
     setOptionTemplates(page)
 
     Doc.cleanTemplates(
-      page.orderRowTmpl, page.durBttnTemplate, page.userOrderTmpl, page.recentMatchesTemplate
+      page.orderRowTmpl, page.candleDurBttnTemplate, page.userOrderTmpl, page.recentMatchesTemplate,
+      page.completedOrderDurBttnTemplate
     )
 
     // Buttons to show token approval form
@@ -389,11 +399,11 @@ export default class MarketsPage extends BasePage {
       if (page.leftMarketDock.clientWidth === 0) openMarketsList()
       else closeMarketsList()
     })
-    const initMarket = (mkt: ExchangeMarket) => {
+    const initMarket = async (mkt: ExchangeMarket) => {
       // nothing to do if this market is already set/chosen
       const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
       if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
-      this.switchToMarket(host, baseID, quoteID)
+      await this.switchToMarket(host, baseID, quoteID)
     }
     // Prepare the list of markets.
     this.marketList = new MarketList(page.marketListV1)
@@ -438,8 +448,8 @@ export default class MarketsPage extends BasePage {
 
     // Start a ticker to update time-since values.
     this.secondTicker = window.setInterval(() => {
-      for (const mord of Object.values(this.userOrders)) {
-        mord.details.age.textContent = Doc.timeSinceFromMs(mord.ord.submitTime)
+      for (const mord of Object.values(this.recentlyActiveUserOrders)) {
+        mord.details.age.textContent = Doc.ageSinceFromMs(mord.ord.submitTime)
       }
       for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=time]')) {
         td.textContent = Doc.timeFromMs(parseFloat(td.dataset.timestampMs ?? '0'))
@@ -1087,13 +1097,13 @@ export default class MarketsPage extends BasePage {
     }
   }
 
-  setCandleDurBttns () {
+  setCandleDurationBttns () {
     const { page, market } = this
 
-    Doc.empty(page.durBttnBox)
+    Doc.empty(page.candleDurBttnBox)
 
     for (const dur of market.dex.candleDurs) {
-      const bttn = page.durBttnTemplate.cloneNode(true)
+      const bttn = page.candleDurBttnTemplate.cloneNode(true)
       bttn.textContent = dur
       bind(bttn, 'click', () => {
         const dur = bttn.textContent
@@ -1104,13 +1114,60 @@ export default class MarketsPage extends BasePage {
         this.selectCandleDurationElem(dur)
         this.loadCandles(dur)
       })
-      page.durBttnBox.appendChild(bttn)
+      page.candleDurBttnBox.appendChild(bttn)
     }
   }
 
   // selectCandleDurationElem draws in UI which candle duration was chosen.
   selectCandleDurationElem (dur: string) {
-    for (const bttn of Doc.kids(this.page.durBttnBox)) {
+    for (const bttn of Doc.kids(this.page.candleDurBttnBox)) {
+      if (bttn.textContent === dur) {
+        bttn.classList.add('selected')
+        continue
+      }
+      bttn.classList.remove('selected')
+    }
+  }
+
+  setCompletedOrderHistoryDurationBttns () {
+    const { page } = this
+
+    Doc.empty(page.completedOrderHistoryDurBttnBox)
+
+    const completedOrderHistoryDurations = [
+      completedOrderHistoryDurationHide,
+      completedOrderHistoryDuration1d,
+      completedOrderHistoryDuration1w,
+      completedOrderHistoryDuration1m,
+      completedOrderHistoryDuration3m
+    ]
+    for (const dur of completedOrderHistoryDurations) {
+      const bttn = page.completedOrderDurBttnTemplate.cloneNode(true)
+      bttn.textContent = dur
+      bind(bttn, 'click', () => {
+        if (this.actionInflightCompletedOrderHistory) {
+          return // let the older request to finish to avoid races
+        }
+
+        this.actionInflightCompletedOrderHistory = true
+
+        const dur = bttn.textContent
+        if (!dur) {
+          return // should never happen since we are initializing button textContent guaranteed
+        }
+        this.selectCompletedOrderHistoryDurationElem(dur)
+        this.reloadCompletedUserOrders(dur).then(() => {
+          this.actionInflightCompletedOrderHistory = false
+        })
+      })
+      page.completedOrderHistoryDurBttnBox.appendChild(bttn)
+    }
+  }
+
+  // selectCompletedOrderHistoryDurationElem draws in UI which completed order history
+  // duration was chosen.
+  selectCompletedOrderHistoryDurationElem (dur: string) {
+    for (const bttn of Doc.kids(this.page.completedOrderHistoryDurBttnBox)) {
       if (bttn.textContent === dur) {
         bttn.classList.add('selected')
         continue
@@ -1196,7 +1253,7 @@ export default class MarketsPage extends BasePage {
     this.setMarketDetails()
     this.setCurrMarketPrice()
 
-    this.setCandleDurBttns()
+    this.setCandleDurationBttns()
     // use user's last known candle duration (or 24h) as "initial default"
     const candleDur = State.fetchLocal(State.lastCandleDurationLK) || candleBinKey24h
     this.selectCandleDurationElem(candleDur)
@@ -1217,7 +1274,11 @@ export default class MarketsPage extends BasePage {
     this.updateTitle()
     this.reputationMeter.setHost(dex.host)
     this.updateReputation()
-    this.loadUserOrders()
+    await this.reloadRecentlyActiveUserOrders()
+
+    this.setCompletedOrderHistoryDurationBttns()
+    this.selectCompletedOrderHistoryDurationElem(completedOrderHistoryDurationHide)
+    await this.reloadCompletedUserOrders(completedOrderHistoryDurationHide)
 
     // update header for "matches" section
     page.priceHdr.textContent = `Price (${Doc.shortSymbol(this.market.quote.symbol)})`
@@ -1700,20 +1761,23 @@ export default class MarketsPage extends BasePage {
     return 0
   }
 
-  maxUserOrderCount (): number {
-    const { dex: { host }, cfg: { name: mktID } } = this.market
-    return Math.max(maxUserOrdersShown, app().orders(host, mktID).length)
-  }
+  // reloadRecentlyActiveUserOrders completely redraws recently active user orders section on
+  // markets page.
+  async reloadRecentlyActiveUserOrders () {
+    // erase all previously drawn recently active user orders
+    for (const oid in this.recentlyActiveUserOrders) {
+      delete this.recentlyActiveUserOrders[oid]
+    }
 
-  // loadUserOrders draws user orders section on markets page.
-  async loadUserOrders () {
     const { base: b, quote: q, dex: { host }, cfg: { name: mktID } } = this.market
-    for (const oid in this.userOrders) delete this.userOrders[oid]
-    if (!b || !q) return this.resolveUserOrders([]) // unsupported asset
+    if (!b || !q) {
+      // unsupported asset, show empty list
+      return this.drawRecentlyActiveUserOrders([])
+    }
 
-    const activeOrders = app().orders(host, mktID)
-    if (activeOrders.length !== 0) {
-      this.resolveUserOrders(activeOrders)
+    let recentOrders = app().recentOrders(host, mktID)
+    if (recentOrders.length !== 0) {
+      this.drawRecentlyActiveUserOrders(recentOrders)
       return
     }
 
@@ -1722,46 +1786,68 @@ export default class MarketsPage extends BasePage {
     const filter: OrderFilter = {
       hosts: [host],
       market: { baseID: b.id, quoteID: q.id },
-      statuses: [0, 1, 2], // interested in active orders only
-      n: this.maxUserOrderCount()
+      n: maxRecentlyActiveUserOrdersShown
     }
     const res = await postJSON('/api/orders', filter)
-    this.resolveUserOrders(res.orders || [])
+    if (!res.orders) {
+      this.drawRecentlyActiveUserOrders([]) // we have not even 1 order for this market, show empty list
+    }
+    recentOrders = res.orders.filter((ord: Order): boolean => {
+      const orderIsActive = ord.status < OrderUtil.StatusExecuted || OrderUtil.hasActiveMatches(ord)
+      if (orderIsActive) {
+        return true // currently active order
+      }
+      const now = new Date().getTime()
+      const minute = 60 * 1000
+      if (now - ord.stamp <= 10 * minute) {
+        return true // inactive but recent order
+      }
+      return false
+    })
+    this.drawRecentlyActiveUserOrders(recentOrders)
   }
 
-  /* refreshActiveOrders refreshes the user's active order list. */
-  refreshActiveOrders () {
-    const orders = app().orders(this.market.dex.host, marketID(this.market.baseCfg.symbol, this.market.quoteCfg.symbol))
-    return this.resolveUserOrders(orders)
+  /* refreshRecentlyActiveOrders refreshes the user's active order list based on notifications feed */
+  refreshRecentlyActiveOrders () {
+    const orders = app().recentOrders(this.market.dex.host, marketID(this.market.baseCfg.symbol, this.market.quoteCfg.symbol))
+    this.drawRecentlyActiveUserOrders(orders)
   }
 
-  resolveUserOrders (orders: Order[]) {
-    const { page, userOrders, market } = this
-    const cfg = market.cfg
+  drawRecentlyActiveUserOrders (orders: Order[]) {
+    const { page, recentlyActiveUserOrders, market } = this
 
+    // enrich recently active user order list as necessary
+    for (const ord of orders) {
+      recentlyActiveUserOrders[ord.id] = { ord: ord } as MetaOrder
+    }
+
+    // we have to cap how many orders we can show in UI
     const orderIsActive = (ord: Order) => ord.status < OrderUtil.StatusExecuted || OrderUtil.hasActiveMatches(ord)
-
-    for (const ord of orders) userOrders[ord.id] = { ord: ord } as MetaOrder
-    let sortedOrders = Object.keys(userOrders).map((oid: string) => userOrders[oid])
+    let sortedOrders = Object.keys(recentlyActiveUserOrders).map((oid: string) => recentlyActiveUserOrders[oid])
     sortedOrders.sort((a: MetaOrder, b: MetaOrder) => {
       const [aActive, bActive] = [orderIsActive(a.ord), orderIsActive(b.ord)]
       if (aActive && !bActive) return -1
       else if (!aActive && bActive) return 1
       return b.ord.submitTime - a.ord.submitTime
     })
-    const n = this.maxUserOrderCount()
-    if (sortedOrders.length > n) { sortedOrders = sortedOrders.slice(0, n) }
+    if (sortedOrders.length > maxRecentlyActiveUserOrdersShown) {
+      sortedOrders = sortedOrders.slice(0, maxRecentlyActiveUserOrdersShown)
+    }
 
-    for (const oid in userOrders) delete userOrders[oid]
+    // empty recently active user order list as necessary, we'll re-populate it down below
+    // since some orders might not make it in UI (because we cap how many orderw we show)
+    for (const oid in recentlyActiveUserOrders) {
+      delete recentlyActiveUserOrders[oid]
+    }
 
-    Doc.empty(page.userOrders)
-    Doc.setVis(sortedOrders?.length, page.userOrders)
-    Doc.setVis(!sortedOrders?.length, page.userNoOrders)
+    Doc.empty(page.recentlyActiveUserOrders)
+    Doc.setVis(sortedOrders?.length, page.recentlyActiveUserOrders)
+    Doc.setVis(!sortedOrders?.length, page.recentlyActiveNoUserOrders)
 
     let unreadyOrders = false
     for (const mord of sortedOrders) {
       const div = page.userOrderTmpl.cloneNode(true) as HTMLElement
-      page.userOrders.appendChild(div)
+      page.recentlyActiveUserOrders.appendChild(div)
       const tmpl = Doc.parseTemplate(div)
       const header = Doc.parseTemplate(tmpl.header)
       const details = Doc.parseTemplate(tmpl.details)
@@ -1770,13 +1856,13 @@ export default class MarketsPage extends BasePage {
       mord.header = header
       mord.details = details
       const ord = mord.ord
-
       const orderID = ord.id
       const isActive = orderIsActive(ord)
 
-      // No need to track in-flight orders here. We've already added it to
-      // display.
-      if (orderID) userOrders[orderID] = mord
+      // No need to track in-flight orders here. We've already added it to display.
+      if (orderID) {
+        recentlyActiveUserOrders[orderID] = mord
+      }
 
       if (!ord.readyToTick && OrderUtil.hasActiveMatches(ord)) {
         tmpl.header.classList.add('unready-user-order')
@@ -1787,9 +1873,15 @@ export default class MarketsPage extends BasePage {
       details.side.textContent = mord.header.side.textContent = OrderUtil.sellString(ord)
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
-      details.qty.textContent = mord.header.qty.textContent = Doc.formatCoinAtom(ord.qty, market.baseUnitInfo)
-      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
-      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, cfg.ratestep)
+      const unfilledFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(
+        ord.qty - OrderUtil.filled(ord),
+        market.baseUnitInfo,
+        market.cfg.lotsize
+      )
+      mord.header.qty.textContent = `${unfilledFormatted}`
+      details.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
+      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
+      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
         detailsRateStr = this.marketOrderDetailsRateString(ord, market)
@@ -1845,7 +1937,7 @@ export default class MarketsPage extends BasePage {
         floater.style.top = `${y - 1}px` // - 1 to hide border on header div
         floater.style.left = `${m.bodyLeft}px`
         // Get the updated version of the order
-        const mord = this.userOrders[orderID]
+        const mord = this.recentlyActiveUserOrders[orderID]
         // if the order isn't among user orders it means we are still showing it in UI, yet it's
         // no longer relevant - do nothing in that case (it will get removed from UI eventually)
         if (!mord) {
@@ -1884,6 +1976,131 @@ export default class MarketsPage extends BasePage {
     Doc.setVis(unreadyOrders, page.unreadyOrdersMsg)
   }
 
+  async reloadCompletedUserOrders (period: string) {
+    const { page, market } = this
+    const { base: b, quote: q, dex: { host } } = market
+    const now = new Date()
+
+    let completedUserOrders = []
+    let fresherThanUnixMs = 0 // default, means not showing completed orders history
+    if (period === completedOrderHistoryDuration1w) {
+      const day = 24 * 60 * 60 * 1000
+      fresherThanUnixMs = now.getTime() - day
+    }
+    if (period === completedOrderHistoryDuration1w) {
+      const week = 7 * 24 * 60 * 60 * 1000
+      fresherThanUnixMs = now.getTime() - week
+    }
+    if (period === completedOrderHistoryDuration1m) {
+      fresherThanUnixMs = new Date().setMonth(now.getMonth() - 1) // already returns unix ms timestamp
+    }
+    if (period === completedOrderHistoryDuration3m) {
+      fresherThanUnixMs = new Date().setMonth(now.getMonth() - 3) // already returns unix ms timestamp
+    }
+    if (fresherThanUnixMs !== 0) {
+      const filter: OrderFilter = {
+        n: maxCompletedUserOrdersShown,
+        fresherThanUnixMs: fresherThanUnixMs,
+        hosts: [host],
+        market: { baseID: b.id, quoteID: q.id },
+        statuses: [OrderUtil.StatusUnknown, OrderUtil.StatusExecuted, OrderUtil.StatusCanceled, OrderUtil.StatusRevoked],
+        filledOnly: true
+      }
+      const res = await postJSON('/api/orders', filter)
+      completedUserOrders = res.orders || []
+    }
+
+    Doc.empty(page.completedUserOrders)
+    Doc.setVis(completedUserOrders?.length, page.completedUserOrders)
+    Doc.setVis(!completedUserOrders?.length, page.completedNoUserOrders)
+
+    for (const ord of completedUserOrders) {
+      const div = page.userOrderTmpl.cloneNode(true) as HTMLElement
+      page.completedUserOrders.appendChild(div)
+      const tmpl = Doc.parseTemplate(div)
+      const header = Doc.parseTemplate(tmpl.header)
+      const details = Doc.parseTemplate(tmpl.details)
+
+      header.sideLight.classList.add(ord.sell ? 'sell' : 'buy')
+      header.side.textContent = ord.sell ? 'sold' : 'bought'
+      details.side.textContent = OrderUtil.sellString(ord)
+      details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
+      header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
+      const settledFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(OrderUtil.settled(ord), market.baseUnitInfo, market.cfg.lotsize)
+      const totalQtyFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
+      header.qty.textContent = `[ ${settledFormatted} / ${totalQtyFormatted} ]`
+      details.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
+      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
+      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
+      if (ord.type === OrderUtil.Market) {
+        headerRateStr = this.marketOrderHeaderRateString(ord, market)
+        detailsRateStr = this.marketOrderDetailsRateString(ord, market)
+      }
+      header.rate.textContent = `@ ${headerRateStr}`
+      details.rate.textContent = detailsRateStr
+      header.baseSymbol.textContent = market.baseUnitInfo.conventional.unit
+      details.type.textContent = OrderUtil.orderTypeText(ord.type)
+      header.status.textContent = Doc.ageSinceFromMs(ord.stamp)
+      details.status.textContent = OrderUtil.statusString(ord)
+      details.age.textContent = Doc.ageSinceFromMs(ord.stamp)
+      details.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
+      details.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
+
+      if (!ord.id) {
+        Doc.hide(details.link)
+      } else {
+        details.link.href = `order/${ord.id}`
+        app().bindInternalNavigation(div)
+      }
+      let currentFloater: (PageElement | null)
+      bind(tmpl.header, 'click', () => {
+        if (Doc.isDisplayed(tmpl.details)) {
+          Doc.hide(tmpl.details)
+          return
+        }
+        Doc.show(tmpl.details)
+        if (currentFloater) currentFloater.remove()
+      })
+      /**
+       * We'll show the button menu when they hover over the header. To avoid
+       * pushing the layout around, we'll show the buttons as an absolutely
+       * positioned copy of the button menu.
+       */
+      bind(tmpl.header, 'mouseenter', () => {
+        // Don't show the copy if the details are already displayed.
+        if (Doc.isDisplayed(tmpl.details)) return
+        if (currentFloater) currentFloater.remove()
+        // Create and position the element based on the position of the header.
+        const floater = document.createElement('div')
+        currentFloater = floater
+        document.body.appendChild(floater)
+        floater.className = 'user-order-floaty-menu'
+        const m = Doc.layoutMetrics(tmpl.header)
+        const y = m.bodyTop + m.height
+        floater.style.top = `${y - 1}px` // - 1 to hide border on header div
+        floater.style.left = `${m.bodyLeft}px`
+        floater.appendChild(details.link.cloneNode(true))
+
+        const ogScrollY = page.orderScroller.scrollTop
+        // Set up the hover interactions.
+        const moved = (e: MouseEvent) => {
+          // If the user scrolled, reposition the float menu. This keeps the
+          // menu from following us around, which can prevent removal below.
+          const yShift = page.orderScroller.scrollTop - ogScrollY
+          floater.style.top = `${y + yShift}px`
+          if (Doc.mouseInElement(e, floater) || Doc.mouseInElement(e, div)) return
+          floater.remove()
+          currentFloater = null
+          document.removeEventListener('mousemove', moved)
+          page.orderScroller.removeEventListener('scroll', moved)
+        }
+        document.addEventListener('mousemove', moved)
+        page.orderScroller.addEventListener('scroll', moved)
+      })
+      app().bindTooltips(div)
+    }
+  }
+
   marketOrderHeaderRateString (ord: Order, mkt: CurrentMarket): string {
     if (!ord.matches?.length) return intl.prep(intl.ID_MARKET_ORDER)
     let rateStr = Doc.formatRateAtomToRateStep(OrderUtil.averageRate(ord), mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
@@ -1903,10 +2120,8 @@ export default class MarketsPage extends BasePage {
   */
   updateMetaOrder (mord: MetaOrder) {
     const { header, details, ord } = mord
-    if (ord.status <= OrderUtil.StatusBooked || OrderUtil.hasActiveMatches(ord)) header.activeLight.classList.add('active')
-    else header.activeLight.classList.remove('active')
     details.status.textContent = header.status.textContent = OrderUtil.statusString(ord)
-    details.age.textContent = Doc.timeSinceFromMs(ord.submitTime)
+    details.age.textContent = Doc.ageSinceFromMs(ord.submitTime)
     details.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
     details.settled.textContent = `${(OrderUtil.settled(ord) / ord.qty * 100).toFixed(1)}%`
   }
@@ -2219,7 +2434,7 @@ export default class MarketsPage extends BasePage {
 
   /* showCancel shows a form to confirm submission of a cancel order. */
   showCancel (row: HTMLElement, orderID: string) {
-    const ord = this.userOrders[orderID].ord
+    const ord = this.recentlyActiveUserOrders[orderID].ord
     const page = this.page
     const remaining = ord.qty - ord.filled
     const asset = OrderUtil.isMarketBuy(ord) ? this.market.quote : this.market.base
@@ -2407,9 +2622,9 @@ export default class MarketsPage extends BasePage {
   }
 
   handleMatchNote (note: MatchNote) {
-    const mord = this.userOrders[note.orderID]
+    const mord = this.recentlyActiveUserOrders[note.orderID]
     const match = note.match
-    if (!mord) return this.refreshActiveOrders()
+    if (!mord) return this.refreshRecentlyActiveOrders()
     else if (mord.ord.type === OrderUtil.Market && match.status === OrderUtil.NewlyMatched) { // Update the average market rate display.
       // Fetch and use the updated order.
       const ord = app().order(note.orderID)
@@ -2430,17 +2645,17 @@ export default class MarketsPage extends BasePage {
    */
   handleOrderNote (note: OrderNote) {
     const ord = note.order
-    const mord = this.userOrders[ord.id]
+    const mord = this.recentlyActiveUserOrders[ord.id]
     // - If metaOrder doesn't exist for the given order it means it was created
     //  via bwctl and the GUI isn't aware of it, or it was an inflight order.
-    //  refreshActiveOrders must be called to grab this order.
+    //  refreshRecentlyActiveOrders must be called to grab this order.
     // - If an OrderLoaded notification is received, it means an order that was
     //   previously not "ready to tick" (due to its wallets not being connected
     //   and unlocked) has now become ready to tick. The active orders section
     //   needs to be refreshed.
     const wasInflight = note.topic === 'AsyncOrderFailure' || note.topic === 'AsyncOrderSubmitted'
     if (!mord || wasInflight || (note.topic === 'OrderLoaded' && ord.readyToTick)) {
-      return this.refreshActiveOrders()
+      return this.refreshRecentlyActiveOrders()
     }
     const oldStatus = mord.ord.status
     mord.ord = ord
@@ -2468,7 +2683,7 @@ export default class MarketsPage extends BasePage {
     }
 
     this.clearOrderTableEpochs()
-    for (const { ord, details, header } of Object.values(this.userOrders)) {
+    for (const { ord, details, header } of Object.values(this.recentlyActiveUserOrders)) {
       const alreadyMatched = note.epoch > ord.epoch
       switch (true) {
         case ord.type === OrderUtil.Limit && ord.status === OrderUtil.StatusEpoch && alreadyMatched: {
@@ -2586,7 +2801,12 @@ export default class MarketsPage extends BasePage {
     }
     // Hide confirmation modal only on success.
     Doc.hide(page.forms)
-    this.refreshActiveOrders()
+    // refreshing UI orders with delay as a work-around for the fact that application
+    // notifications handling code doesn't provide any callback mechanism we can hook
+    // into to execute this exactly when we need to
+    setTimeout(() => {
+      this.refreshRecentlyActiveOrders()
+    }, 1000) // 1000ms delay
   }
 
   /*
@@ -3540,7 +3760,7 @@ class OrderTableRowManager {
     // caused by races that might/will happen between different setTimeout calls since
     // every call executes as atomic unit with respect to other similar calls.
     const markUnmarkOwnOrders = () => {
-      const userOrders = app().orders(market.dex.host, marketID(market.baseCfg.symbol, market.quoteCfg.symbol))
+      const userOrders = app().recentOrders(market.dex.host, marketID(market.baseCfg.symbol, market.quoteCfg.symbol))
       let ownOrderSpotted = false
       for (const bin of orderBin) {
         for (const userOrder of userOrders) {
