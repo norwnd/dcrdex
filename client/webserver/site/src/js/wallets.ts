@@ -1491,8 +1491,7 @@ export default class WalletsPage extends BasePage {
     const { wallet, unitInfo: ui, id: assetID } = asset
     const bal = wallet.balance
     Doc.show(page.balanceBox, page.walletDetails)
-    const totalLocked = bal.locked + bal.contractlocked + bal.bondlocked
-    const totalBalance = bal.available + totalLocked + bal.immature
+    const totalBalance = bal.available + bal.locked + bal.immature
     page.balance.textContent = Doc.formatCoinAtom(totalBalance, ui)
     page.balanceUnit.textContent = ui.conventional.unit
     const rate = app().fiatRatesMap[assetID]
@@ -1539,7 +1538,7 @@ export default class WalletsPage extends BasePage {
     }
     setRowClasses()
 
-    addPrimaryBalance(intl.prep(intl.ID_LOCKED_TITLE), totalLocked, intl.prep(intl.ID_LOCKED_BAL_MSG))
+    addPrimaryBalance(intl.prep(intl.ID_LOCKED_TITLE), bal.locked, intl.prep(intl.ID_LOCKED_BAL_MSG))
     if (bal.orderlocked > 0) addSubBalance(intl.prep(intl.ID_ORDER), bal.orderlocked, intl.prep(intl.ID_LOCKED_ORDER_BAL_MSG))
     if (bal.contractlocked > 0) addSubBalance(intl.prep(intl.ID_SWAPPING), bal.contractlocked, intl.prep(intl.ID_LOCKED_SWAPPING_BAL_MSG))
     if (bal.bondlocked > 0) addSubBalance(intl.prep(intl.ID_BONDED), bal.bondlocked, intl.prep(intl.ID_LOCKED_BOND_BAL_MSG))

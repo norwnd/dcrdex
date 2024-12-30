@@ -1219,13 +1219,15 @@ type Bond struct {
 
 // Balance is categorized information about a wallet's balance.
 type Balance struct {
-	// Available is the balance that is available for trading immediately.
+	// Available is the balance that is available for spending/trading immediately,
+	// it does not include Immature.
 	Available uint64 `json:"available"`
 	// Immature is the balance that is not ready, but will be after some
 	// confirmations.
 	Immature uint64 `json:"immature"`
-	// Locked is the total amount locked in the wallet which includes but
-	// is not limited to funds locked for swap but not actually swapped yet.
+	// Locked is the total amount locked in the wallet which includes but is not
+	// limited to funds reserved for sends and swaps (even if swap transaction
+	// hasn't been sent yet). It does not include Immature or BondReserves.
 	Locked uint64 `json:"locked"`
 	// BondReserves is the amount of funds locked in the wallet for expenses
 	// associated with bond maintenance.
