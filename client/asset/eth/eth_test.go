@@ -683,7 +683,7 @@ func TestCheckPendingTxs(t *testing.T) {
 	finalizedStamp := now - txConfsNeededToConfirm*10
 	rebroadcastable := now - 300
 	mature := now - 600 // able to send actions
-	agedOut := now - uint64(txAgeOut.Seconds()) - 1
+	agedOut := now - uint64(txActionPromptFrequency.Seconds()) - 1
 
 	val := dexeth.GweiToWei(1)
 	extendedTx := func(nonce, blockNum, blockStamp, submissionStamp uint64) *extendedWalletTx {
@@ -889,7 +889,7 @@ func TestTakeAction(t *testing.T) {
 	if tx.GasTipCap().Uint64() != 0 {
 		t.Fatal("The fee was bumped. The fee shouldn't have been bumped.")
 	}
-	if pendingTx.actionIgnored.IsZero() {
+	if pendingTx.lastActionProcessed.IsZero() {
 		t.Fatalf("The ignore time wasn't reset")
 	}
 	if len(eth.pendingTxs) != 1 {

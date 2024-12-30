@@ -42,14 +42,14 @@ type extendedWalletTx struct {
 	// ActionRequiredNote.
 	AssumedLost bool `json:"assumedLost,omitempty"`
 
-	txHash          common.Hash
-	lastCheck       uint64
-	savedToDB       bool
-	lastBroadcast   time.Time
-	lastFeeCheck    time.Time
-	actionRequested bool
-	actionIgnored   time.Time
-	indexed         bool
+	txHash              common.Hash
+	lastCheck           uint64
+	savedToDB           bool
+	lastBroadcast       time.Time
+	lastFeeCheck        time.Time
+	actionRequested     bool
+	lastActionProcessed time.Time
+	indexed             bool
 }
 
 func (t *extendedWalletTx) age() time.Duration {
