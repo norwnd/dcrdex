@@ -2455,17 +2455,7 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 	if g == nil {
 		return fail(fmt.Errorf("no gas table"))
 	}
-
-	if feeWallet == nil {
-		feeWallet = w
-	}
-	bal, err := feeWallet.Balance()
-	if err != nil {
-		return nil, nil, 0, fmt.Errorf("error getting balance in excessive gas fee recovery: %v", err)
-	}
-
-	gasLimit, gasFeeCap := g.Redeem*n, form.FeeSuggestion
-	originalFundsReserved := gasLimit * gasFeeCap
+	gasLimit := g.Redeem * n
 
 	/* We could get a gas estimate via RPC, but this will reveal the secret key
 	   before submitting the redeem transaction. This is not OK for maker.
@@ -2493,25 +2483,14 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 	}
 	*/
 
-	// If the base fee is higher than the FeeSuggestion we attempt to increase
-	// the gasFeeCap to 2*baseFee. If we don't have enough funds, we use the
-	// funds we have available.
-	baseFee, tipRate, err := w.currentNetworkFees(w.ctx)
+	// Fetch up-to-date fee rate, we'll want to use it instead of form.FeeSuggestion since
+	// it better reflects current networking conditions.
+	maxFee, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
-		return fail(fmt.Errorf("Error getting net fee state: %w", err))
+		return fail(fmt.Errorf("Error fetching recommended max fee rate: %w", err))
 	}
-	baseFeeGwei := dexeth.WeiToGweiCeil(baseFee)
-	if baseFeeGwei > form.FeeSuggestion {
-		additionalFundsNeeded := (2 * baseFeeGwei * gasLimit) - originalFundsReserved
-		if bal.Available > additionalFundsNeeded {
-			gasFeeCap = 2 * baseFeeGwei
-		} else {
-			gasFeeCap = (bal.Available + originalFundsReserved) / gasLimit
-		}
-		w.log.Warnf("base fee %d > server max fee rate %d. using %d as gas fee cap for redemption", baseFeeGwei, form.FeeSuggestion, gasFeeCap)
-	}
-
-	tx, err := w.redeem(w.ctx, form.Redemptions, gasFeeCap, tipRate, gasLimit, contractVer)
+	maxFeeGwei := dexeth.WeiToGweiCeil(maxFee)
+	tx, err := w.redeem(w.ctx, form.Redemptions, maxFeeGwei, tipRate, gasLimit, contractVer)
 	if err != nil {
 		return fail(fmt.Errorf("Redeem: redeem error: %w", err))
 	}
@@ -3655,8 +3634,8 @@ func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error)
 	return new(big.Int).Add(b, t), nil
 }
 
-// recommendedMaxFeeRate finds a recommended max fee rate using the somewhat
-// standard baseRate * 2 + tip formula, capping it at user-configured value.
+// recommendedMaxFeeRate finds recommended max fee rate (in wei units) using the
+// somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
 func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, err error) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
