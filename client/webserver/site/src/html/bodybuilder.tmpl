@@ -177,17 +177,23 @@
             </td>
           </tr>
           <tr>
-            <td>[[[Fees]]]</td>
+            <td>Current Fees (too low)</td>
             <td>
               <span data-tmpl="feeAmount"></span>
               <span data-tmpl="feeUnit" class="fs15 grey"></span>
+              <span class="d-flex d-hide justify-content-end grey fs14">
+                ~<span data-tmpl="feeAmountFiat" class="mx-1"></span>USD
+              </span>
             </td>
           </tr>
           <tr data-tmpl="newFeesRow" class="d-hide">
-            <td>New Fees</td>
+            <td>New Fees (estimate)</td>
             <td>
               <span data-tmpl="newFees"></span>
               <span data-tmpl="newFeesUnit" class="fs15 grey"></span>
+              <span class="d-flex d-hide justify-content-end grey fs14">
+                ~<span data-tmpl="newFeesFiat" class="mx-1"></span>USD
+              </span>
             </td>
           </tr>
           <tr>
@@ -212,13 +218,15 @@
       <div id="tooCheapTmpl" class="flex-stretch-column mt-2">
         <div class="text-justify">
           A <span data-tmpl="assetName"></span>
-          transaction is stuck and has low fees. Should we replace it with a new
-          transaction?
+          transaction is stuck due to low fees. Should we wait, bump the fees or do you want to
+          abandon this transaction? Note, you probably don't want to abandon redeem or refund transactions,
+          if you choose to abandon - make sure it's not one of those.
         </div>
         <div data-tmpl="txTable"></div>
         <div class="d-flex align-items-stretch mt-3">
           <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-2">Keep Waiting</button>
           <button data-tmpl="addFeesBttn" class="flex-grow-1 ms-2">Add Fees</button>
+          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-2">Abandon</button>
         </div>
         <div data-tmpl="errMsg" class="p-2 text-warning d-hide"></div>
       </div>
@@ -227,12 +235,12 @@
         <div class="text-justify">
           A <span data-tmpl="assetName"></span>
           transaction might be lost. A different transaction with the same
-          nonce was confirmed first. You can abandon the transaction
+          nonce was confirmed first. You can abandon the transaction.
         </div>
         <div data-tmpl="txTable"></div>
         <div class="d-flex mt-2">
-          <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-1">Keep Waiting</button>
-          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-1">Abandon</button>
+          <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-2">Keep Waiting</button>
+          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-2">Abandon</button>
         </div>
         <hr>
         <div class="mt-2">

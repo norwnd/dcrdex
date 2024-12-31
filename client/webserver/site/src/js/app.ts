@@ -62,7 +62,7 @@ import {
   CEXNotification,
   CEXBalanceUpdate,
   EpochReportNote,
-  CEXProblemsNote
+  CEXProblemsNote, app
 } from './registry'
 import { setCoinHref } from './coinexplorers'
 
@@ -691,8 +691,11 @@ export default class Application {
     const { assetID, payload } = req
     const n = payload as TransactionActionNote
     const { unitInfo: ui, token } = this.assets[assetID]
+    const xcRate = app().fiatRatesMap[assetID]
+
     const table = this.page.actionTxTableTmpl.cloneNode(true) as PageElement
     const tmpl = Doc.parseTemplate(table)
+
     tmpl.lostTxID.textContent = n.tx.id
     tmpl.lostTxID.dataset.explorerCoin = n.tx.id
     setCoinHref(token ? token.parentID : assetID, tmpl.lostTxID)
@@ -702,11 +705,13 @@ export default class Application {
     tmpl.type.textContent = txTypeString(n.tx.type)
     tmpl.feeAmount.textContent = Doc.formatCoinAtom(n.tx.fees, parentUI)
     tmpl.feeUnit.textContent = parentUI.conventional.unit
+    Doc.showFiatValue(tmpl.feeAmountFiat, n.tx.fees, xcRate, ui)
     switch (req.actionID) {
       case 'tooCheap': {
-        Doc.show(tmpl.newFeesRow)
-        tmpl.newFees.textContent = Doc.formatCoinAtom(n.tx.fees, parentUI)
+        tmpl.newFees.textContent = Doc.formatCoinAtom(n.newFees, parentUI)
         tmpl.newFeesUnit.textContent = parentUI.conventional.unit
+        Doc.showFiatValue(tmpl.newFeesFiat, n.newFees, xcRate, ui)
+        Doc.show(tmpl.newFeesRow)
         break
       }
     }
@@ -753,14 +758,17 @@ export default class Application {
     const { name } = this.assets[assetID]
     tmpl.assetName.textContent = name
     tmpl.txTable.appendChild(this.actionTxTable(req))
-    const act = (bump: boolean) => {
+    const act = (bump: boolean, abandon: boolean) => {
       this.submitAction(req, {
         txID: n.tx.id,
-        bump
+        bump: bump,
+        newFees: n.newFees,
+        abandon: abandon
       }, tmpl.errMsg)
     }
-    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false))
-    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true))
+    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false, false))
+    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true, false))
+    Doc.bind(tmpl.abandonBttn, 'click', () => act(false, true))
     return div
   }
 

@@ -108,9 +108,9 @@ const (
 
 	LiveEstimateFailedError = dex.ErrorKind("live gas estimate failed")
 
-	// txAgeOut is the amount of time after which we forego any tx
-	// synchronization efforts for unconfirmed pending txs.
-	txAgeOut = 2 * time.Hour
+	// txActionPromptFrequency is the amount of time we wait between prompting user to
+	// resolve certain transaction processing issues that require manual input.
+	txActionPromptFrequency = 1 * time.Minute
 	// stateUpdateTick is the minimum amount of time between checks for
 	// new block and updating of pending txs, counter-party redemptions and
 	// approval txs.
@@ -465,7 +465,7 @@ type baseWallet struct {
 	nonceMtx            sync.RWMutex
 	pendingTxs          []*extendedWalletTx
 	confirmedNonceAt    *big.Int
-	pendingNonceAt      *big.Int
+	nextNonceAt         *big.Int
 	recoveryRequestSent bool
 
 	balances struct {
@@ -932,7 +932,7 @@ func (w *ETHWallet) Connect(ctx context.Context) (_ *sync.WaitGroup, err error) 
 	w.nonceMtx.Lock()
 	w.pendingTxs = pendingTxs
 	w.confirmedNonceAt = confirmedNonce
-	w.pendingNonceAt = nextNonce
+	w.nextNonceAt = nextNonce
 	w.nonceMtx.Unlock()
 
 	if w.log.Level() <= dex.LevelDebug {
@@ -946,8 +946,8 @@ func (w *ETHWallet) Connect(ctx context.Context) (_ *sync.WaitGroup, err error) 
 				lowestPendingNonce = n
 			}
 		}
-		w.log.Debugf("Synced with header %s and confirmed nonce %s, pending nonce %s, %d pending txs from nonce %d to nonce %d",
-			bestHdr.Number, confirmedNonce, nextNonce, len(pendingTxs), highestPendingNonce, lowestPendingNonce)
+		w.log.Debugf("Synced with header %s and confirmed nonce %s, next nonce %s, %d pending txs [from nonce %d, to nonce %d]",
+			bestHdr.Number, confirmedNonce, nextNonce, len(pendingTxs), lowestPendingNonce, highestPendingNonce)
 	}
 
 	height := w.currentTip.Number
@@ -1100,7 +1100,7 @@ type transactionGenerator func(nonce *big.Int) (*types.Transaction, asset.Transa
 func (w *assetWallet) withNonce(ctx context.Context, f transactionGenerator) (err error) {
 	w.nonceMtx.Lock()
 	defer w.nonceMtx.Unlock()
-	if err = nonceIsSane(w.pendingTxs, w.pendingNonceAt); err != nil {
+	if err = nonceIsSane(w.pendingTxs, w.nextNonceAt); err != nil {
 		return err
 	}
 	nonce := func() *big.Int {
@@ -1130,7 +1130,7 @@ func (w *assetWallet) withNonce(ctx context.Context, f transactionGenerator) (er
 			return fmt.Errorf("error during too-low nonce recovery: %v", err)
 		}
 		w.confirmedNonceAt = confirmedNonceAt
-		w.pendingNonceAt = pendingNonceAt
+		w.nextNonceAt = pendingNonceAt
 		if newNonce := nonce(); newNonce != n {
 			n = newNonce
 			// Try again.
@@ -1147,8 +1147,8 @@ func (w *assetWallet) withNonce(ctx context.Context, f transactionGenerator) (er
 	if tx != nil {
 		et := w.extendedTx(tx, txType, amt, recipient)
 		w.pendingTxs = append(w.pendingTxs, et)
-		if n.Cmp(w.pendingNonceAt) >= 0 {
-			w.pendingNonceAt.Add(n, big.NewInt(1))
+		if n.Cmp(w.nextNonceAt) >= 0 {
+			w.nextNonceAt.Add(n, big.NewInt(1))
 		}
 		w.emitTransactionNote(et.WalletTransaction, true)
 		w.log.Tracef("Transaction %s generated for nonce %s", et.ID, n)
@@ -1181,15 +1181,10 @@ func nonceIsSane(pendingTxs []*extendedWalletTx, pendingNonceAt *big.Int) error 
 		}
 		lastNonce = nonce
 		age := pendingTx.age()
-		// Only allow a handful of txs that we haven't been seen on-chain yet.
+		// Only allow a handful of txs that we haven't seen on-chain yet.
 		if age > stateUpdateTick*10 {
 			numNotIndexed++
 		}
-		if age >= txAgeOut {
-			// If any tx is unindexed and aged out, wait for user to fix it.
-			return fmt.Errorf("tx %s is aged out. waiting for user to take action", pendingTx.ID)
-		}
-
 	}
 	if numNotIndexed >= maxUnindexedTxs {
 		return fmt.Errorf("%d unindexed txs has reached the limit of %d", numNotIndexed, maxUnindexedTxs)
@@ -2460,17 +2455,7 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 	if g == nil {
 		return fail(fmt.Errorf("no gas table"))
 	}
-
-	if feeWallet == nil {
-		feeWallet = w
-	}
-	bal, err := feeWallet.Balance()
-	if err != nil {
-		return nil, nil, 0, fmt.Errorf("error getting balance in excessive gas fee recovery: %v", err)
-	}
-
-	gasLimit, gasFeeCap := g.Redeem*n, form.FeeSuggestion
-	originalFundsReserved := gasLimit * gasFeeCap
+	gasLimit := g.Redeem * n
 
 	/* We could get a gas estimate via RPC, but this will reveal the secret key
 	   before submitting the redeem transaction. This is not OK for maker.
@@ -2498,25 +2483,14 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 	}
 	*/
 
-	// If the base fee is higher than the FeeSuggestion we attempt to increase
-	// the gasFeeCap to 2*baseFee. If we don't have enough funds, we use the
-	// funds we have available.
-	baseFee, tipRate, err := w.currentNetworkFees(w.ctx)
+	// Fetch up-to-date fee rate, we'll want to use it instead of form.FeeSuggestion since
+	// it better reflects current networking conditions.
+	maxFee, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
-		return fail(fmt.Errorf("Error getting net fee state: %w", err))
+		return fail(fmt.Errorf("Error fetching recommended max fee rate: %w", err))
 	}
-	baseFeeGwei := dexeth.WeiToGweiCeil(baseFee)
-	if baseFeeGwei > form.FeeSuggestion {
-		additionalFundsNeeded := (2 * baseFeeGwei * gasLimit) - originalFundsReserved
-		if bal.Available > additionalFundsNeeded {
-			gasFeeCap = 2 * baseFeeGwei
-		} else {
-			gasFeeCap = (bal.Available + originalFundsReserved) / gasLimit
-		}
-		w.log.Warnf("base fee %d > server max fee rate %d. using %d as gas fee cap for redemption", baseFeeGwei, form.FeeSuggestion, gasFeeCap)
-	}
-
-	tx, err := w.redeem(w.ctx, form.Redemptions, gasFeeCap, tipRate, gasLimit, contractVer)
+	maxFeeGwei := dexeth.WeiToGweiCeil(maxFee)
+	tx, err := w.redeem(w.ctx, form.Redemptions, maxFeeGwei, tipRate, gasLimit, contractVer)
 	if err != nil {
 		return fail(fmt.Errorf("Redeem: redeem error: %w", err))
 	}
@@ -3660,8 +3634,8 @@ func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error)
 	return new(big.Int).Add(b, t), nil
 }
 
-// recommendedMaxFeeRate finds a recommended max fee rate using the somewhat
-// standard baseRate * 2 + tip formula, capping it at user-configured value.
+// recommendedMaxFeeRate finds recommended max fee rate (in wei units) using the
+// somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
 func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, err error) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
@@ -3754,24 +3728,21 @@ func (eth *ETHWallet) checkForNewBlocks(ctx context.Context) {
 		return
 	}
 	bestHash := bestHdr.Hash()
-	// This method is called frequently. Don't hold write lock
-	// unless tip has changed.
-	eth.tipMtx.RLock()
-	currentTipHash := eth.currentTip.Hash()
-	eth.tipMtx.RUnlock()
-	if currentTipHash == bestHash {
-		return
-	}
 
 	eth.tipMtx.Lock()
+	currentTipHash := eth.currentTip.Hash()
+	if currentTipHash == bestHash {
+		eth.tipMtx.Unlock()
+		return
+	}
 	prevTip := eth.currentTip
 	eth.currentTip = bestHdr
 	eth.tipMtx.Unlock()
 
-	eth.log.Tracef("tip change: %s (%s) => %s (%s)", prevTip.Number,
-		currentTipHash, bestHdr.Number, bestHash)
+	eth.log.Tracef("tip change: %s (%s) => %s (%s)", prevTip.Number, currentTipHash, bestHdr.Number, bestHash)
 
 	eth.checkPendingTxs()
+
 	for _, w := range eth.connectedWallets() {
 		w.checkFindRedemptions()
 		w.checkPendingApprovals()
@@ -4235,7 +4206,7 @@ func (w *assetWallet) balanceWithTxPool() (*Balance, error) {
 func (w *ETHWallet) sendToAddr(addr common.Address, amt uint64, maxFeeRate, tipRate *big.Int) (tx *types.Transaction, err error) {
 
 	// Uncomment here and above to test actionTypeLostNonce.
-	// Also change txAgeOut to like 1 minute.
+	// Also change txActionPromptFrequency to like 1 minute.
 	// if nonceBorked.CompareAndSwap(false, true) {
 	// 	defer w.borkNonce(tx)
 	// }
@@ -4698,7 +4669,6 @@ func (w *baseWallet) checkPendingTxs() {
 				w.log.Tracef("Checked %d pending txs. Finalized %d", nPending, nPending-len(w.pendingTxs))
 			}()
 		}
-
 	}
 
 	// keepFromIndex will be the index of the first un-finalized tx.
@@ -4735,7 +4705,7 @@ func (w *baseWallet) checkPendingTxs() {
 	}
 
 	// If we have missing nonces, send an alert.
-	if !w.recoveryRequestSent && len(findMissingNonces(w.confirmedNonceAt, w.pendingNonceAt, w.pendingTxs)) != 0 {
+	if !w.recoveryRequestSent && len(findMissingNonces(w.confirmedNonceAt, w.nextNonceAt, w.pendingTxs)) != 0 {
 		w.recoveryRequestSent = true
 		w.requestAction(actionTypeMissingNonces, w.missingNoncesActionID(), nil, nil)
 	}
@@ -4745,24 +4715,30 @@ func (w *baseWallet) checkPendingTxs() {
 		if pendingTx.Confirmed || pendingTx.BlockNumber > 0 {
 			continue
 		}
-		if time.Since(pendingTx.actionIgnored) < txAgeOut {
-			// They asked us to keep waiting.
-			continue
+		if pendingTx.actionRequested {
+			continue // waiting on action already
 		}
-		age := pendingTx.age()
+		if time.Since(pendingTx.lastActionRejected) < txActionPromptFrequency {
+			continue // user asked us to keep waiting
+		}
 		// i < lastConfirmed means unconfirmed nonce < a confirmed nonce.
-		if (i < lastConfirmed) ||
-			w.confirmedNonceAt.Cmp(pendingTx.Nonce) > 0 ||
-			(age >= txAgeOut && pendingTx.Receipt == nil && !pendingTx.indexed) {
-
-			// The tx in our records wasn't accepted. Where's the right one?
+		if (i < lastConfirmed) || w.confirmedNonceAt.Cmp(pendingTx.Nonce) > 0 {
+			// The tx in our records wasn't accepted. Seems like it has been replaced by another
+			// transaction with the same nonce, asking the user if he knows what transaction
+			// corresponds to this nonce is the only way to mend this transaction.
+			// This can only happen if user is doing something advanced (like sending transactions
+			// from this wallet using another software), or if there is a bug in our code - so
+			// it's fine to keep asking him to resolve it.
 			req := newLostNonceNote(*pendingTx.WalletTransaction, pendingTx.Nonce.Uint64())
 			pendingTx.actionRequested = true
 			w.requestAction(actionTypeLostNonce, pendingTx.ID, req, pendingTx.TokenID)
 			continue
 		}
-		// Recheck fees periodically.
-		const feeCheckInterval = time.Minute * 5
+
+		// Recheck how transaction fees compare to network conditions. Note, fee tip can be
+		// a large chunk of total fees (on Polygon in particular) - take it into account too,
+		// propose new fees to the user if ours are below what network currently expects.
+		const feeCheckInterval = 2 * time.Minute
 		if time.Since(pendingTx.lastFeeCheck) < feeCheckInterval {
 			continue
 		}
@@ -4772,23 +4748,32 @@ func (w *baseWallet) checkPendingTxs() {
 			w.log.Errorf("Error decoding raw tx %s for fee check: %v", pendingTx.ID, err)
 			continue
 		}
-		txCap := tx.GasFeeCap()
+		currentFeeRate, err := w.currentFeeRate(w.ctx)
+		if err != nil {
+			w.log.Errorf("Error getting network fees: %v", err)
+			continue
+		}
+		if tx.GasFeeCap().Cmp(currentFeeRate) >= 0 {
+			w.log.Tracef("Pending transacton %s fees seem fine with respect to current netowrk conditions", pendingTx.ID)
+			continue
+		}
+		pendingTx.feesBumps++ // gotta bump the fees then
 		baseRate, tipRate, err := w.currentNetworkFees(w.ctx)
 		if err != nil {
-			w.log.Errorf("Error getting base fee: %w", err)
+			w.log.Errorf("Error getting network fees: %v", err)
 			continue
 		}
-		if txCap.Cmp(baseRate) < 0 {
-			maxFees := new(big.Int).Add(tipRate, new(big.Int).Mul(baseRate, big.NewInt(2)))
-			maxFees.Mul(maxFees, new(big.Int).SetUint64(tx.Gas()))
-			req := newLowFeeNote(*pendingTx.WalletTransaction, dexeth.WeiToGweiCeil(maxFees))
-			pendingTx.actionRequested = true
-			w.requestAction(actionTypeTooCheap, pendingTx.ID, req, pendingTx.TokenID)
-			continue
-		}
-		// Fees look good and there's no reason to believe this tx will
-		// not be mined. Do we do anything?
-		// actionRequired(actionTypeStuckTx, pendingTx)
+		w.log.Tracef("Requesting user action to bump fees transacton %s to adapt it to current netowrk conditions", pendingTx.ID)
+
+		// have to bump tipRate too (and set maxFeeRate accordingly) compared to the previously
+		// pending transaction at that nonce (if there is any previous transaction that network still
+		// remembers) - otherwise it will get rejected as "underpriced"
+		bumpedTipRate := new(big.Int).Mul(tipRate, big.NewInt(1+pendingTx.feesBumps))
+		bumpedMaxFeeRate := new(big.Int).Add(baseRate, bumpedTipRate)
+		bumpedMaxFees := new(big.Int).Mul(bumpedMaxFeeRate, new(big.Int).SetUint64(tx.Gas()))
+		req := newLowFeeNote(*pendingTx.WalletTransaction, dexeth.WeiToGweiCeil(bumpedMaxFees))
+		pendingTx.actionRequested = true
+		w.requestAction(actionTypeTooCheap, pendingTx.ID, req, pendingTx.TokenID)
 	}
 
 	// Delete finalized txs from local tracking.
@@ -4799,10 +4784,9 @@ func (w *baseWallet) checkPendingTxs() {
 	const rebroadcastPeriod = time.Minute * 5
 	for _, pendingTx := range w.pendingTxs {
 		if pendingTx.Confirmed || pendingTx.BlockNumber > 0 ||
-			pendingTx.actionRequested || // Waiting on action
+			pendingTx.actionRequested || // waiting on action already
 			pendingTx.indexed || // Provider knows about it
 			time.Since(pendingTx.lastBroadcast) < rebroadcastPeriod {
-
 			continue
 		}
 		pendingTx.lastBroadcast = time.Now()
@@ -4885,35 +4869,74 @@ func (w *assetWallet) amendPendingTx(txID string, f func(common.Hash, *types.Tra
 		return err
 	}
 	w.emit.ActionResolved(txID)
-	pendingTx.actionRequested = false
+	pendingTx.actionRequested = false // processed this action to completion
 	return nil
 }
 
-// userActionBumpFees is a request by a user to resolve a actionTypeTooCheap
+// userActionStuckDueToLowFees is a request by a user to resolve a actionTypeTooCheap
 // condition.
-func (w *assetWallet) userActionBumpFees(actionB []byte) error {
+func (w *assetWallet) userActionStuckDueToLowFees(actionB []byte) error {
 	var action struct {
-		TxID string `json:"txID"`
-		Bump *bool  `json:"bump"`
+		TxID        string `json:"txID"`
+		Bump        bool   `json:"bump"`
+		NewFeesGwei uint64 `json:"newFees"` // total fee cap in Gwei
+		Abandon     bool   `json:"abandon"`
 	}
 	if err := json.Unmarshal(actionB, &action); err != nil {
 		return fmt.Errorf("error unmarshaling bump action: %v", err)
 	}
-	if action.Bump == nil {
-		return errors.New("no bump value specified")
-	}
-	return w.amendPendingTx(action.TxID, func(txHash common.Hash, tx *types.Transaction, pendingTx *extendedWalletTx, idx int) error {
-		if !*action.Bump {
-			pendingTx.actionIgnored = time.Now()
-			return nil
-		}
 
+	if action.Abandon {
+		// Just drop transaction from our pending list. Note, this transaction might still
+		// be mined in which case we'll either discover this by monitoring blockchain events
+		// or user might need to manually resolve it.
+		w.log.Infof("Abandoning transaction %s via user action", action.TxID)
+		return w.amendPendingTx(action.TxID, func(_ common.Hash, _ *types.Transaction, wt *extendedWalletTx, idx int) error {
+			wt.AssumedLost = true
+			w.tryStoreDBTx(wt)
+			copy(w.pendingTxs[idx:], w.pendingTxs[idx+1:])
+			w.pendingTxs = w.pendingTxs[:len(w.pendingTxs)-1]
+			return nil
+		})
+	}
+
+	if !action.Bump {
+		w.log.Infof("Waiting for transaction %s to finalize on it's own via user action", action.TxID)
+		return w.amendPendingTx(action.TxID, func(txHash common.Hash, _ *types.Transaction, pendingTx *extendedWalletTx, _ int) error {
+			pendingTx.lastActionRejected = time.Now()
+			return nil
+		})
+	}
+
+	w.log.Infof("Bump fees for transaction %s via user action", action.TxID)
+	if action.NewFeesGwei == 0 { // sanity-check to make sure user got & confirmed our estimate in UI
+		return errors.New("no newFees value specified")
+	}
+
+	return w.amendPendingTx(action.TxID, func(txHash common.Hash, tx *types.Transaction, pendingTx *extendedWalletTx, idx int) error {
+		maxFeeRateReasonable := func(maxFeeRate *big.Int) bool {
+			// tolerate ~20% fee difference (not more) between actual max fee rate we are gonna
+			// fee-bump transaction to and max fee rate user signed-off on in UI
+			const acceptableDiff = 0.2
+			maxFeeRateGwei := dexeth.WeiToGwei(maxFeeRate)
+			return float64(maxFeeRateGwei) < (1+acceptableDiff)*float64(action.NewFeesGwei)
+		}
 		nonce := new(big.Int).SetUint64(tx.Nonce())
-		maxFeeRate, tipCap, err := w.recommendedMaxFeeRate(w.ctx)
+		baseRate, tipRate, err := w.currentNetworkFees(w.ctx)
 		if err != nil {
 			return fmt.Errorf("error getting new fee rate: %w", err)
 		}
-		txOpts, err := w.node.txOpts(w.ctx, 0 /* set below */, tx.Gas(), maxFeeRate, tipCap, nonce)
+		// have to bump tipRate too (and set maxFeeRate accordingly) compared to the previously
+		// pending transaction at that nonce (if there is any previous transaction that network still
+		// remembers) - otherwise it will get rejected as "underpriced"
+		bumpedTipRate := new(big.Int).Mul(tipRate, big.NewInt(1+pendingTx.feesBumps))
+		bumpedMaxFeeRate := new(big.Int).Add(baseRate, bumpedTipRate)
+		if !maxFeeRateReasonable(bumpedMaxFeeRate) {
+			w.log.Warnf("Skipping fee bump for tx %s (nonce = %d) since current fee rate is "+
+				"much higher than what user approved", txHash, nonce)
+			return nil
+		}
+		txOpts, err := w.node.txOpts(w.ctx, 0 /* set below */, tx.Gas(), bumpedMaxFeeRate, bumpedTipRate, nonce)
 		if err != nil {
 			return fmt.Errorf("error preparing tx opts: %w", err)
 		}
@@ -4969,11 +4992,14 @@ func (w *assetWallet) userActionNonceReplacement(actionB []byte) error {
 	abandon := *action.Abandon
 	if !abandon && action.ReplacementID == "" { // keep waiting
 		return w.amendPendingTx(action.TxID, func(_ common.Hash, _ *types.Transaction, pendingTx *extendedWalletTx, idx int) error {
-			pendingTx.actionIgnored = time.Now()
+			pendingTx.lastActionRejected = time.Now()
 			return nil
 		})
 	}
-	if abandon { // abandon
+	if abandon {
+		// Just drop transaction from our pending list. Note, this transaction might still
+		// be mined in which case we'll either discover this by monitoring blockchain events
+		// or user might need to manually resolve it.
 		return w.amendPendingTx(action.TxID, func(txHash common.Hash, _ *types.Transaction, wt *extendedWalletTx, idx int) error {
 			w.log.Infof("Abandoning transaction %s via user action", txHash)
 			wt.AssumedLost = true
@@ -5040,19 +5066,31 @@ func (w *assetWallet) userActionRecoverNonces(actionB []byte) error {
 		// they reboot.
 		return nil
 	}
+	// using recommended (user-capped) fee rate here for safety, we don't want to bump fees
+	// uncontrollably for cancel transactions that might not even help address the issue we
+	// are trying to solve with these; still we'll have to bump fees tip without capping and
+	// potentially overflow user-capped fee rate anyway, but that's reasonable thing to do -
+	// in case it's not good enough we'll retry this by asking for user action again later
 	maxFeeRate, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return fmt.Errorf("error getting max fee rate for nonce resolution: %v", err)
 	}
 	w.nonceMtx.Lock()
 	defer w.nonceMtx.Unlock()
-	missingNonces := findMissingNonces(w.confirmedNonceAt, w.pendingNonceAt, w.pendingTxs)
+	missingNonces := findMissingNonces(w.confirmedNonceAt, w.nextNonceAt, w.pendingTxs)
 	if len(missingNonces) == 0 {
 		return nil
 	}
 	for i, n := range missingNonces {
 		nonce := new(big.Int).SetUint64(n)
-		txOpts, err := w.node.txOpts(w.ctx, 0, defaultSendGasLimit, maxFeeRate, tipRate, nonce)
+		// have to bump tipRate too (and set maxFeeRate accordingly) compared to the previously
+		// pending transaction at that nonce (if there is any previous transaction that network still
+		// remembers) - otherwise it will get rejected as "underpriced", note we don't really know
+		// what the tip rate previous transaction used - hence assume 2x of currently suggested
+		// network would be enough (if not, we'll probably have to wait for network to drop this tx)
+		bumpedTipRate := new(big.Int).Mul(tipRate, big.NewInt(2))
+		bumpedMaxFeeRate := new(big.Int).Add(maxFeeRate, bumpedTipRate)
+		txOpts, err := w.node.txOpts(w.ctx, 0, defaultSendGasLimit, bumpedMaxFeeRate, bumpedTipRate, nonce)
 		if err != nil {
 			return fmt.Errorf("error getting tx opts for nonce resolution: %v", err)
 		}
@@ -5110,7 +5148,7 @@ func (w *baseWallet) requestAction(actionID, uniqueID string, req *TransactionAc
 func (w *assetWallet) TakeAction(actionID string, actionB []byte) error {
 	switch actionID {
 	case actionTypeTooCheap:
-		return w.userActionBumpFees(actionB)
+		return w.userActionStuckDueToLowFees(actionB)
 	case actionTypeMissingNonces:
 		return w.userActionRecoverNonces(actionB)
 	case actionTypeLostNonce:

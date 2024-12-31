@@ -42,14 +42,18 @@ type extendedWalletTx struct {
 	// ActionRequiredNote.
 	AssumedLost bool `json:"assumedLost,omitempty"`
 
-	txHash          common.Hash
-	lastCheck       uint64
-	savedToDB       bool
-	lastBroadcast   time.Time
-	lastFeeCheck    time.Time
-	actionRequested bool
-	actionIgnored   time.Time
-	indexed         bool
+	txHash             common.Hash
+	lastCheck          uint64
+	savedToDB          bool
+	lastBroadcast      time.Time
+	lastFeeCheck       time.Time
+	actionRequested    bool
+	lastActionRejected time.Time
+	indexed            bool
+	// feesBumps counts how many fee increases we tried for this transaction, this
+	// is used to make sure every next bump pays higher fee than previous ones since
+	// otherwise network will not accept replacement transaction "due to low fee"
+	feesBumps int64
 }
 
 func (t *extendedWalletTx) age() time.Duration {
