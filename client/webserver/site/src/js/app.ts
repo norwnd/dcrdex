@@ -758,14 +758,17 @@ export default class Application {
     const { name } = this.assets[assetID]
     tmpl.assetName.textContent = name
     tmpl.txTable.appendChild(this.actionTxTable(req))
-    const act = (bump: boolean) => {
+    const act = (bump: boolean, abandon: boolean) => {
       this.submitAction(req, {
         txID: n.tx.id,
-        bump
+        bump: bump,
+        newFees: n.newFees,
+        abandon: abandon
       }, tmpl.errMsg)
     }
-    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false))
-    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true))
+    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false, false))
+    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true, false))
+    Doc.bind(tmpl.abandonBttn, 'click', () => act(false, true))
     return div
   }
 
