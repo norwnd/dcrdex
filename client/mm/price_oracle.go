@@ -260,13 +260,27 @@ func fetchMarketPrice(ctx context.Context, baseID, quoteID uint32, log dex.Logge
 	if err != nil {
 		return 0, nil, err
 	}
-
 	q, err := coinpapAsset(quoteID)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	oracles, err := oracleMarketReport(ctx, b, q, log)
+	price, oracles, fetchPriceErr := fetchPriceForMarket(ctx, b, q, log)
+	if fetchPriceErr == nil {
+		return price, oracles, nil // market exists and we've got meaningful price for it
+	}
+	price, oracles, derivePriceErr := derivePriceForMarket(ctx, b, q, log)
+	if derivePriceErr == nil {
+		return price, oracles, nil // we've managed to derive meaningful price for this pair
+	}
+	return 0, nil, fmt.Errorf("%v, %v", fetchPriceErr, derivePriceErr)
+}
+
+// fetchPriceForMarket returns market price for base-quote market in case this market
+// exists, or 0 if it doesn't. Returned error (when non-nil) describes why market price
+// couldn't be fetched.
+func fetchPriceForMarket(ctx context.Context, base, quote *fiatrates.CoinpaprikaAsset, log dex.Logger) (float64, []*OracleReport, error) {
+	oracles, err := oracleMarketReport(ctx, base, quote, log)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -276,13 +290,99 @@ func fetchMarketPrice(ctx context.Context, baseID, quoteID uint32, log dex.Logge
 		return 0, nil, err
 	}
 	if usdVolume < minimumUSDVolumeForOraclesAvg {
-		log.Meter("oracle_low_volume_"+b.Symbol+"_"+q.Symbol, 12*time.Hour).Infof(
-			"Rejecting oracle average price for %s. not enough volume (%.2f USD < %.2f)",
-			b.Symbol+"_"+q.Symbol, usdVolume, float32(minimumUSDVolumeForOraclesAvg),
+		err = fmt.Errorf(
+			"rejecting oracle average price for %s. not enough volume (%.2f USD < %.2f)",
+			base.Symbol+"_"+quote.Symbol, usdVolume, float32(minimumUSDVolumeForOraclesAvg),
 		)
-		return 0, oracles, nil
+		log.Meter("oracle_low_volume_"+base.Symbol+"_"+quote.Symbol, 12*time.Hour).Infof(err.Error())
+		return 0, oracles, err
 	}
-	return price, oracles, err
+	return price, oracles, nil
+}
+
+// derivePriceForMarket returns market price for base-quote market derived from base-USDT &
+// quote-USDT markets, or 0 if it can't derive it. Returned error (when non-nil) describes why
+// market price couldn't be derived.
+func derivePriceForMarket(ctx context.Context, base, quote *fiatrates.CoinpaprikaAsset, log dex.Logger) (float64, []*OracleReport, error) {
+	// using Polygon USDT here - but we only really need the USDT part (doesn't matter which network it is)
+	const assetIDUSDT = 966004
+	usdtPolygon, err := coinpapAsset(assetIDUSDT)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	bOracles, err := oracleMarketReport(ctx, base, usdtPolygon, log)
+	if err != nil {
+		return 0, nil, err
+	}
+	bUSDTprice, bUSDVolume, err := oracleAverage(bOracles, log)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	qOracles, err := oracleMarketReport(ctx, quote, usdtPolygon, log)
+	if err != nil {
+		return 0, nil, err
+	}
+	qUSDTprice, qUSDVolume, err := oracleAverage(qOracles, log)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// merge oracles for these 2 markets to represent a sort of "combined" oracles
+	combinedOracles := make([]*OracleReport, 0, len(bOracles))
+	findOracle := func(host string, list []*OracleReport) (result *OracleReport, ok bool) {
+		for _, o := range list {
+			if o.Host == host {
+				return o, true
+			}
+		}
+		return nil, false
+	}
+	for _, bOracle := range bOracles {
+		qOracle, ok := findOracle(bOracle.Host, qOracles)
+		if !ok {
+			continue
+		}
+		combinedOracle := &OracleReport{
+			Host:     bOracle.Host,
+			USDVol:   min(bOracle.USDVol, qOracle.USDVol),
+			BestBuy:  0, // calculated below
+			BestSell: 0, // calculated below
+		}
+		if qOracle.BestBuy > 0 {
+			combinedOracle.BestBuy = bOracle.BestBuy / qOracle.BestBuy
+		}
+		if qOracle.BestSell > 0 {
+			combinedOracle.BestSell = bOracle.BestBuy / qOracle.BestSell
+		}
+		combinedOracles = append(combinedOracles, combinedOracle)
+	}
+
+	if bUSDTprice == 0 {
+		return 0, combinedOracles, fmt.Errorf("average price for %s-%s is zero", base.Symbol, usdtPolygon.Symbol)
+	}
+	if qUSDTprice == 0 {
+		return 0, combinedOracles, fmt.Errorf("average price for %s-%s is zero", quote.Symbol, usdtPolygon.Symbol)
+	}
+	if bUSDVolume < minimumUSDVolumeForOraclesAvg {
+		err = fmt.Errorf(
+			"rejecting oracle average price for %s. not enough volume (%.2f USD < %.2f)",
+			base.Symbol+"_"+usdtPolygon.Symbol, bUSDVolume, float32(minimumUSDVolumeForOraclesAvg),
+		)
+		log.Meter("oracle_low_volume_"+base.Symbol+"_"+usdtPolygon.Symbol, 12*time.Hour).Infof(err.Error())
+		return 0, combinedOracles, err
+	}
+	if qUSDVolume < minimumUSDVolumeForOraclesAvg {
+		err = fmt.Errorf(
+			"rejecting oracle average price for %s. not enough volume (%.2f USD < %.2f)",
+			quote.Symbol+"_"+usdtPolygon.Symbol, qUSDVolume, float32(minimumUSDVolumeForOraclesAvg),
+		)
+		log.Meter("oracle_low_volume_"+quote.Symbol+"_"+usdtPolygon.Symbol, 12*time.Hour).Infof(err.Error())
+		return 0, combinedOracles, err
+	}
+
+	return bUSDTprice / qUSDTprice, combinedOracles, nil
 }
 
 func oracleAverage(mkts []*OracleReport, log dex.Logger) (rate, usdVolume float64, _ error) {
@@ -304,12 +404,12 @@ func oracleAverage(mkts []*OracleReport, log dex.Logger) (rate, usdVolume float6
 }
 
 func getRates(ctx context.Context, url string, thing any) (err error) {
-	return dexnet.Get(ctx, url, thing, dexnet.WithSizeLimit(1<<22))
+	return dexnet.Get(ctx, url, thing, dexnet.WithSizeLimit(1<<26))
 }
 
 func getHTTPWithCode(ctx context.Context, url string, thing any) (int, error) {
 	var code int
-	return code, dexnet.Get(ctx, url, thing, dexnet.WithSizeLimit(1<<22), dexnet.WithStatusFunc(func(c int) { code = c }))
+	return code, dexnet.Get(ctx, url, thing, dexnet.WithSizeLimit(1<<26), dexnet.WithStatusFunc(func(c int) { code = c }))
 }
 
 // Truncates the URL to the domain name and TLD.
@@ -373,9 +473,9 @@ func oracleMarketReport(ctx context.Context, b, q *fiatrates.CoinpaprikaAsset, l
 	}
 
 	var rawMarkets []*coinpapMarket
-	url := fmt.Sprintf("https://api.coinpaprika.com/v1/coins/%s/markets", baseSlug)
-	if err := getRates(ctx, url, &rawMarkets); err != nil {
-		return nil, err
+	reqUrl := fmt.Sprintf("https://api.coinpaprika.com/v1/coins/%s/markets", baseSlug)
+	if err := getRates(ctx, reqUrl, &rawMarkets); err != nil {
+		return nil, fmt.Errorf("error getting rates for URL %s : %w", reqUrl, err)
 	}
 
 	convertIfNecessary := func(addr, slug string) string {

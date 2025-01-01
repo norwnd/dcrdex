@@ -36,6 +36,8 @@ func parseCoinpapNameSymbol(name, symbol string) (string, string) {
 		symbol, network = parts[0], parts[1]
 	}
 	switch symbol {
+	case "usdt":
+		name = "tether"
 	case "usdc":
 		name = "usd-coin"
 	case "polygon":
@@ -98,5 +100,5 @@ func FetchCoinpaprikaRates(ctx context.Context, assets []*CoinpaprikaAsset, log 
 }
 
 func getRates(ctx context.Context, uri string, thing any) error {
-	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<22))
+	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<26))
 }
