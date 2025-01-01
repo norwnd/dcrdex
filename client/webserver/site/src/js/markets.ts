@@ -1983,7 +1983,7 @@ export default class MarketsPage extends BasePage {
 
     let completedUserOrders = []
     let fresherThanUnixMs = 0 // default, means not showing completed orders history
-    if (period === completedOrderHistoryDuration1w) {
+    if (period === completedOrderHistoryDuration1d) {
       const day = 24 * 60 * 60 * 1000
       fresherThanUnixMs = now.getTime() - day
     }
@@ -2004,7 +2004,7 @@ export default class MarketsPage extends BasePage {
         hosts: [host],
         market: { baseID: b.id, quoteID: q.id },
         statuses: [OrderUtil.StatusUnknown, OrderUtil.StatusExecuted, OrderUtil.StatusCanceled, OrderUtil.StatusRevoked],
-        filledOnly: true
+        completedOnly: true
       }
       const res = await postJSON('/api/orders', filter)
       completedUserOrders = res.orders || []

@@ -1120,10 +1120,10 @@ func (db *BoltDB) Orders(orderFilter *dexdb.OrderFilter) (ords []*dexdb.MetaOrde
 		}
 	}
 
-	if orderFilter.FilledOnly {
-		filledOrders, err := db.filledOrders()
+	if orderFilter.CompletedOnly {
+		completedOrders, err := db.completedOrders()
 		if err != nil {
-			return nil, fmt.Errorf("filledOrders: %w", err)
+			return nil, fmt.Errorf("completedOrders: %w", err)
 		}
 		filters = append(filters, func(oidB []byte, oBkt *bbolt.Bucket) bool {
 			oid, err := order.IDFromBytes(oidB)
@@ -1131,7 +1131,7 @@ func (db *BoltDB) Orders(orderFilter *dexdb.OrderFilter) (ords []*dexdb.MetaOrde
 				db.log.Error("couldn't parse order ID bytes: %x", oidB)
 				return false
 			}
-			_, ok := filledOrders[oid]
+			_, ok := completedOrders[oid]
 			return ok
 		})
 	}
@@ -1575,14 +1575,17 @@ func (db *BoltDB) MatchesForOrder(oid order.OrderID, excludeCancels bool) ([]*de
 	}, excludeCancels, true) // include archived matches
 }
 
-// filledOrders returns a set of fully filled or partially filled orders. Order is partially
+// completedOrders returns a set of fully filled or partially filled orders. Order is partially
 // filled if it has at least 1 non-cancel match with non-zero quantity.
-func (db *BoltDB) filledOrders() (map[order.OrderID]struct{}, error) {
+func (db *BoltDB) completedOrders() (map[order.OrderID]struct{}, error) {
 	matches, err := db.filteredMatchesDecoded(func(match *dexdb.MetaMatch) bool {
-		// cancel order matches have an empty Address field, we don't want to count these
-		// hence skip
 		if match.Address == "" {
+			// cancel order matches have an empty Address field, we don't want to count these
+			// hence skip
 			return false
+		}
+		if dexdb.MatchIsActive(match.UserMatch, &match.MetaData.Proof) {
+			return false // active match means order isn't "completed" yet
 		}
 		return match.Quantity > 0 // means corresponding order is filled at least partially
 	}, false, true) // include archived matches

@@ -4942,7 +4942,7 @@ func (c *Core) Orders(filter *OrderFilter) ([]*Order, error) {
 		Assets:            filter.Assets,
 		Market:            mkt,
 		Statuses:          filter.Statuses,
-		FilledOnly:        filter.FilledOnly,
+		CompletedOnly:     filter.CompletedOnly,
 		FresherThanUnixMs: filter.FresherThanUnixMs,
 	})
 	if err != nil {
