@@ -360,6 +360,27 @@ func (s *WebServer) handleExportOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	nStr := r.Form.Get("n")
+	if nStr != "" {
+		n, err := strconv.ParseInt(nStr, 10, 32)
+		if err != nil {
+			log.Errorf("error parsing N: %v", err)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		filter.N = int(n)
+	}
+	fresherThanUnixMsStr := r.Form.Get("fresherThanUnixMs")
+	if fresherThanUnixMsStr != "" {
+		fresherThanUnixMs, err := strconv.ParseUint(fresherThanUnixMsStr, 10, 64)
+		if err != nil {
+			log.Errorf("error parsing fresherThanUnixMs: %v", err)
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		filter.FresherThanUnixMs = fresherThanUnixMs
+	}
+
 	filter.Hosts = r.Form["hosts"]
 	assets := r.Form["assets"]
 	filter.Assets = make([]uint32, len(assets))
@@ -383,6 +404,7 @@ func (s *WebServer) handleExportOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.Statuses[k] = order.OrderStatus(statusNumID)
 	}
+	filter.FilledOnly = r.Form.Get("filledOnly") == "true"
 
 	ords, err := s.core.Orders(filter)
 	if err != nil {

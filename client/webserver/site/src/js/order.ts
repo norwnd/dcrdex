@@ -46,7 +46,7 @@ export default class OrderPage extends BasePage {
 
     const setStamp = () => {
       for (const span of this.stampers) {
-        span.textContent = Doc.timeSince(parseInt(span.dataset.stamp || ''))
+        span.textContent = Doc.ageSinceFromMs(parseInt(span.dataset.stamp || ''))
       }
     }
     setStamp()
@@ -159,7 +159,7 @@ export default class OrderPage extends BasePage {
     })
 
     tmpl.matchTimeAgo.dataset.stamp = match.stamp.toString()
-    tmpl.matchTimeAgo.textContent = Doc.timeSince(match.stamp)
+    tmpl.matchTimeAgo.textContent = Doc.ageSinceFromMs(match.stamp)
     this.stampers.push(tmpl.matchTimeAgo)
 
     const orderPortion = OrderUtil.orderPortion(this.order, match)
@@ -175,10 +175,10 @@ export default class OrderPage extends BasePage {
       Doc.hide(tmpl.infoDiv, tmpl.status, tmpl.statusHdr)
 
       if (this.order.sell) {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.baseID)
       } else {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.quoteID)
       }
 
@@ -240,14 +240,14 @@ export default class OrderPage extends BasePage {
 
     if (this.order.sell) {
       tmpl.refundAsset.textContent = baseSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.baseID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.quoteID)
     } else {
       tmpl.refundAsset.textContent = quoteSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.quoteID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.baseID)
     }
@@ -410,17 +410,6 @@ export default class OrderPage extends BasePage {
     order.matches.forEach((match) => this.addNewMatchCard(match))
   }
 
-  /* showCancel shows a form to confirm submission of a cancel order. */
-  showCancel () {
-    const order = this.order
-    const page = this.page
-    const remaining = order.qty - order.filled
-    const asset = OrderUtil.isMarketBuy(order) ? app().assets[order.quoteID] : app().assets[order.baseID]
-    page.cancelRemain.textContent = Doc.formatCoinValue(remaining, asset.unitInfo)
-    page.cancelUnit.textContent = asset.unitInfo.conventional.unit.toUpperCase()
-    this.showForm(page.cancelForm)
-  }
-
   /* showForm shows a modal form with a little animation. */
   async showForm (form: HTMLElement) {
     this.currentForm = form
@@ -466,9 +455,9 @@ export default class OrderPage extends BasePage {
   /* showAccelerateForm shows a form to accelerate an order */
   async showAccelerateForm () {
     const loaded = app().loading(this.page.accelerateBttn)
-    this.accelerateOrderForm.refresh(this.order)
+    await this.accelerateOrderForm.refresh(this.order)
     loaded()
-    this.showForm(this.page.accelerateForm)
+    await this.showForm(this.page.accelerateForm)
   }
 
   /*

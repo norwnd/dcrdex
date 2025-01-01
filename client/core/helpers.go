@@ -299,7 +299,7 @@ func (ord *OrderReader) StatusString() string {
 			return "cancelling"
 		}
 		if isLive {
-			return "booked/settling"
+			return "settling"
 		}
 		return "booked"
 	case order.OrderStatusExecuted:
@@ -312,12 +312,12 @@ func (ord *OrderReader) StatusString() string {
 		return "executed"
 	case order.OrderStatusCanceled:
 		if isLive {
-			return "canceled/settling"
+			return "settling"
 		}
 		return "canceled"
 	case order.OrderStatusRevoked:
 		if isLive {
-			return "revoked/settling"
+			return "settling"
 		}
 		return "revoked"
 	}

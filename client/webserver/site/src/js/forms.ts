@@ -789,7 +789,7 @@ export class WalletConfigForm {
  */
 export class ConfirmRegistrationForm {
   form: HTMLElement
-  success: () => void
+  success: () => Promise<void>
   page: Record<string, PageElement>
   xc: Exchange
   certFile: string
@@ -797,7 +797,7 @@ export class ConfirmRegistrationForm {
   tier: number
   fees: number
 
-  constructor (form: HTMLElement, success: () => void, goBack: () => void) {
+  constructor (form: HTMLElement, success: () => Promise<void>, goBack: () => Promise<void>) {
     this.form = form
     this.success = success
     this.page = Doc.parseTemplate(form)
@@ -893,7 +893,7 @@ export class ConfirmRegistrationForm {
       Doc.show(page.regErr)
       return
     }
-    this.success()
+    await this.success()
   }
 }
 
@@ -1103,11 +1103,11 @@ export class FeeAssetSelectionForm {
       return
     }
     page.tradingTierInput.value = String(tier)
-    page.bondSizeDisplay.textContent = Doc.formatCoinValue(bondAsset.amount, ui)
+    page.bondSizeDisplay.textContent = Doc.formatCoinAtom(bondAsset.amount, ui)
     for (const el of Doc.applySelector(page.tradingTierForm, '[data-tier]')) el.textContent = String(tier)
     for (const el of Doc.applySelector(page.tradingTierForm, '[data-bond-asset-ticker]')) el.textContent = unit
     const bondLock = bondAsset.amount * tier * bondReserveMultiplier
-    page.bondLockDisplay.textContent = Doc.formatCoinValue(bondLock, ui)
+    page.bondLockDisplay.textContent = Doc.formatCoinAtom(bondLock, ui)
     const fiatRate = app().fiatRatesMap[assetID]
     if (fiatRate) page.fiatLockDisplay.textContent = Doc.formatFourSigFigs(bondLock / conversionFactor * fiatRate)
     for (const m of Object.values(this.marketRows)) m.setTier(tier)
@@ -1131,7 +1131,7 @@ export class FeeAssetSelectionForm {
         const tmpl = Doc.parseTemplate(tr)
         tmpl.icon.src = Doc.logoPath(symbol)
         tmpl.name.textContent = name
-        tmpl.amt.textContent = Doc.formatCoinValue(bondLocked, ui)
+        tmpl.amt.textContent = Doc.formatCoinAtom(bondLocked, ui)
         tmpl.ticker.textContent = unit
         tmpl.name.textContent = name
         const fiatRate = app().fiatRatesMap[assetID]
@@ -1232,8 +1232,7 @@ function setReadyMessage (el: PageElement, asset: SupportedAsset) {
  */
 export class WalletWaitForm {
   form: HTMLElement
-  success: () => void
-  goBack: () => void
+  success: () => Promise<void>
   page: Record<string, PageElement>
   assetID: number
   parentID?: number
@@ -1246,7 +1245,7 @@ export class WalletWaitForm {
   bondFeeBuffer: number // in parent asset
   parentAssetSynced: boolean
 
-  constructor (form: HTMLElement, success: () => void, goBack: () => void) {
+  constructor (form: HTMLElement, success: () => Promise<void>, goBack: () => Promise<void>) {
     this.form = form
     this.success = success
     this.page = Doc.parseTemplate(form)
@@ -1277,7 +1276,7 @@ export class WalletWaitForm {
   }
 
   /* setWallet must be called before showing the WalletWaitForm. */
-  setWallet (assetID: number, bondFeeBuffer: number, tier: number) {
+  async setWallet (assetID: number, bondFeeBuffer: number, tier: number) {
     this.assetID = assetID
     this.progressCache = []
     this.progressed = false
@@ -1305,11 +1304,11 @@ export class WalletWaitForm {
     let bondLock = 2 * bondAsset.amount * tier
     if (bondFeeBuffer > 0) {
       Doc.show(page.bondCostBreakdown)
-      page.bondLockNoFees.textContent = Doc.formatCoinValue(bondLock, ui)
-      page.bondLockFees.textContent = Doc.formatCoinValue(bondFeeBuffer, ui)
+      page.bondLockNoFees.textContent = Doc.formatCoinAtom(bondLock, ui)
+      page.bondLockFees.textContent = Doc.formatCoinAtom(bondFeeBuffer, ui)
       bondLock += bondFeeBuffer
       const need = Math.max(bondLock - bal.available + bal.reservesDeficit, 0)
-      page.totalForBond.textContent = Doc.formatCoinValue(need, ui)
+      page.totalForBond.textContent = Doc.formatCoinAtom(need, ui)
       Doc.hide(page.sendEnough) // generic msg when no fee info available when
       Doc.hide(page.txFeeBox, page.sendEnoughForToken, page.txFeeBalanceBox) // for tokens
       Doc.hide(page.sendEnoughWithEst) // non-tokens
@@ -1317,17 +1316,17 @@ export class WalletWaitForm {
       if (token) {
         Doc.show(page.txFeeBox, page.sendEnoughForToken, page.txFeeBalanceBox)
         const parentAsset = app().assets[token.parentID]
-        page.txFee.textContent = Doc.formatCoinValue(bondFeeBuffer, parentAsset.unitInfo)
-        page.parentFees.textContent = Doc.formatCoinValue(bondFeeBuffer, parentAsset.unitInfo)
-        page.tokenFees.textContent = Doc.formatCoinValue(need, ui)
+        page.txFee.textContent = Doc.formatCoinAtom(bondFeeBuffer, parentAsset.unitInfo)
+        page.parentFees.textContent = Doc.formatCoinAtom(bondFeeBuffer, parentAsset.unitInfo)
+        page.tokenFees.textContent = Doc.formatCoinAtom(need, ui)
         symbolize(page.txFeeUnit, parentAsset)
         symbolize(page.parentUnit, parentAsset)
         symbolize(page.parentBalUnit, parentAsset)
-        page.parentBal.textContent = parentAsset.wallet ? Doc.formatCoinValue(parentAsset.wallet.balance.available, parentAsset.unitInfo) : '0'
+        page.parentBal.textContent = parentAsset.wallet ? Doc.formatCoinAtom(parentAsset.wallet.balance.available, parentAsset.unitInfo) : '0'
       } else {
         Doc.show(page.sendEnoughWithEst)
       }
-      page.fee.textContent = Doc.formatCoinValue(bondLock, ui)
+      page.fee.textContent = Doc.formatCoinAtom(bondLock, ui)
     } else { // show some generic message with no amounts, this shouldn't happen... show wallet error?
       Doc.show(page.sendEnough)
     }
@@ -1340,36 +1339,36 @@ export class WalletWaitForm {
     if (synced) {
       this.progressed = true
     }
-    this.reportBalance(assetID)
+    await this.reportBalance(assetID)
   }
 
   /*
    * reportWalletState sets the progress and balance, ultimately calling the
    * success function if conditions are met.
    */
-  reportWalletState (wallet: WalletState) {
+  async reportWalletState (wallet: WalletState) {
     if (this.progressed && this.funded) return
-    if (wallet.assetID === this.assetID) this.reportProgress(wallet.synced, wallet.syncProgress)
-    this.reportBalance(wallet.assetID)
+    if (wallet.assetID === this.assetID) await this.reportProgress(wallet.synced, wallet.syncProgress)
+    await this.reportBalance(wallet.assetID)
   }
 
   /*
    * reportBalance sets the balance display and calls success if we go over the
    * threshold.
    */
-  reportBalance (assetID: number) {
+  async reportBalance (assetID: number) {
     if (this.funded || this.assetID === -1) return
     if (assetID !== this.assetID && assetID !== this.parentID) return
     const page = this.page
     const asset = app().assets[this.assetID]
 
     const avail = asset.wallet.balance.available
-    page.balance.textContent = Doc.formatCoinValue(avail, asset.unitInfo)
+    page.balance.textContent = Doc.formatCoinAtom(avail, asset.unitInfo)
 
     if (asset.token) {
       const parentAsset = app().assets[asset.token.parentID]
       const parentAvail = parentAsset.wallet.balance.available
-      page.parentBal.textContent = Doc.formatCoinValue(parentAvail, parentAsset.unitInfo)
+      page.parentBal.textContent = Doc.formatCoinAtom(parentAvail, parentAsset.unitInfo)
       if (parentAvail < this.bondFeeBuffer) return
     }
 
@@ -1381,21 +1380,21 @@ export class WalletWaitForm {
     Doc.show(page.balCheck)
     Doc.hide(page.balUncheck, page.balanceBox, page.sendEnough)
     this.funded = true
-    if (this.progressed) this.success()
+    if (this.progressed) await this.success()
   }
 
   /*
    * reportProgress sets the progress display and calls success if we are fully
    * synced.
    */
-  reportProgress (synced: boolean, prog: number) {
+  async reportProgress (synced: boolean, prog: number) {
     const page = this.page
     if (synced) {
       page.progress.textContent = '100'
       Doc.hide(page.syncUncheck, page.syncRemainBox, page.syncSpinner)
       Doc.show(page.syncCheck)
       this.progressed = true
-      if (this.funded) this.success()
+      if (this.funded) await this.success()
       return
     } else if (prog === 1) {
       Doc.hide(page.syncUncheck)
@@ -1573,7 +1572,7 @@ export class AccelerateOrderForm {
     })
     Doc.empty(page.sliderContainer)
     page.sliderContainer.appendChild(rangeHandler.control)
-    this.updateAccelerationEstimate()
+    await this.updateAccelerationEstimate()
   }
 
   // updateAccelerationEstimate makes an accelerate estimate request to the
@@ -2096,14 +2095,14 @@ export class TokenApprovalForm {
     } else {
       const { unitInfo: ui, wallet: { address, balance: { available: avail } }, name: parentName } = app().assets[parentID]
       const txFee = this.txFee = res.txFee as number
-      let feeText = `${Doc.formatCoinValue(txFee, ui)} ${ui.conventional.unit}`
+      let feeText = `${Doc.formatCoinAtom(txFee, ui)} ${ui.conventional.unit}`
       const rate = app().fiatRatesMap[parentID]
       if (rate) {
         feeText += ` (${Doc.formatFiatConversion(txFee, rate, ui)} USD)`
       }
       page.feeEstimate.textContent = feeText
       Doc.show(page.balanceBox)
-      page.balance.textContent = Doc.formatCoinValue(avail, ui)
+      page.balance.textContent = Doc.formatCoinAtom(avail, ui)
       page.parentTicker.textContent = ui.conventional.unit
       page.parentName.textContent = parentName
       if (avail < txFee) {
@@ -2142,7 +2141,7 @@ export class TokenApprovalForm {
   handleBalanceNote (n: BalanceNote) {
     const { page, parentID, txFee } = this
     if (n.assetID !== parentID) return
-    page.balance.textContent = Doc.formatCoinValue(n.balance.available, app().assets[parentID].unitInfo)
+    page.balance.textContent = Doc.formatCoinAtom(n.balance.available, app().assets[parentID].unitInfo)
     if (n.balance.available >= txFee) {
       Doc.hide(page.addressBox)
     } else Doc.hide(page.errMsg)

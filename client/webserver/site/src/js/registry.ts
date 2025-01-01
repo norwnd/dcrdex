@@ -6,7 +6,7 @@ declare global {
     dumpLogger: (loggerID: string) => void
     mmstatus: () => Promise<MarketMakingStatus>
     testFormatFourSigFigs: () => void
-    testFormatRateFullPrecision: () => void
+    testFormatRateAtomToRateStep: () => void
     user: () => User
     cexBook: () => Promise<void>
     mmStatus: () => MarketMakingStatus
@@ -72,10 +72,10 @@ export interface Candle {
   endStamp: number
   matchVolume: number
   quoteVolume: number
-  highRate: number
-  lowRate: number
-  startRate: number
-  endRate: number
+  highRate: number // in atoms
+  lowRate: number // in atoms
+  startRate: number // in atoms
+  endRate: number // in atoms
 }
 
 export interface CandlesPayload {
@@ -90,15 +90,14 @@ export interface Market {
   basesymbol: string
   quoteid: number
   quotesymbol: string
-  lotsize: number
+  lotsize: number // in atoms, in base currency
   parcelsize: number
-  ratestep: number
+  ratestep: number // in atoms
   epochlen: number
   startepoch: number
   buybuffer: number
   orders: Order[]
   spot: Spot | undefined
-  atomToConv: number
   inflight: InFlightOrder[]
   minimumRate: number
 }
@@ -142,8 +141,8 @@ export interface Match {
   status: number
   active: boolean
   revoked: boolean
-  rate: number
-  qty: number
+  rate: number // in atoms
+  qty: number // in atoms
   side: number
   feeRate: number
   swap: Coin
@@ -159,12 +158,12 @@ export interface Spot {
   stamp: number
   baseID: number
   quoteID: number
-  rate: number
+  rate: number // in atoms
   bookVolume: number // Unused?
   change24: number
   vol24: number
-  low24: number
-  high24: number
+  low24: number // in atoms
+  high24: number // in atoms
 }
 
 export interface Asset {
@@ -246,7 +245,7 @@ export interface WalletState {
   version: number
   type: string
   traits: number
-  open: boolean
+  open: boolean // no longer used in UI
   running: boolean
   disabled: boolean
   balance: WalletBalance
@@ -566,9 +565,9 @@ export interface OrderNote extends CoreNote {
 }
 
 export interface RecentMatch {
-  rate: number
-  qty: number
-  stamp: number
+  rate: number // in atoms
+  qty: number // in atoms
+  stamp: number // in milliseconds
   sell: boolean
 }
 
@@ -618,6 +617,8 @@ export interface PageElement extends HTMLElement {
   options?: HTMLOptionElement[]
   selectedIndex?: number
   disabled?: boolean
+  min?: string
+  step?: string
 }
 
 export interface BooleanConfig {
@@ -694,8 +695,8 @@ export interface TradeForm {
   sell: boolean
   base: number
   quote: number
-  qty: number
-  rate: number
+  qty: number // in atoms, could be in either base (for sell-order) or quote (for buy-order) currency
+  rate: number // in atoms
   tifnow: boolean
   options: Record<string, any>
 }
@@ -712,8 +713,8 @@ export interface MiniOrder {
   id: string
   qty: number
   qtyAtomic: number
-  rate: number
-  msgRate: number
+  rate: number // conventional
+  msgRate: number // in atoms
   epoch: number
   sell: boolean
 }
@@ -744,11 +745,13 @@ export interface OrderFilterMarket {
 
 export interface OrderFilter {
   n?: number
+  fresherThanUnixMs?: number
   offset?: string
   hosts?: string[]
   assets?: number[]
   market?: OrderFilterMarket
   statuses?: number[]
+  filledOnly?: boolean
 }
 
 export interface OrderPlacement {
@@ -1270,7 +1273,8 @@ export interface Application {
   user: User
   mmStatus: MarketMakingStatus
   header: HTMLElement
-  headerSpace: HTMLElement
+  mmTitle: HTMLElement
+  marketStats: HTMLElement
   walletMap: Record<number, WalletState>
   exchanges: Record<string, Exchange>
   fiatRatesMap: Record<number, number>
@@ -1304,7 +1308,7 @@ export interface Application {
   prependNoteElement (note: CoreNote, skipSave?: boolean): void
   prependListElement (noteList: HTMLElement, note: CoreNote, el: NoteElement): void
   loading (el: HTMLElement): () => void
-  orders (host: string, mktID: string): Order[]
+  recentOrders (host: string, mktID: string): Order[]
   haveActiveOrders (assetID: number): boolean
   order (oid: string): Order | null
   canAccelerateOrder(order: Order): boolean

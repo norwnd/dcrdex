@@ -58,20 +58,20 @@ export default class RegistrationPage extends BasePage {
 
     // ADD DEX
     this.dexAddrForm = new DEXAddressForm(page.dexAddrForm, async (xc, certFile) => {
-      this.requestFeepayment(page.dexAddrForm, xc, certFile)
+      await this.requestFeepayment(page.dexAddrForm, xc, certFile)
     })
 
     const addr = page.discoverAcctForm.dataset.host
     if (addr) {
       this.discoverAcctForm = new DiscoverAccountForm(page.discoverAcctForm, addr, async (xc) => {
-        this.requestFeepayment(page.discoverAcctForm, xc, '')
+        await this.requestFeepayment(page.discoverAcctForm, xc, '')
       })
     }
 
     // SELECT REG ASSET
     this.regAssetForm = new FeeAssetSelectionForm(page.regAssetForm, async (assetID: number, tier: number) => {
       if (assetID === PrepaidBondID) {
-        this.registerDEXSuccess()
+        await this.registerDEXSuccess()
         return
       }
       const asset = app().assets[assetID]
@@ -81,27 +81,27 @@ export default class RegistrationPage extends BasePage {
         const bondsFeeBuffer = await this.getBondsFeeBuffer(assetID, page.regAssetForm)
         this.confirmRegisterForm.setAsset(assetID, tier, bondsFeeBuffer)
         if (wallet.synced && wallet.balance.available >= 2 * bondAsset.amount + bondsFeeBuffer) {
-          this.animateConfirmForm(page.regAssetForm)
+          await this.animateConfirmForm(page.regAssetForm)
           return
         }
-        this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
-        slideSwap(page.regAssetForm, page.walletWait)
+        await this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
+        await slideSwap(page.regAssetForm, page.walletWait)
         return
       }
       this.confirmRegisterForm.tier = tier
-      this.newWalletForm.setAsset(assetID)
-      slideSwap(page.regAssetForm, page.newWalletForm)
+      await this.newWalletForm.setAsset(assetID)
+      await slideSwap(page.regAssetForm, page.newWalletForm)
     })
 
-    this.walletWaitForm = new WalletWaitForm(page.walletWait, () => {
-      this.animateConfirmForm(page.walletWait)
-    }, () => { this.animateRegAsset(page.walletWait) })
+    this.walletWaitForm = new WalletWaitForm(page.walletWait, async () => {
+      await this.animateConfirmForm(page.walletWait)
+    }, async () => { await this.animateRegAsset(page.walletWait) })
 
     // SUBMIT DEX REGISTRATION
-    this.confirmRegisterForm = new ConfirmRegistrationForm(page.confirmRegForm, () => {
-      this.registerDEXSuccess()
-    }, () => {
-      this.animateRegAsset(page.confirmRegForm)
+    this.confirmRegisterForm = new ConfirmRegistrationForm(page.confirmRegForm, async () => {
+      await this.registerDEXSuccess()
+    }, async () => {
+      await this.animateRegAsset(page.confirmRegForm)
     })
 
     const currentForm = Doc.safeSelector(page.forms, ':scope > form.selected')
@@ -135,19 +135,19 @@ export default class RegistrationPage extends BasePage {
     this.confirmRegisterForm.setExchange(xc, certFile)
     this.walletWaitForm.setExchange(xc)
     this.regAssetForm.setExchange(xc, certFile)
-    this.animateRegAsset(oldForm)
+    await this.animateRegAsset(oldForm)
   }
 
   /* Swap in the asset selection form and run the animation. */
   async animateRegAsset (oldForm: HTMLElement) {
     Doc.hide(oldForm)
-    this.regAssetForm.animate()
+    await this.regAssetForm.animate()
     Doc.show(this.page.regAssetForm)
   }
 
   /* Swap in the confirmation form and run the animation. */
   async animateConfirmForm (oldForm: HTMLElement) {
-    this.confirmRegisterForm.animate()
+    await this.confirmRegisterForm.animate()
     Doc.hide(oldForm)
     Doc.show(this.page.confirmRegForm)
   }
@@ -190,7 +190,7 @@ export default class RegistrationPage extends BasePage {
     const bondAmt = this.xc.bondAssets[asset.symbol].amount
 
     const bondsFeeBuffer = await this.getBondsFeeBuffer(assetID, page.newWalletForm)
-    this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
+    await this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
     this.confirmRegisterForm.setAsset(assetID, tier, bondsFeeBuffer)
     if (wallet.synced && wallet.balance.available >= 2 * bondAmt + bondsFeeBuffer) {
       await this.animateConfirmForm(page.newWalletForm)

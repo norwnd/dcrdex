@@ -107,14 +107,14 @@ type WalletBalance struct {
 	*db.Balance
 	// OrderLocked is the total amount of funds that is currently locked
 	// for swap, but not actually swapped yet. This amount is also included
-	// in the `Locked` balance value.
+	// in the db.Balance (as Locked).
 	OrderLocked uint64 `json:"orderlocked"`
 	// ContractLocked is the total amount of funds locked in unspent (i.e.
-	// unredeemed / unrefunded) swap contracts. This amount is NOT included in
-	// the db.Balance.
+	// unredeemed / unrefunded) swap contracts. This amount is also included in
+	// the db.Balance (as Locked).
 	ContractLocked uint64 `json:"contractlocked"`
 	// BondLocked is the total amount of funds locked in unspent fidelity bonds.
-	// This amount is NOT included in the db.Balance.
+	// This amount is also included in the db.Balance (as Locked).
 	BondLocked uint64 `json:"bondlocked"`
 }
 
@@ -1121,12 +1121,14 @@ type PostBondResult struct {
 // OrderFilter is almost the same as db.OrderFilter, except the Offset order ID
 // is a dex.Bytes instead of a order.OrderID.
 type OrderFilter struct {
-	N        int                 `json:"n"`
-	Offset   dex.Bytes           `json:"offset"`
-	Hosts    []string            `json:"hosts"`
-	Assets   []uint32            `json:"assets"`
-	Statuses []order.OrderStatus `json:"statuses"`
-	Market   *struct {
+	N                 int                 `json:"n"`
+	Offset            dex.Bytes           `json:"offset"`
+	FresherThanUnixMs uint64              `json:"fresherThanUnixMs"`
+	Hosts             []string            `json:"hosts"`
+	Assets            []uint32            `json:"assets"`
+	Statuses          []order.OrderStatus `json:"statuses"`
+	FilledOnly        bool                `json:"filledOnly"`
+	Market            *struct {
 		Base  uint32 `json:"baseID"`
 		Quote uint32 `json:"quoteID"`
 	} `json:"market"`

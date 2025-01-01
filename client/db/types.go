@@ -469,7 +469,7 @@ type OrderMetaData struct {
 	// to this order, and determining how many more possible redemptions there
 	// could be.
 	RedemptionReserves uint64
-	// RedemptionRefunds is the amount of funds reserved by the wallet to pay
+	// RefundReserves is the amount of funds reserved by the wallet to pay
 	// the transaction fees for all the possible refunds in this order.
 	// The amount that should be locked at any point can be determined by
 	// checking the status of the order and the status of all matches related
@@ -1218,6 +1218,12 @@ type OrderFilter struct {
 	// Statuses is a list of acceptable statuses. A zero-length Statuses means
 	// all statuses are accepted.
 	Statuses []order.OrderStatus
+	// FilledOnly is a flag that when specified limits results to only those orders
+	// that have been fully filled or partially filled.
+	FilledOnly bool
+	// FresherThanUnixMs is a unix millisecond timestamp used to filter out orders that are
+	// older than its value.
+	FresherThanUnixMs uint64
 }
 
 // noteKeySize must be <= 32.
