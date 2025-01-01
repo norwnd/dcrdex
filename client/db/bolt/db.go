@@ -1120,6 +1120,29 @@ func (db *BoltDB) Orders(orderFilter *dexdb.OrderFilter) (ords []*dexdb.MetaOrde
 		}
 	}
 
+	if orderFilter.FilledOnly {
+		filledOrders, err := db.filledOrders()
+		if err != nil {
+			return nil, fmt.Errorf("filledOrders: %w", err)
+		}
+		filters = append(filters, func(oidB []byte, oBkt *bbolt.Bucket) bool {
+			oid, err := order.IDFromBytes(oidB)
+			if err != nil {
+				db.log.Error("couldn't parse order ID bytes: %x", oidB)
+				return false
+			}
+			_, ok := filledOrders[oid]
+			return ok
+		})
+	}
+
+	if orderFilter.FresherThanUnixMs > 0 {
+		filters = append(filters, func(oidB []byte, oBkt *bbolt.Bucket) bool {
+			stamp := intCoder.Uint64(oBkt.Get(updateTimeKey))
+			return stamp >= orderFilter.FresherThanUnixMs
+		})
+	}
+
 	if orderFilter.Market != nil {
 		filters = append(filters, func(_ []byte, oBkt *bbolt.Bucket) bool {
 			baseID, quoteID := intCoder.Uint32(oBkt.Get(baseKey)), intCoder.Uint32(oBkt.Get(quoteKey))
@@ -1541,7 +1564,6 @@ func (db *BoltDB) DEXOrdersWithActiveMatches(dex string) ([]order.OrderID, error
 		ids = append(ids, id)
 	}
 	return ids, nil
-
 }
 
 // MatchesForOrder retrieves the matches for the specified order ID.
@@ -1551,6 +1573,28 @@ func (db *BoltDB) MatchesForOrder(oid order.OrderID, excludeCancels bool) ([]*de
 		oid := mBkt.Get(orderIDKey)
 		return bytes.Equal(oid, oidB)
 	}, excludeCancels, true) // include archived matches
+}
+
+// filledOrders returns a set of fully filled or partially filled orders. Order is partially
+// filled if it has at least 1 non-cancel match with non-zero quantity.
+func (db *BoltDB) filledOrders() (map[order.OrderID]struct{}, error) {
+	matches, err := db.filteredMatchesDecoded(func(match *dexdb.MetaMatch) bool {
+		// cancel order matches have an empty Address field, we don't want to count these
+		// hence skip
+		if match.Address == "" {
+			return false
+		}
+		return match.Quantity > 0 // means corresponding order is filled at least partially
+	}, false, true) // include archived matches
+	if err != nil {
+		return nil, fmt.Errorf("filteredMatchesDecoded: %w", err)
+	}
+
+	result := make(map[order.OrderID]struct{}, len(matches))
+	for _, m := range matches {
+		result[m.OrderID] = struct{}{}
+	}
+	return result, nil
 }
 
 // filteredMatches gets all matches that pass the provided filter function. Each
@@ -1581,6 +1625,38 @@ func (db *BoltDB) filteredMatches(filter func(*bbolt.Bucket) bool, excludeCancel
 				if match != nil {
 					matches = append(matches, match)
 				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// filteredMatchesDecoded is same as filteredMatches but applies filter to decoded match.
+func (db *BoltDB) filteredMatchesDecoded(filter func(*dexdb.MetaMatch) bool, excludeCancels, includeArchived bool) ([]*dexdb.MetaMatch, error) {
+	var matches []*dexdb.MetaMatch
+	return matches, db.matchesView(func(mb, archivedMB *bbolt.Bucket) error {
+		buckets := []*bbolt.Bucket{mb}
+		if includeArchived {
+			buckets = append(buckets, archivedMB)
+		}
+		for _, master := range buckets {
+			err := master.ForEach(func(k, _ []byte) error {
+				mBkt := master.Bucket(k)
+				if mBkt == nil {
+					return fmt.Errorf("match %x bucket is not a bucket", k)
+				}
+				match, err := loadMatchBucket(mBkt, excludeCancels)
+				if err != nil {
+					return fmt.Errorf("loading match %x bucket: %w", k, err)
+				}
+				if match == nil || !filter(match) {
+					return nil
+				}
+				matches = append(matches, match)
 				return nil
 			})
 			if err != nil {

@@ -683,7 +683,7 @@ func TestCheckPendingTxs(t *testing.T) {
 	finalizedStamp := now - txConfsNeededToConfirm*10
 	rebroadcastable := now - 300
 	mature := now - 600 // able to send actions
-	agedOut := now - uint64(txAgeOut.Seconds()) - 1
+	agedOut := now - uint64(txActionPromptFrequency.Seconds()) - 1
 
 	val := dexeth.GweiToWei(1)
 	extendedTx := func(nonce, blockNum, blockStamp, submissionStamp uint64) *extendedWalletTx {
@@ -792,7 +792,7 @@ func TestCheckPendingTxs(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			eth.confirmedNonceAt = tt.pendingTxs[0].Nonce
-			eth.pendingNonceAt = new(big.Int).Add(tt.pendingTxs[len(tt.pendingTxs)-1].Nonce, big.NewInt(1))
+			eth.nextNonceAt = new(big.Int).Add(tt.pendingTxs[len(tt.pendingTxs)-1].Nonce, big.NewInt(1))
 
 			node.lastSignedTx = nil
 			eth.currentTip = &types.Header{Number: new(big.Int).SetUint64(tip)}
@@ -889,7 +889,7 @@ func TestTakeAction(t *testing.T) {
 	if tx.GasTipCap().Uint64() != 0 {
 		t.Fatal("The fee was bumped. The fee shouldn't have been bumped.")
 	}
-	if pendingTx.actionIgnored.IsZero() {
+	if pendingTx.lastActionRejected.IsZero() {
 		t.Fatalf("The ignore time wasn't reset")
 	}
 	if len(eth.pendingTxs) != 1 {
@@ -927,7 +927,7 @@ func TestTakeAction(t *testing.T) {
 	tx5 := eth.extendedTx(node.newTransaction(5, aGwei), asset.Send, 1, nil)
 	eth.pendingTxs = []*extendedWalletTx{tx5}
 	eth.confirmedNonceAt = big.NewInt(2)
-	eth.pendingNonceAt = big.NewInt(6)
+	eth.nextNonceAt = big.NewInt(6)
 	nonceRecoveryAction := []byte(`{"recover":true}`)
 	node.sentTxs = 0
 	if err := eth.TakeAction(actionTypeMissingNonces, nonceRecoveryAction); err != nil {
@@ -973,7 +973,7 @@ func TestCheckForNewBlocks(t *testing.T) {
 					log:              tLogger,
 					currentTip:       header0,
 					confirmedNonceAt: new(big.Int),
-					pendingNonceAt:   new(big.Int),
+					nextNonceAt:      new(big.Int),
 					txDB:             &tTxDB{},
 					finalizeConfs:    txConfsNeededToConfirm,
 				},
@@ -1169,7 +1169,7 @@ func tassetWallet(assetID uint32) (asset.Wallet, *assetWallet, *tMempoolNode, co
 			ctx:              ctx,
 			log:              tLogger,
 			gasFeeLimitV:     defaultGasFeeLimit,
-			pendingNonceAt:   new(big.Int),
+			nextNonceAt:      new(big.Int),
 			confirmedNonceAt: new(big.Int),
 			pendingTxs:       make([]*extendedWalletTx, 0),
 			txDB:             &tTxDB{},

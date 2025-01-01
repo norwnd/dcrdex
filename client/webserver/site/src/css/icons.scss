@@ -78,10 +78,22 @@
   color: var(--buy-color);
 }
 
-.ico-own-book-order::before {
-  content: "\e90c";
+.ico-check-buy::before {
+  content: "\ea10";
   display: inline-block;
-  color: var(--violet-color);
+  color: var(--buy-color);
+}
+
+.ico-check-sell::before {
+  content: "\ea10";
+  display: inline-block;
+  color: var(--sell-color);
+}
+
+.ico-own-book-order::before {
+  content: "\e90f";
+  display: inline-block;
+  color: var(--text-warning);
 }
 
 .ico-bell::before {

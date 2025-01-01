@@ -53,19 +53,19 @@ export default class DexSettingsPage extends BasePage {
     this.forms = Doc.applySelector(page.forms, ':scope > form')
 
     this.confirmRegisterForm = new forms.ConfirmRegistrationForm(page.confirmRegForm, async () => {
-      this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
+      await this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
       this.renewToggle.setState(this.confirmRegisterForm.tier > 0)
       await app().fetchUser()
       app().updateMenuItemsDisplay()
-    }, () => {
-      this.runAnimation(this.regAssetForm, page.regAssetForm)
+    }, async () => {
+      await this.runAnimation(this.regAssetForm, page.regAssetForm)
     })
     this.confirmRegisterForm.setExchange(xc, '')
 
-    this.walletWaitForm = new forms.WalletWaitForm(page.walletWait, () => {
-      this.runAnimation(this.confirmRegisterForm, page.confirmRegForm)
-    }, () => {
-      this.runAnimation(this.regAssetForm, page.regAssetForm)
+    this.walletWaitForm = new forms.WalletWaitForm(page.walletWait, async () => {
+      await this.runAnimation(this.confirmRegisterForm, page.confirmRegForm)
+    }, async () => {
+      await this.runAnimation(this.regAssetForm, page.regAssetForm)
     })
     this.walletWaitForm.setExchange(xc)
 
@@ -79,7 +79,7 @@ export default class DexSettingsPage extends BasePage {
       if (assetID === PrepaidBondID) {
         await app().fetchUser()
         this.updateReputation()
-        this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
+        await this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
         return
       }
       const asset = app().assets[assetID]
@@ -89,12 +89,12 @@ export default class DexSettingsPage extends BasePage {
         const bondsFeeBuffer = await this.getBondsFeeBuffer(assetID, page.regAssetForm)
         this.confirmRegisterForm.setAsset(assetID, tier, bondsFeeBuffer)
         loaded()
-        this.progressTierFormsWithWallet(assetID, wallet)
+        await this.progressTierFormsWithWallet(assetID, wallet)
         return
       }
       this.confirmRegisterForm.setAsset(assetID, tier, 0)
-      this.newWalletForm.setAsset(assetID)
-      this.showForm(page.newWalletForm)
+      await this.newWalletForm.setAsset(assetID)
+      await this.showForm(page.newWalletForm)
     })
     this.regAssetForm.setExchange(xc, '')
 
@@ -113,15 +113,15 @@ export default class DexSettingsPage extends BasePage {
     Doc.bind(page.certFileInput, 'change', () => this.onCertFileChange())
     Doc.bind(page.goBackToSettings, 'click', () => app().loadPage('settings'))
 
-    const showTierForm = () => {
+    const showTierForm = async () => {
       this.regAssetForm.setExchange(app().exchanges[host], '') // reset form
-      this.showForm(page.regAssetForm)
+      await this.showForm(page.regAssetForm)
     }
     Doc.bind(page.changeTier, 'click', () => { showTierForm() })
     const willAutoRenew = xc.auth.targetTier > 0
     this.renewToggle = new AniToggle(page.toggleAutoRenew, page.renewErr, willAutoRenew, async (newState: boolean) => {
       if (this.accountDisabled) return
-      if (newState) showTierForm()
+      if (newState) await showTierForm()
       else return this.disableAutoRenew()
     })
     Doc.bind(page.autoRenewBox, 'click', (e: MouseEvent) => {
@@ -176,7 +176,7 @@ export default class DexSettingsPage extends BasePage {
     })
 
     this.dexAddrForm = new forms.DEXAddressForm(page.dexAddrForm, async (xc: Exchange) => {
-      app().loadPage(`/dexsettings/${xc.host}`)
+      await app().loadPage(`/dexsettings/${xc.host}`)
     }, this.host)
 
     // forms.bind(page.bondDetailsForm, page.updateBondOptionsConfirm, () => this.updateBondOptions())
@@ -217,23 +217,13 @@ export default class DexSettingsPage extends BasePage {
     const asset = app().assets[assetID]
     const { bondAssets } = this.regAssetForm.xc
     const bondAsset = bondAssets[asset.symbol]
-    if (!wallet.open) {
-      const loaded = app().loading(page.forms)
-      const res = await postJSON('/api/openwallet', { assetID: assetID })
-      loaded()
-      if (!app().checkResponse(res)) {
-        this.regAssetForm.setAssetError(`error unlocking wallet: ${res.msg}`)
-        this.runAnimation(this.regAssetForm, page.regAssetForm)
-      }
-      return
-    }
     if (wallet.synced && wallet.balance.available >= 2 * bondAsset.amount + fees) {
       // If we are raising our tier, we'll show a confirmation form
-      this.progressTierFormWithSyncedFundedWallet(assetID)
+      await this.progressTierFormWithSyncedFundedWallet(assetID)
       return
     }
-    this.walletWaitForm.setWallet(assetID, fees, this.confirmRegisterForm.tier)
-    this.showForm(page.walletWait)
+    await this.walletWaitForm.setWallet(assetID, fees, this.confirmRegisterForm.tier)
+    await this.showForm(page.walletWait)
   }
 
   async progressTierFormWithSyncedFundedWallet (bondAssetID: number) {
@@ -242,7 +232,7 @@ export default class DexSettingsPage extends BasePage {
     const page = this.page
     const strongTier = xc.auth.liveStrength + xc.auth.pendingStrength - xc.auth.weakStrength
     if (targetTier > xc.auth.targetTier && targetTier > strongTier) {
-      this.runAnimation(this.confirmRegisterForm, page.confirmRegForm)
+      await this.runAnimation(this.confirmRegisterForm, page.confirmRegForm)
       return
     }
     // Lowering tier
@@ -256,7 +246,7 @@ export default class DexSettingsPage extends BasePage {
       return
     }
     // this.animateConfirmForm(page.regAssetForm)
-    this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
+    await this.showSuccess(intl.prep(intl.ID_TRADING_TIER_UPDATED))
   }
 
   updateReputation () {
@@ -359,14 +349,14 @@ export default class DexSettingsPage extends BasePage {
     // Refresh exchange information since we've just enabled/disabled the
     // exchange.
     await app().fetchUser()
-    app().loadPage(`dexsettings/${host}`)
+    await app().loadPage(`dexsettings/${host}`)
   }
 
   async prepareAccountDisable (disableAccountForm: HTMLElement) {
     const page = this.page
     page.disableAccountHost.textContent = this.host
     page.disableAccountErr.textContent = ''
-    this.showForm(disableAccountForm)
+    await this.showForm(disableAccountForm)
   }
 
   // Retrieve an estimate for the tx fee needed to create new bond reserves.
@@ -383,7 +373,7 @@ export default class DexSettingsPage extends BasePage {
   async prepareUpdateHost () {
     const page = this.page
     this.dexAddrForm.refresh()
-    this.showForm(page.dexAddrForm)
+    await this.showForm(page.dexAddrForm)
   }
 
   async onCertFileChange () {
@@ -472,11 +462,11 @@ export default class DexSettingsPage extends BasePage {
     this.confirmRegisterForm.setFees(assetID, bondsFeeBuffer)
 
     if (wallet.synced && wallet.balance.available >= 2 * bondAmt + bondsFeeBuffer) {
-      this.progressTierFormWithSyncedFundedWallet(assetID)
+      await this.progressTierFormWithSyncedFundedWallet(assetID)
       return
     }
 
-    this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
+    await this.walletWaitForm.setWallet(assetID, bondsFeeBuffer, tier)
     await this.showForm(page.walletWait)
   }
 }

@@ -23,23 +23,48 @@
 {{end}}
 
 {{define "header"}}
-<header id="header" class="border-bottom mb-2">
+<header id="header" class="d-flex justify-content-between border-bottom">
   {{$authed := .UserInfo.Authed}}
-  <a href="/" class="d-none d-md-block pointer hoverbg mx-2">
-    <img class="logo-full">
-  </a>
-  <a href="/" class="d-block d-md-none pointer hoverbg mx-2">
-    <img class="logo-square">
-  </a>
-  <div id="headerSpace"></div>
+  {{- /* MM TITLE */ -}}
+  <div id="mmTitle" class="flex-center fs28 px-2 d-hide">[[[Market Maker Settings]]]</div>
+
+  {{- /* MARKET STATS */ -}}
+  <div id="marketStats" class="d-flex align-items-center px-2 d-hide">
+    <div class="flex-center pointer hoverbg px-2" data-tmpl="marketSelect">
+      <div class="flex-center">
+        <img class="small-icon" data-tmpl="baseIcon">
+        <img class="small-icon ms-1" data-tmpl="quoteIcon">
+      </div>
+      <div class="d-flex align-items-end fs24 demi ms-1">
+        <span data-tmpl="baseSymbol"></span> / <span data-tmpl="quoteSymbol"></span>
+      </div>
+    </div>
+
+    <div class="d-flex flex-stretch-column ps-1 border-right">
+      <div data-tmpl="externalPrice" title="Price on external markets such as Binance" class="d-flex align-items-center border-bottom pe-2 fs18 text-warning">-</div>
+      <div data-tmpl="bisonPrice" title="Price last trade executed at" class="d-flex align-items-center pe-2 fs18">-</div>
+    </div>
+
+    <div class="statgrid">
+      <span class="fs14 grey px-2 border-right border-bottom">[[[Change24]]]</span>
+      <span class="fs14 grey px-2 border-right border-bottom">[[[Volume24]]]</span>
+      <span class="fs14 grey px-2 border-right border-bottom">[[[High24]]]</span>
+      <span class="fs14 grey ps-2 border-bottom">[[[Low24]]]</span>
+
+      <div class="px-2 fs14 border-right" data-tmpl="change24">-</div>
+      <div class="d-flex justify-content-start align-items-center px-2 border-right">
+        <div data-tmpl="volume24" class="fs14">-</div>
+        <div data-tmpl="volume24Unit" class="fs14 grey ms-1">USD</div>
+      </div>
+      <div class="px-2 fs14 border-right" data-tmpl="high">-</div>
+      <div class="px-2 fs14" data-tmpl="low">-</div>
+    </div>
+  </div>
+
   <div class="mainlinks fs18 pe-2 text-nowrap">
-
     <a href="/wallets" class="demi hoverbg{{if not $authed}} d-hide{{end}}" id="walletsMenuEntry">[[[Wallet]]]</a>
-
     <a href="/markets" class="demi hoverbg d-hide" id="marketsMenuEntry">[[[Trade]]]</a>
-
     <a href="/orders" class="demi hoverbg d-hide" id="ordersMenuEntry">[[[Order History]]]</a>
-
     <a href="/mm" class="ico-robot lh1 fs32 hoverbg d-hide" id="mmLink"></a>
 
     <div class="d-inline-block position-relative pointer hoverbg{{if not $authed}} d-hide{{end}}" id="noteBell">
@@ -50,8 +75,8 @@
     <div class="d-inline-block hoverbg position-relative pointer" id="burgerIcon">
       <span class="ico-hamburger fs20 p-2"></span>
     </div>
-
   </div>
+
   <div id="loader" class="fill-abs d-hide">
     <div class="fill-abs flex-center blurry-bg">
       <img class="d-inline-block logo-square small spinner">
@@ -125,7 +150,7 @@
       <span id="actionDialogCount">4</span>
     </span>
   </div>
-  <div id="actionDialog" class="mw-375 rounded3 m-3 p-3 d-hide">
+  <div id="actionDialog" class="mw-375 border-rounded3 m-3 p-3 d-hide">
     <div class="d-flex justify-content-between">
       <div class="fs22">
         <span class="ico-info text-warning me-2"></span>
@@ -152,17 +177,23 @@
             </td>
           </tr>
           <tr>
-            <td>[[[Fees]]]</td>
+            <td>Current Fees (too low)</td>
             <td>
               <span data-tmpl="feeAmount"></span>
               <span data-tmpl="feeUnit" class="fs15 grey"></span>
+              <span class="d-flex d-hide justify-content-end grey fs14">
+                ~<span data-tmpl="feeAmountFiat" class="mx-1"></span>USD
+              </span>
             </td>
           </tr>
           <tr data-tmpl="newFeesRow" class="d-hide">
-            <td>New Fees</td>
+            <td>New Fees (estimate)</td>
             <td>
               <span data-tmpl="newFees"></span>
               <span data-tmpl="newFeesUnit" class="fs15 grey"></span>
+              <span class="d-flex d-hide justify-content-end grey fs14">
+                ~<span data-tmpl="newFeesFiat" class="mx-1"></span>USD
+              </span>
             </td>
           </tr>
           <tr>
@@ -187,13 +218,15 @@
       <div id="tooCheapTmpl" class="flex-stretch-column mt-2">
         <div class="text-justify">
           A <span data-tmpl="assetName"></span>
-          transaction is stuck and has low fees. Should we replace it with a new
-          transaction?
+          transaction is stuck due to low fees. Should we wait, bump the fees or do you want to
+          abandon this transaction? Note, you probably don't want to abandon redeem or refund transactions,
+          if you choose to abandon - make sure it's not one of those.
         </div>
         <div data-tmpl="txTable"></div>
         <div class="d-flex align-items-stretch mt-3">
           <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-2">Keep Waiting</button>
           <button data-tmpl="addFeesBttn" class="flex-grow-1 ms-2">Add Fees</button>
+          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-2">Abandon</button>
         </div>
         <div data-tmpl="errMsg" class="p-2 text-warning d-hide"></div>
       </div>
@@ -202,12 +235,12 @@
         <div class="text-justify">
           A <span data-tmpl="assetName"></span>
           transaction might be lost. A different transaction with the same
-          nonce was confirmed first. You can abandon the transaction
+          nonce was confirmed first. You can abandon the transaction.
         </div>
         <div data-tmpl="txTable"></div>
         <div class="d-flex mt-2">
-          <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-1">Keep Waiting</button>
-          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-1">Abandon</button>
+          <button data-tmpl="keepWaitingBttn" class="flex-grow-1 me-2">Keep Waiting</button>
+          <button data-tmpl="abandonBttn" class="danger flex-grow-1 ms-2">Abandon</button>
         </div>
         <hr>
         <div class="mt-2">

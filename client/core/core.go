@@ -4936,12 +4936,14 @@ func (c *Core) Orders(filter *OrderFilter) ([]*Order, error) {
 	}
 
 	ords, err := c.db.Orders(&db.OrderFilter{
-		N:        filter.N,
-		Offset:   oid,
-		Hosts:    filter.Hosts,
-		Assets:   filter.Assets,
-		Market:   mkt,
-		Statuses: filter.Statuses,
+		N:                 filter.N,
+		Offset:            oid,
+		Hosts:             filter.Hosts,
+		Assets:            filter.Assets,
+		Market:            mkt,
+		Statuses:          filter.Statuses,
+		FilledOnly:        filter.FilledOnly,
+		FresherThanUnixMs: filter.FresherThanUnixMs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("UserOrders error: %w", err)

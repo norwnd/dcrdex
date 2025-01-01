@@ -412,7 +412,7 @@ export default class MarketMakerPage extends BasePage {
   percentageBalanceStr (assetID: number, balance: number, percentage: number): string {
     const asset = app().assets[assetID]
     const unitInfo = asset.unitInfo
-    const assetValue = Doc.formatCoinValue((balance * percentage) / 100, unitInfo)
+    const assetValue = Doc.formatCoinAtom((balance * percentage) / 100, unitInfo)
     return `${Doc.formatFourSigFigs(percentage)}% - ${assetValue} ${asset.symbol.toUpperCase()}`
   }
 
