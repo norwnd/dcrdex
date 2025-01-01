@@ -160,31 +160,24 @@ type basicMMCalculatorImpl struct {
 var errNoBasisPrice = errors.New("no oracle or fiat rate available")
 var errOracleFiatMismatch = errors.New("oracle rate and fiat rate mismatch")
 
-// basisPrice calculates the basis price for the market maker.
-// Oracle rate is used if available, otherwise fiat rate is used.
-// Also, if both oracle and fiat rates are available this method
-// makes sure their difference is below 5% - otherwise error is
-// returned.
+// basisPrice calculates the basis(reference) price for the market maker, it relies on
+// 2 distinct price sources to be present - fiat and "oracle" - otherwise an error is
+// returned. The rate returned is fiat price (Binance rate "disguised" as fiat rate actually)
+// while "oracle" price is consulted with just to make sure fiat price has sane value - if
+// there is a significant divergence (> 5%) an error will be returned.
 func (b *basicMMCalculatorImpl) basisPrice() (uint64, error) {
-	oracleRate := b.msgRate(b.oracle.getMarketPrice(b.baseID, b.quoteID))
-	b.log.Tracef("oracle rate = %s", b.fmtRate(oracleRate))
-
 	fiatRate := b.core.ExchangeRateFromFiatSources()
 	if fiatRate == 0 {
-		b.log.Meter("basisPrice_nofiat_"+b.market.name, time.Hour).Warn(
-			"No fiat-based rate estimate(s) available for sanity check for %s", b.market.name,
-		)
-		if oracleRate == 0 { // steppedRate(0, x) => x, so we have to handle this.
-			return 0, errNoBasisPrice
-		}
-		return steppedRate(oracleRate, b.rateStep), nil
+		return 0, fmt.Errorf("no fiat rate to calculate basis price")
 	}
+	b.log.Tracef("basis price calculation, fiat rate = %s", b.fmtRate(fiatRate))
+
+	oracleRate := b.msgRate(b.oracle.getMarketPrice(b.baseID, b.quoteID))
 	if oracleRate == 0 {
-		b.log.Meter("basisPrice_nooracle_"+b.market.name, time.Hour).Infof(
-			"No oracle rate available. Using fiat-derived basis rate = %s for %s", b.fmtRate(fiatRate), b.market.name,
-		)
-		return steppedRate(fiatRate, b.rateStep), nil
+		return 0, fmt.Errorf("no oracle rate to confirm basis price")
 	}
+	b.log.Tracef("basis price calculation, oracle rate = %s", b.fmtRate(oracleRate))
+
 	mismatch := math.Abs((float64(oracleRate) - float64(fiatRate)) / float64(oracleRate))
 	const maxOracleFiatMismatch = 0.05
 	if mismatch > maxOracleFiatMismatch {

@@ -223,7 +223,7 @@ func FetchMessariRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 }
 
 func getRates(ctx context.Context, uri string, thing any) error {
-	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<22))
+	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<26))
 }
 
 // FetchBinanceRates retrieves and parses rate data from Binance API.
