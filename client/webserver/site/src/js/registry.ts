@@ -751,7 +751,7 @@ export interface OrderFilter {
   assets?: number[]
   market?: OrderFilterMarket
   statuses?: number[]
-  filledOnly?: boolean
+  completedOnly?: boolean
 }
 
 export interface OrderPlacement {

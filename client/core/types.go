@@ -1127,7 +1127,7 @@ type OrderFilter struct {
 	Hosts             []string            `json:"hosts"`
 	Assets            []uint32            `json:"assets"`
 	Statuses          []order.OrderStatus `json:"statuses"`
-	FilledOnly        bool                `json:"filledOnly"`
+	CompletedOnly     bool                `json:"completedOnly"`
 	Market            *struct {
 		Base  uint32 `json:"baseID"`
 		Quote uint32 `json:"quoteID"`

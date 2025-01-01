@@ -404,7 +404,7 @@ func (s *WebServer) handleExportOrders(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.Statuses[k] = order.OrderStatus(statusNumID)
 	}
-	filter.FilledOnly = r.Form.Get("filledOnly") == "true"
+	filter.CompletedOnly = r.Form.Get("completedOnly") == "true"
 
 	ords, err := s.core.Orders(filter)
 	if err != nil {
