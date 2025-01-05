@@ -6200,40 +6200,38 @@ func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexC
 	// 2) will execute and result into slippage of 1% or more
 
 	book := dc.bookie(market)
-	bisonOrders, found, err := book.BestNOrders(1, false)
+	bestBuy, err := book.BestBuy()
 	if err != nil {
-		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
-			"fetch best buy order in Bison book: %v", err))
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best buy order in Bison book: %v", err))
 	}
-	if sell && found {
-		bestBisonBuyRate := bisonOrders[0].Rate
+	if sell && bestBuy != nil {
+		bestBisonBuyRate := bestBuy.Rate
 		if rate <= bestBisonBuyRate {
-			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-				"trying to place trade with rate %d "+
-				"that would immediately match a buy order in Bison book", rate))
-		}
-		if float64(rate) < (float64(bestBisonBuyRate) - 0.01*float64(bestBisonBuyRate)) {
-			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-				"trying to place trade with rate %d "+
-				"that'd result into slippage of more than 1 percent (best Bison buy rate = %d)", rate, bestBisonBuyRate))
+			return newError(
+				orderParamsErr, fmt.Sprintf(
+					"(1-time warning, retry to proceed) you are trying to place trade with rate %d "+
+						"that would immediately match a buy order in Bison book with rate %d",
+					rate,
+					bestBisonBuyRate,
+				),
+			)
 		}
 	}
-	bisonOrders, found, err = book.BestNOrders(1, true)
+	bestSell, err := book.BestSell()
 	if err != nil {
-		return newError(walletErr, fmt.Sprintf("(1-time warning, retry to proceed) couldn't "+
-			"fetch best sell order in Bison book: %v", err))
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best sell order in Bison book: %v", err))
 	}
-	if !sell && found {
-		bestBisonSellRate := bisonOrders[0].Rate
+	if !sell && bestSell != nil {
+		bestBisonSellRate := bestSell.Rate
 		if rate >= bestBisonSellRate {
-			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-				"trying to place trade with rate %d "+
-				"that would immediately match a sell order in Bison book", rate))
-		}
-		if float64(rate) > (float64(bestBisonSellRate) + 0.01*float64(bestBisonSellRate)) {
-			return newError(orderParamsErr, fmt.Sprintf("(1-time warning, retry to proceed) "+
-				"trying to place trade with rate %d "+
-				"that'd result into slippage of more than 1 percent (best Bison sell rate = %d)", rate, bestBisonSellRate))
+			return newError(
+				orderParamsErr, fmt.Sprintf(
+					"(1-time warning, retry to proceed) you are trying to place trade with rate %d "+
+						"that would immediately match a sell order in Bison book with rate %d",
+					rate,
+					bestBisonSellRate,
+				),
+			)
 		}
 	}
 
