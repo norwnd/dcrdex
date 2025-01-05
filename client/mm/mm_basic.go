@@ -289,29 +289,46 @@ func (m *basicMarketMaker) cfg() *BasicMarketMakingConfig {
 	return m.cfgV.Load().(*BasicMarketMakingConfig)
 }
 
-func (m *basicMarketMaker) orderPrice(truePrice, bestPrice, feeAdj uint64, sell bool, gapFactor float64) uint64 {
+func (m *basicMarketMaker) orderPrice(truePrice, bestBuy, bestSell, feeAdj uint64, sell bool, gapFactor float64) uint64 {
 	if m.cfg().GapStrategy == GapStrategyCompetitive {
 		var chosenPrice uint64
-		// maxAdj is how close we are permitted to get to truePrice
-		maxAdj := uint64(math.Round(gapFactor * float64(truePrice)))
+		// minTruePriceGap is how close we are permitted to get to truePrice
+		minTruePriceGap := uint64(math.Round(gapFactor * float64(truePrice)))
 		if sell {
-			chosenPrice = bestPrice - m.rateStep
-			if chosenPrice < (truePrice + maxAdj) {
-				chosenPrice = truePrice + maxAdj
+			chosenPrice = bestSell - m.rateStep
+			if chosenPrice < (truePrice + minTruePriceGap) {
+				chosenPrice = truePrice + minTruePriceGap
+			}
+			if chosenPrice <= bestBuy {
+				// this means our order will immediately match buy-order in Bison book, either
+				// it's a very "aggressive" buy-order or something is wrong with our true price,
+				// since we can't know which it is - we'll have to additionally gap our order
+				// relative to the best buy order in the order-book to be safe
+				minBestOrderGap := uint64(math.Round(gapFactor * float64(bestBuy)))
+				chosenPrice = bestBuy + minBestOrderGap
 			}
 		} else {
-			chosenPrice = bestPrice + m.rateStep
-			if chosenPrice > (truePrice - maxAdj) {
-				chosenPrice = truePrice - maxAdj
+			chosenPrice = bestBuy + m.rateStep
+			if chosenPrice > (truePrice - minTruePriceGap) {
+				chosenPrice = truePrice - minTruePriceGap
+			}
+			if chosenPrice >= bestSell {
+				// this means our order will immediately match sell-order in Bison book, either
+				// it's a very "aggressive" sell-order or something is wrong with our true price,
+				// since we can't know which it is - we'll have to additionally gap our order
+				// relative to the best sell order in the order-book to be safe
+				minBestOrderGap := uint64(math.Round(gapFactor * float64(bestSell)))
+				chosenPrice = bestSell - minBestOrderGap
 			}
 		}
 		chosenPrice = steppedRate(chosenPrice, m.rateStep)
 		m.log.Tracef(
-			"(competitive strategy) prepare %s order: chosenPrice = %d, truePrice = %d, bestPrice = %d, gapFactor = %v",
+			"(competitive strategy) prepare %s order: chosenPrice = %d, truePrice = %d, bestBuy = %d, bestSell = %d, gapFactor = %v",
 			sellStr(sell),
 			chosenPrice,
 			truePrice,
-			bestPrice,
+			bestBuy,
+			bestSell,
 			gapFactor,
 		)
 		return chosenPrice
@@ -398,19 +415,19 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 	// bestSell falls back to basisPrice+4%, this is reasonably safe reference point
 	bestSell := steppedRate(uint64(float64(basisPrice)+0.04*float64(basisPrice)), m.rateStep)
 	m.log.Tracef("(4%% gapped) bestBuy = %d, bestSell = %d", bestBuy, bestSell)
-	bisonOrders, found, err := book.BestNOrders(1, false)
+	bestBuyOrder, err := book.BestBuy()
 	if err != nil {
 		return nil, nil, fmt.Errorf("find best buy order in Bison book: %v", err)
 	}
-	if found && bisonOrders[0].Rate > bestBuy {
-		bestBuy = bisonOrders[0].Rate
+	if bestBuyOrder != nil && bestBuyOrder.Rate > bestBuy {
+		bestBuy = bestBuyOrder.Rate
 	}
-	bisonOrders, found, err = book.BestNOrders(1, true)
+	bestSellOrder, err := book.BestSell()
 	if err != nil {
 		return nil, nil, fmt.Errorf("find best sell order in Bison book: %v", err)
 	}
-	if found && bisonOrders[0].Rate < bestSell {
-		bestSell = bisonOrders[0].Rate
+	if bestSellOrder != nil && bestSellOrder.Rate < bestSell {
+		bestSell = bestSellOrder.Rate
 	}
 	m.log.Tracef("(with Bison book) bestBuy = %d, bestSell = %d", bestBuy, bestSell)
 
@@ -456,10 +473,6 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 				}
 			}
 
-			bestPrice := bestBuy
-			if sell {
-				bestPrice = bestSell
-			}
 			// truePrice is the most reliable estimate of "real" price we can get, for now
 			// we consider basisPrice to be "safest", but once we can calculate
 			// MidGapBookWeightedWithSpread we might prefer switching to that if there is
@@ -469,7 +482,7 @@ func (m *basicMarketMaker) ordersToPlace() (buyOrders, sellOrders []*TradePlacem
 			// bisonPrice itself as true price IF it's within reasonable range compared
 			// to some other values (like spot price, or last confirmed price).
 			truePrice := basisPrice
-			rate := m.orderPrice(truePrice, bestPrice, feeAdj, sell, p.GapFactor)
+			rate := m.orderPrice(truePrice, bestBuy, bestSell, feeAdj, sell, p.GapFactor)
 
 			lots := p.Lots
 			if rate == 0 {
