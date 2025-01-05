@@ -85,7 +85,7 @@ div[data-handler=markets] {
     }
 
     button {
-      opacity: 0.85;
+      opacity: 0.90;
       padding: 5px 25px;
       border-radius: 6px;
       background-color: var(--section-bg);
@@ -228,14 +228,9 @@ div[data-handler=markets] {
         align-items: flex-start;
 
         & > span:first-child {
-          font-size: 12px;
           font-family: $demi-sans;
           color: grey;
-          margin-bottom: 2px;
-        }
-
-        & > span:nth-child(2) {
-          font-size: 14px;
+          margin-bottom: 4px;
         }
 
         &.full-span {
@@ -358,6 +353,14 @@ div[data-handler=markets] {
     #orderBook {
       width: 100%; // takes care of stretching to full parent size
       height: 100%; // takes care of stretching to full parent size
+
+      #ownBookOrder{
+        background-color: var(--text-warning);
+        border-radius: 50%;
+        height: 4px;
+        top: 10px;
+        width: 4px;
+      }
     }
   }
 

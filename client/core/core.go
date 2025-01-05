@@ -3128,7 +3128,7 @@ func (c *Core) isActiveBondAsset(assetID uint32, includeLive bool) bool {
 		for tknAssetID := range ra.Tokens {
 			assetIDs[tknAssetID] = true
 		}
-	} else {                                             // it's a token and we only care about the parent, not sibling tokens
+	} else { // it's a token and we only care about the parent, not sibling tokens
 		if tkn := asset.TokenInfo(assetID); tkn != nil { // it should be
 			assetIDs[tkn.ParentID] = true
 		}
