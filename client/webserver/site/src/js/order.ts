@@ -283,10 +283,13 @@ export default class OrderPage extends BasePage {
     if (!m.refund) {
       // Special messaging for pending refunds.
       let lockTime = lockTimeMakerMs
-      if (m.side === OrderUtil.Taker) lockTime = lockTimeTakerMs
+      if (m.side === OrderUtil.Taker) {
+        lockTime = lockTimeTakerMs
+      }
       const refundAfter = new Date(m.stamp + lockTime)
-      if (Date.now() > refundAfter.getTime()) tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
-      else {
+      if (Date.now() > refundAfter.getTime()) {
+        tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
+      } else {
         const refundAfterStr = refundAfter.toLocaleTimeString(Doc.languages(), {
           year: 'numeric',
           month: 'short',

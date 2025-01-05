@@ -67,7 +67,7 @@ const maxRecentlyActiveUserOrdersShown = 8
 const maxCompletedUserOrdersShown = 100
 
 // orderBookSideMaxCapacity defines how many orders in the book side will be displayed
-const orderBookSideMaxCapacity = 14
+const orderBookSideMaxCapacity = 13
 
 const buyBtnClass = 'buygreen-bg'
 const sellBtnClass = 'sellred-bg'
@@ -908,8 +908,8 @@ export default class MarketsPage extends BasePage {
    */
   async showTokenApprovalForm (isBase: boolean) {
     const assetID = isBase ? this.market.base.id : this.market.quote.id
-    this.approveTokenForm.setAsset(assetID, this.market.dex.host)
-    this.forms.show(this.page.approveTokenForm)
+    await this.approveTokenForm.setAsset(assetID, this.market.dex.host)
+    await this.forms.show(this.page.approveTokenForm)
   }
 
   /*
@@ -3257,8 +3257,8 @@ export default class MarketsPage extends BasePage {
     if (!bookSide || !bookSide.length) return
 
     let orderBins = this.binOrdersByRateAndEpoch(bookSide)
-    // trim order bins list to fit only 14 of them on the screen per book-side (otherwise
-    // we'd need to scroll the UI which is undesirable)
+    // trim order bins list to avoid exceeding predefined limit per book-side so that all the orders
+    // fit on the screen (otherwise we'd need to scroll book-side in UI which is undesirable)
     orderBins = orderBins.slice(0, orderBookSideMaxCapacity)
     orderBins.forEach(bin => {
       const tableRow = this.newOrderTableRow(bin)
@@ -3368,9 +3368,9 @@ export default class MarketsPage extends BasePage {
     // in the book (it gotta be heaviest relevant one)
     const rowWeightRatio = Math.min(rowQtyAtom / heaviestOrder.qtyAtomic, 1.0)
 
-    let rowRelevanceColor = State.isDark() ? '#35141D' : '#E6F8F1'
+    let rowRelevanceColor = State.isDark() ? '#102821' : '#d9f5e1'
     if (row.manager.sell) {
-      rowRelevanceColor = State.isDark() ? '#102821' : '#FEF1F2'
+      rowRelevanceColor = State.isDark() ? '#35141D' : '#ffe7e7'
     }
     row.style.background = `linear-gradient(to left, ${rowRelevanceColor} ${priceRelevance * rowWeightRatio * 100}%, transparent 0%)`
   }

@@ -716,7 +716,7 @@ export default class Doc {
     let count = 0
     const add = (n: number, s: string) => {
       if (n > 0 || count > 0) count++
-      if (n > 0) result += `${n} ${s} `
+      if (n > 0) result += `${n}${s} `
       return count >= 2
     }
     let y, mo, d, h, m, s
@@ -732,7 +732,7 @@ export default class Doc {
     if (add(m, 'm')) { return result }
     [s, seconds] = timeMod(seconds, 1000)
     add(s, 's')
-    return result || '0 s'
+    return result.trimEnd() || '0s'
   }
 
   // showFormError can be used to set and display error message on forms.

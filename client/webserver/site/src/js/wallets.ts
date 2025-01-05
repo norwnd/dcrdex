@@ -972,7 +972,7 @@ export default class WalletsPage extends BasePage {
     this.assetButtons[assetID].bttn.classList.add('selected')
     this.selectedAssetID = assetID
     this.page.hideMixTxsCheckbox.checked = true
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
     this.showAvailableMarkets(assetID)
     const a = this.showRecentActivity(assetID)
     const b = this.showTxHistory(assetID)
@@ -981,7 +981,7 @@ export default class WalletsPage extends BasePage {
     for (const p of [a, b, c, d]) await p
   }
 
-  updateDisplayedAsset (assetID: number) {
+  async updateDisplayedAsset (assetID: number) {
     if (assetID !== this.selectedAssetID) return
     const { symbol, wallet, name, token, unitInfo } = app().assets[assetID]
     const { page, body } = this
@@ -995,7 +995,7 @@ export default class WalletsPage extends BasePage {
       page.statusDisabled, page.tokenInfoBox, page.needsProviderBox, page.feeStateBox,
       page.txSyncBox, page.txProgress, page.txFindingAddrs
     )
-    this.checkNeedsProvider(assetID)
+    await this.checkNeedsProvider(assetID)
     if (token) {
       const parentAsset = app().assets[token.parentID]
       page.tokenParentLogo.src = Doc.logoPath(parentAsset.symbol)
@@ -1071,7 +1071,7 @@ export default class WalletsPage extends BasePage {
     const { page: { needsProviderBox: box, needsProviderBttn: bttn } } = this
     Doc.setVis(needs, box)
     if (!needs) return
-    Doc.blink(bttn)
+    await Doc.blink(bttn)
   }
 
   async updateTicketBuyer (assetID: number) {
@@ -2222,12 +2222,12 @@ export default class WalletsPage extends BasePage {
       page.errorModalMsg.textContent = intl.prep(intl.ID_CONNECT_WALLET_ERR_MSG, { assetName: symbol, errMsg: res.msg })
       this.showForm(page.errorModal)
     }
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
   }
 
-  assetUpdated (assetID: number, oldForm?: PageElement, successMsg?: string) {
+  async assetUpdated (assetID: number, oldForm?: PageElement, successMsg?: string) {
     if (assetID !== this.selectedAssetID) return
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
     if (oldForm && Object.is(this.currentForm, oldForm)) {
       if (successMsg) this.showSuccess(successMsg)
       else this.closePopups()
@@ -2311,15 +2311,15 @@ export default class WalletsPage extends BasePage {
       return
     }
     if (this.data?.goBack) {
-      app().loadPage(this.data.goBack)
+      await app().loadPage(this.data.goBack)
       return
     }
     this.assetUpdated(assetID, page.reconfigForm, intl.prep(intl.ID_RECONFIG_SUCCESS))
-    this.updateTicketBuyer(assetID)
+    await this.updateTicketBuyer(assetID)
     app().clearTxHistory(assetID)
-    this.showTxHistory(assetID)
-    this.updatePrivacy(assetID)
-    this.checkNeedsProvider(assetID)
+    await this.showTxHistory(assetID)
+    await this.updatePrivacy(assetID)
+    await this.checkNeedsProvider(assetID)
   }
 
   /* lock instructs the API to lock the wallet. */
@@ -2329,8 +2329,8 @@ export default class WalletsPage extends BasePage {
     const res = await postJSON('/api/closewallet', { assetID: assetID })
     loaded()
     if (!app().checkResponse(res)) return
-    this.updateDisplayedAsset(assetID)
-    this.updatePrivacy(assetID)
+    await this.updateDisplayedAsset(assetID)
+    await this.updatePrivacy(assetID)
   }
 
   async downloadLogs (): Promise<void> {
@@ -2348,7 +2348,7 @@ export default class WalletsPage extends BasePage {
     const page = this.page
     Doc.hide(page.exportWalletErr)
     page.exportWalletPW.value = ''
-    this.showForm(page.exportWalletAuth)
+    await this.showForm(page.exportWalletAuth)
   }
 
   // exportWalletAuthSubmit is called after the user enters their password to
@@ -2366,7 +2366,7 @@ export default class WalletsPage extends BasePage {
     loaded()
     if (app().checkResponse(res)) {
       page.exportWalletPW.value = ''
-      this.displayRestoreWalletInfo(res.restorationinfo)
+      await this.displayRestoreWalletInfo(res.restorationinfo)
     } else {
       Doc.showFormError(page.exportWalletErr, res.msg)
     }
@@ -2386,7 +2386,7 @@ export default class WalletsPage extends BasePage {
       tmpl.instructions.textContent = wr.instructions
       page.restoreInfoCardsList.appendChild(card)
     }
-    this.showForm(page.restoreWalletInfo)
+    await this.showForm(page.restoreWalletInfo)
   }
 
   async recoverWallet (): Promise<void> {
