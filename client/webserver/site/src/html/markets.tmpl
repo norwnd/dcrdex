@@ -389,7 +389,16 @@
                 <div id="recentlyActiveUserOrders" class="mb-1"></div>
               </div>
               {{- /* END OPEN ORDERS */ -}}
-
+              {{- /* COMPLETED ORDERS */ -}}
+              <div class="my-1 border-top">
+                <div class="text-center bold fs20 p-1">[[[Completed Orders]]]</div>
+                <div id="completedOrderHistoryDurBttnBox" class="d-flex flex-stretch-row justify-content-between px-2 pb-2">
+                  <button id="completedOrderDurBttnTemplate" class="completed-order-dur-bttn fs15 px-1 grey"></button>
+                </div>
+                <div id="completedNoUserOrders" class="flex-center fs15 pb-1 grey">no past history for this period</div>
+                <div id="completedUserOrders" class="mb-1"></div>
+              </div>
+              {{- /* END COMPLETED ORDERS */ -}}
               {{- /* RECENT MATCHES */ -}}
               <div id=recentMatchesBox class="flex-stretch-column my-1 border-top">
                 <div class="text-center bold fs20 p-1">[[[Recent Matches]]]</div>
@@ -420,17 +429,6 @@
                 </table>
               </div>
               {{- /* END RECENT MATCHES */ -}}
-
-              {{- /* COMPLETED ORDERS */ -}}
-              <div class="my-1 border-top">
-                <div class="text-center bold fs20 p-1">[[[Completed Orders]]]</div>
-                <div id="completedOrderHistoryDurBttnBox" class="d-flex flex-stretch-row justify-content-between px-2 pb-2">
-                  <button id="completedOrderDurBttnTemplate" class="completed-order-dur-bttn fs15 px-1 grey"></button>
-                </div>
-                <div id="completedNoUserOrders" class="flex-center fs15 pb-1 grey">no past history</div>
-                <div id="completedUserOrders" class="mb-1"></div>
-              </div>
-              {{- /* END COMPLETED ORDERS */ -}}
             </div>
           </section>
         </div>
