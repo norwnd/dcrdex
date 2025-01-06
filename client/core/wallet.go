@@ -693,12 +693,12 @@ func (w *xcWallet) setFeeState(feeRate uint64) {
 
 // feeRate returns a fee rate for a FeeRater is available and generates a
 // non-zero rate.
-func (w *xcWallet) feeRate() uint64 {
+func (w *xcWallet) feeRate() (rate uint64, tooLow bool) {
 	if rater, is := w.Wallet.(asset.FeeRater); !is {
-		return 0
-	} else if r := rater.FeeRate(); r != 0 {
+		return 0, false
+	} else if r, tooLow := rater.FeeRate(); r != 0 {
 		w.setFeeState(r)
-		return r
+		return r, tooLow
 	}
-	return 0
+	return 0, false
 }

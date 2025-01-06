@@ -89,7 +89,7 @@ func TestElectrumExchangeWallet(t *testing.T) {
 	}
 	t.Log(addr)
 
-	feeRate := eew.FeeRate()
+	feeRate, _ := eew.FeeRate()
 	if feeRate == 0 {
 		t.Fatal("zero fee rate")
 	}

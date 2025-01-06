@@ -1185,8 +1185,8 @@ type TFeeRater struct {
 	feeRate uint64
 }
 
-func (w *TFeeRater) FeeRate() uint64 {
-	return w.feeRate
+func (w *TFeeRater) FeeRate() (rate uint64, tooLow bool) {
+	return w.feeRate, false
 }
 
 type TLiveReconfigurer struct {

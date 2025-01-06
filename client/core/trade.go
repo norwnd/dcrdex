@@ -389,7 +389,7 @@ func (t *trackedTrade) cacheRedemptionFeeSuggestion() {
 	// the wallet settings permit external API requests.
 	toWallet := t.wallets.toWallet
 	if t.readyToTick && toWallet.connected() {
-		if feeRate := toWallet.feeRate(); feeRate != 0 {
+		if feeRate, _ := toWallet.feeRate(); feeRate != 0 {
 			set(feeRate)
 			return
 		}
@@ -2390,13 +2390,16 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 		return
 	}
 
-	// calculate swap fee rate, cap it if necessary
-	swapFeeRate := fromWallet.feeRate()
+	// calculate swap fee rate
+	swapFeeRate, feeRateTooLow := fromWallet.feeRate()
 	if swapFeeRate == 0 { // either not a FeeRater, or FeeRate failed
 		swapFeeRate = t.dc.bestBookFeeSuggestion(fromWallet.AssetID)
 	}
-	if swapFeeRate > t.metaData.MaxFeeRate {
-		swapFeeRate = t.metaData.MaxFeeRate
+	// Ensure swap is not initiated if we cannot set fees that are even remotely close
+	// to the current network conditions (otherwise we'll have to refund it eventually).
+	if feeRateTooLow {
+		errs.add("swap cannot proceed with too low fee rate (wallet configured to refuse offering higher fee rates)")
+		return
 	}
 	// Ensure swap is not sent with a zero fee rate.
 	if swapFeeRate == 0 {
@@ -2950,7 +2953,7 @@ func (t *trackedTrade) redeemFee() uint64 {
 	// one if we don't have one cached.
 	var feeSuggestion uint64
 	if feeRater, is := t.wallets.toWallet.Wallet.(asset.FeeRater); is {
-		feeSuggestion = feeRater.FeeRate()
+		feeSuggestion, _ = feeRater.FeeRate()
 		if feeSuggestion > t.metaData.RedeemMaxFeeRate { // cap it if necessary
 			feeSuggestion = t.metaData.RedeemMaxFeeRate
 		}
