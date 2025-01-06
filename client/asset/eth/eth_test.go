@@ -1530,7 +1530,7 @@ func TestFeeRate(t *testing.T) {
 		node.baseFee = test.baseFee
 		node.tip = test.tip
 		node.netFeeStateErr = test.netFeeStateErr
-		feeRate := eth.FeeRate()
+		feeRate, _ := eth.FeeRate()
 		if feeRate != test.wantFeeRate {
 			t.Fatalf("%v: expected fee rate %d but got %d", test.name, test.wantFeeRate, feeRate)
 		}

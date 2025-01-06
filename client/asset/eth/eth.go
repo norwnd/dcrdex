@@ -2485,7 +2485,7 @@ func (w *assetWallet) Redeem(form *asset.RedeemForm, feeWallet *assetWallet, non
 
 	// Fetch up-to-date fee rate, we'll want to use it instead of form.FeeSuggestion since
 	// it better reflects current networking conditions.
-	maxFee, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
+	maxFee, tipRate, _, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return fail(fmt.Errorf("Error fetching recommended max fee rate: %w", err))
 	}
@@ -2625,7 +2625,7 @@ func (w *TokenWallet) ApproveToken(assetVer uint32, onConfirm func()) (string, e
 		return "", asset.ErrApprovalPending
 	}
 
-	maxFeeRate, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
+	maxFeeRate, tipRate, _, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return "", fmt.Errorf("error calculating approval fee rate: %w", err)
 	}
@@ -2675,7 +2675,7 @@ func (w *TokenWallet) UnapproveToken(assetVer uint32, onConfirm func()) (string,
 		return "", asset.ErrApprovalPending
 	}
 
-	maxFeeRate, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
+	maxFeeRate, tipRate, _, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return "", fmt.Errorf("error calculating approval fee rate: %w", err)
 	}
@@ -2724,7 +2724,7 @@ func (w *TokenWallet) ApprovalFee(assetVer uint32, approve bool) (uint64, error)
 		return 0, fmt.Errorf("error calculating approval gas: %w", err)
 	}
 
-	feeRateGwei, err := w.recommendedMaxFeeRateGwei(w.ctx)
+	feeRateGwei, _, err := w.recommendedMaxFeeRateGwei(w.ctx)
 	if err != nil {
 		return 0, fmt.Errorf("error calculating approval fee rate: %w", err)
 	}
@@ -3214,7 +3214,7 @@ func isValidSend(addr string, value uint64, subtract bool) error {
 // the fee rate and max fee required for the send tx. If isPreEstimate is false,
 // wallet balance must be enough to cover total spend.
 func (w *ETHWallet) canSend(value uint64, verifyBalance, isPreEstimate bool) (maxFee uint64, maxFeeRate, tipRate *big.Int, err error) {
-	maxFeeRate, tipRate, err = w.recommendedMaxFeeRate(w.ctx)
+	maxFeeRate, tipRate, _, err = w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("error getting max fee rate: %w", err)
 	}
@@ -3246,7 +3246,7 @@ func (w *ETHWallet) canSend(value uint64, verifyBalance, isPreEstimate bool) (ma
 // canSend ensures that the wallet has enough to cover send value and returns
 // the fee rate and max fee required for the send tx.
 func (w *TokenWallet) canSend(value uint64, verifyBalance, isPreEstimate bool) (maxFee uint64, maxFeeRate, tipRate *big.Int, err error) {
-	maxFeeRate, tipRate, err = w.recommendedMaxFeeRate(w.ctx)
+	maxFeeRate, tipRate, _, err = w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("error getting max fee rate: %w", err)
 	}
@@ -3636,40 +3636,53 @@ func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error)
 
 // recommendedMaxFeeRate finds recommended max fee rate (in wei units) using the
 // somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
-func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, err error) {
+func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error getting net fee state: %v", err)
+		return nil, nil, false, fmt.Errorf("Error getting net fee state: %v", err)
 	}
 
 	userConfiguredMaxTotal := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
 	recommendedTotal := new(big.Int).Add(tip, new(big.Int).Mul(base, big.NewInt(2)))
+	// make sure we don't blindly follow 3rd-party supplied estimates by capping it
+	// at user-configured value
 	if recommendedTotal.Cmp(userConfiguredMaxTotal) > 0 {
-		// make sure we don't blindly follow 3rd-party supplied estimates by capping it
-		// at user-configured value
-		return userConfiguredMaxTotal, tip, nil
+		recommendedTotalGwei, err := dexeth.WeiToGweiSafe(recommendedTotal)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("couldn't convert Wei to Gwei: %v", err)
+		}
+		userConfiguredMaxTotalGwei, err := dexeth.WeiToGweiSafe(userConfiguredMaxTotal)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("couldn't convert Wei to Gwei: %v", err)
+		}
+		tooLow = false
+		if float64(recommendedTotalGwei) > 1.5*float64(userConfiguredMaxTotalGwei) {
+			tooLow = true
+		}
+		return userConfiguredMaxTotal, tip, tooLow, nil
 	}
-	return recommendedTotal, tip, nil
+	return recommendedTotal, tip, false, nil
 }
 
 // recommendedMaxFeeRateGwei gets the recommended max fee rate and converts it
 // to gwei.
-func (w *baseWallet) recommendedMaxFeeRateGwei(ctx context.Context) (uint64, error) {
-	feeRate, _, err := w.recommendedMaxFeeRate(ctx)
+func (w *baseWallet) recommendedMaxFeeRateGwei(ctx context.Context) (maxRate uint64, tooLow bool, err error) {
+	feeRate, _, tooLow, err := w.recommendedMaxFeeRate(ctx)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
-	return dexeth.WeiToGweiSafe(feeRate)
+	maxRate, err = dexeth.WeiToGweiSafe(feeRate)
+	return maxRate, tooLow, err
 }
 
 // FeeRate satisfies asset.FeeRater.
-func (eth *baseWallet) FeeRate() uint64 {
-	r, err := eth.recommendedMaxFeeRateGwei(eth.ctx)
+func (eth *baseWallet) FeeRate() (rate uint64, tooLow bool) {
+	r, tooLow, err := eth.recommendedMaxFeeRateGwei(eth.ctx)
 	if err != nil {
 		eth.log.Errorf("Error getting max fee recommendation: %v", err)
-		return 0
+		return 0, false
 	}
-	return r
+	return r, tooLow
 }
 
 func (eth *ETHWallet) checkPeers() {
@@ -5071,7 +5084,7 @@ func (w *assetWallet) userActionRecoverNonces(actionB []byte) error {
 	// are trying to solve with these; still we'll have to bump fees tip without capping and
 	// potentially overflow user-capped fee rate anyway, but that's reasonable thing to do -
 	// in case it's not good enough we'll retry this by asking for user action again later
-	maxFeeRate, tipRate, err := w.recommendedMaxFeeRate(w.ctx)
+	maxFeeRate, tipRate, _, err := w.recommendedMaxFeeRate(w.ctx)
 	if err != nil {
 		return fmt.Errorf("error getting max fee rate for nonce resolution: %v", err)
 	}

@@ -745,11 +745,13 @@ type DynamicSwapper interface {
 // shouldn't implement FeeRater. However, since the mode of external wallets may
 // not be known on construction, only connect, a zero rate may be returned. The
 // caller should always check for zero and have a fallback rate. The rates from
-// FeeRate should be used for rates that are not validated by the server
-// Withdraw and Send, and will/should not be used to generate a fee
-// suggestion for swap operations.
+// FeeRate should be used for rates that are not validated by the server (e.g. for
+// Send, Redeem, Refund operations).
 type FeeRater interface {
-	FeeRate() uint64
+	// FeeRate returns recommended fee rate to use (capped at user-configured limit)
+	// as well as tooLow signalling if this rate would be too low with respect to
+	// current networking conditions.
+	FeeRate() (rate uint64, tooLow bool)
 }
 
 // FundsMixingStats describes the current state of a wallet's funds mixer.

@@ -345,8 +345,9 @@ func (w *zecWallet) CallRPC(method string, args []any, thing any) error {
 }
 
 // FeeRate returns the asset standard fee rate for Zcash.
-func (w *zecWallet) FeeRate() uint64 {
-	return 5000 // per logical action
+func (w *zecWallet) FeeRate() (rate uint64, tooLow bool) {
+	// ZEC fees are never too low in practice
+	return 5000, false // per logical action
 }
 
 func (w *zecWallet) Connect(ctx context.Context) (*sync.WaitGroup, error) {

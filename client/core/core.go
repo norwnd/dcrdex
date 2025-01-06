@@ -5295,7 +5295,7 @@ func (c *Core) feeSuggestionAny(assetID uint32, preferredConns ...*dexConnection
 			// so we can respect wallet settings (such as max fee)
 			return 0
 		}
-		if r := w.feeRate(); r != 0 {
+		if r, _ := w.feeRate(); r != 0 {
 			return r
 		}
 	}
