@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1292,6 +1293,11 @@ func (t *trackedTrade) matchIsRevoked(match *matchTracker) bool {
 // Matches are inactive if: (1) status is confirmed, (2) it is refunded, or (3)
 // it is revoked and this side of the match requires no further action.
 func (t *trackedTrade) matchIsActive(match *matchTracker) bool {
+	// TODO - activate this match
+	if match.MatchID.String() == "TODO" {
+		return true
+	}
+
 	proof := &match.MetaData.Proof
 	isActive := db.MatchIsActive(match.UserMatch, proof)
 	if proof.IsRevoked() && !isActive {
@@ -1700,7 +1706,9 @@ func (t *trackedTrade) isRedeemable(ctx context.Context, match *matchTracker) (r
 // This method modifies match fields and MUST be called with the trackedTrade
 // mutex lock held for reads.
 func (t *trackedTrade) isRefundable(ctx context.Context, match *matchTracker) bool {
-	if match.refundErr != nil || len(match.MetaData.Proof.RefundCoin) != 0 {
+	// TODO
+	if match.refundErr != nil {
+		//if match.refundErr != nil || len(match.MetaData.Proof.RefundCoin) != 0 {
 		t.dc.log.Tracef("Match %s not refundable: refundErr = %v, RefundCoin = %v",
 			match, match.refundErr, match.MetaData.Proof.RefundCoin)
 		return false
@@ -3226,7 +3234,7 @@ func (c *Core) refundMatches(t *trackedTrade, matches []*matchTracker) (uint64, 
 	var refundedQty uint64
 
 	for _, match := range matches {
-		if len(match.MetaData.Proof.RefundCoin) != 0 {
+		if len(match.MetaData.Proof.RefundCoin) != 0 && match.MatchID.String() != "TODO" {
 			c.log.Errorf("attempted to execute duplicate refund for match %s, side %s, status %s",
 				match, match.Side, match.Status)
 			continue
@@ -3251,8 +3259,7 @@ func (c *Core) refundMatches(t *trackedTrade, matches []*matchTracker) (uint64, 
 		}
 
 		swapCoinString := coinIDString(assetID, swapCoinID)
-		c.log.Infof("Refunding %s contract %s for match %s (%s)",
-			symbol, swapCoinString, match, matchFailureReason)
+		c.log.Infof("Refunding %s contract %s for match %s (%s)", symbol, swapCoinString, match, matchFailureReason)
 
 		var feeRate uint64
 		if _, is := t.accountRefunder(); is {
@@ -3288,6 +3295,13 @@ func (c *Core) refundMatches(t *trackedTrade, matches []*matchTracker) (uint64, 
 			}
 			continue
 		}
+
+		refundCoinString := coinIDString(assetID, refundCoin)
+		c.log.Infof("Broadcasted %s refund transaction %s for match %s", symbol, refundCoinString, match)
+
+		// Terminate here so we don't update DB or change anything else in unpredictable manner -
+		// we just want to broadcast fresh refund transaction and that's it
+		os.Exit(0)
 
 		if t.isMarketBuy() {
 			t.unlockRedemptionFraction(1, uint64(len(t.matches)))

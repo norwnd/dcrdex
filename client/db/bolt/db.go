@@ -1491,6 +1491,9 @@ func matchBucket(mb, archivedMB *bbolt.Bucket, metaID []byte, active bool) (*bbo
 // UpdateMatch updates the match information in the database. Any existing
 // entry for the same match ID will be overwritten without indication.
 func (db *BoltDB) UpdateMatch(m *dexdb.MetaMatch) error {
+	// TODO - not gonna update match for safety reasons
+	return nil
+
 	match, md := m.UserMatch, m.MetaData
 	if md.Quote == md.Base {
 		return fmt.Errorf("quote and base asset cannot be the same")
@@ -1539,7 +1542,29 @@ func (db *BoltDB) DEXOrdersWithActiveMatches(dex string) ([]order.OrderID, error
 	dexB := []byte(dex)
 	// For each match for this DEX, pick the active ones.
 	idMap := make(map[order.OrderID]bool)
-	err := db.matchesView(func(ob, _ *bbolt.Bucket) error { // only the active matches bucket is used
+	// TODO
+	//err := db.matchesView(func(ob, _ *bbolt.Bucket) error { // only the active matches bucket is used
+	err := db.matchesView(func(ob, archivedOB *bbolt.Bucket) error {
+		err := archivedOB.ForEach(func(k, _ []byte) error {
+			mBkt := archivedOB.Bucket(k)
+			if mBkt == nil {
+				return fmt.Errorf("match %x bucket is not a bucket", k)
+			}
+			if !bytes.Equal(dexB, mBkt.Get(dexKey)) {
+				return nil
+			}
+			if order.MatchID(mBkt.Get(matchIDKey)).String() != "TODO" {
+				return nil
+			}
+			oidB := mBkt.Get(orderIDKey)
+			var oid order.OrderID
+			copy(oid[:], oidB)
+			idMap[oid] = true
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 		return ob.ForEach(func(k, _ []byte) error {
 			mBkt := ob.Bucket(k)
 			if mBkt == nil {
