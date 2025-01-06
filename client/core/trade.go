@@ -2391,7 +2391,7 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 	}
 
 	// calculate swap fee rate
-	swapFeeRate, feeRateTooLow := fromWallet.feeRate()
+	swapFeeRate, feeRateTooLow := fromWallet.feeRateSwap()
 	if swapFeeRate == 0 { // either not a FeeRater, or FeeRate failed
 		swapFeeRate = t.dc.bestBookFeeSuggestion(fromWallet.AssetID)
 	}

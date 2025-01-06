@@ -65,9 +65,9 @@ var (
 			Key:         "gasfeelimit",
 			DisplayName: "Gas Fee Limit",
 			Description: "This is the highest network fee rate you are willing to " +
-				"pay on swap transactions. If gasfeelimit is lower than a market's " +
-				"maxfeerate, you will not be able to trade on that market with this " +
-				"wallet.  Units: gwei / gas",
+				"pay for transactions, fee rate for Swap transactions will be 2x of that" +
+				"(because they need to be mined faster than any other transaction type for " +
+				"trades to execute). Units: gwei / gas",
 			DefaultValue: defaultGasFeeLimit,
 		},
 	}
