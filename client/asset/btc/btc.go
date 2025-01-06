@@ -990,7 +990,17 @@ var _ asset.FeeRater = (*ExchangeWalletNoAuth)(nil)
 
 // FeeRate satisfies asset.FeeRater.
 func (btc *baseWallet) FeeRate() (rate uint64, tooLow bool) {
-	rate, tooLow, err := btc.feeRate(1)
+	rate, tooLow, err := btc.feeRate(1, btc.feeRateLimit())
+	if err != nil {
+		btc.log.Tracef("Failed to get fee rate: %v", err)
+		return 0, false
+	}
+	return rate, tooLow
+}
+
+// FeeRateSwap is same as FeeRate but for swaps.
+func (btc *baseWallet) FeeRateSwap() (rate uint64, tooLow bool) {
+	rate, tooLow, err := btc.feeRate(1, 2*btc.feeRateLimit())
 	if err != nil {
 		btc.log.Tracef("Failed to get fee rate: %v", err)
 		return 0, false
@@ -1604,7 +1614,7 @@ func (btc *baseWallet) connect(ctx context.Context) (*sync.WaitGroup, error) {
 		return nil, fmt.Errorf("invalid best block hash from %s node: %v", btc.symbol, err)
 	}
 	// Check for method unknown error for feeRate method.
-	_, _, err = btc.feeRate(1)
+	_, _, err = btc.feeRate(1, btc.feeRateLimit())
 	if isMethodNotFoundErr(err) {
 		return nil, fmt.Errorf("fee estimation method not found. Are you configured for the correct RPC?")
 	}
@@ -1855,7 +1865,7 @@ func (btc *baseWallet) legacyBalance() (*asset.Balance, error) {
 
 // feeRate returns the current optimal fee rate in sat / byte using the
 // estimatesmartfee RPC or an external API if configured and enabled.
-func (btc *baseWallet) feeRate(confTarget uint64) (feeRate uint64, tooLow bool, err error) {
+func (btc *baseWallet) feeRate(confTarget uint64, feeRateCap uint64) (feeRate uint64, tooLow bool, err error) {
 	allowExternalFeeRate := btc.apiFeeFallback()
 	// Because of the problems Bitcoin's unstable estimatesmartfee has caused,
 	// we won't use it.
@@ -1884,12 +1894,12 @@ func (btc *baseWallet) feeRate(confTarget uint64) (feeRate uint64, tooLow bool, 
 	}
 
 	btc.log.Tracef("Retrieved fee rate from external API: %v", feeRate)
-	if feeRate > btc.feeRateLimit() {
+	if feeRate > feeRateCap {
 		btc.log.Tracef("capping fee rate %v retrieved from external API at user-configured limit of %v", feeRate, btc.feeRateLimit())
-		if float64(feeRate) > 1.5*float64(btc.feeRateLimit()) {
+		if float64(feeRate) > 1.5*float64(feeRateCap) {
 			tooLow = true // capped rate will be too low
 		}
-		feeRate = btc.feeRateLimit()
+		feeRate = feeRateCap
 	}
 
 	return feeRate, tooLow, nil
@@ -1955,7 +1965,7 @@ func (a amount) String() string {
 // number of confirmations, but falls back to the suggestion or fallbackFeeRate
 // via feeRateWithFallback.
 func (btc *baseWallet) targetFeeRateWithFallback(confTarget, feeSuggestion uint64) uint64 {
-	feeRate, _, err := btc.feeRate(confTarget)
+	feeRate, _, err := btc.feeRate(confTarget, btc.feeRateLimit())
 	if err == nil && feeRate > 0 {
 		btc.log.Tracef("Obtained estimate for %d-conf fee rate, %d", confTarget, feeRate)
 		return feeRate

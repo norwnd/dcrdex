@@ -138,9 +138,9 @@ var (
 			Key:         "feeratelimit",
 			DisplayName: "Highest acceptable fee rate",
 			Description: "This is the highest network fee rate you are willing to " +
-				"pay on swap transactions. If feeratelimit is lower than a market's " +
-				"maxfeerate, you will not be able to trade on that market with this " +
-				"wallet.  Units: DCR/kB",
+				"pay for transactions, fee rate for Swap transactions will be 2x of that" +
+				"(because they need to be mined faster than any other transaction type for " +
+				"trades to execute). Units: DCR/kB",
 			DefaultValue: defaultFeeRateLimit * 1000 / 1e8,
 		},
 		{
@@ -1272,6 +1272,11 @@ func (dcr *ExchangeWallet) FeeRate() (rate uint64, tooLow bool) {
 		dcr.log.Errorf("feeRate error: %v", err)
 	}
 	return rate, false // DCR fees are never too low in practice
+}
+
+// FeeRateSwap is same as FeeRate but for swaps.
+func (dcr *ExchangeWallet) FeeRateSwap() (rate uint64, tooLow bool) {
+	return dcr.FeeRate()
 }
 
 // feeRate returns the current optimal fee rate in atoms / byte.

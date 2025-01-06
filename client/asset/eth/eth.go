@@ -136,9 +136,9 @@ var (
 			Key:         "gasfeelimit",
 			DisplayName: "Gas Fee Limit",
 			Description: "This is the highest network fee rate you are willing to " +
-				"pay on swap transactions. If gasfeelimit is lower than a market's " +
-				"maxfeerate, you will not be able to trade on that market with this " +
-				"wallet.  Units: gwei / gas",
+				"pay for transactions, fee rate for Swap transactions will be 2x of that" +
+				"(because they need to be mined faster than any other transaction type for " +
+				"trades to execute). Units: gwei / gas",
 			DefaultValue: defaultGasFeeLimit,
 		},
 	}
@@ -3634,38 +3634,50 @@ func (w *baseWallet) currentFeeRate(ctx context.Context) (_ *big.Int, err error)
 	return new(big.Int).Add(b, t), nil
 }
 
-// recommendedMaxFeeRate finds recommended max fee rate (in wei units) using the
-// somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
+// recommendedMaxFeeRate returns recommended max fee rate (in wei units) for various
+// transactions this wallet supports (pretty much all transaction types except for
+// swap transactions).
 func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
+	userConfiguredTotalCap := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
+	return eth.recommendedMaxFeeRateWithCap(ctx, userConfiguredTotalCap)
+}
+
+// recommendedMaxFeeRateSwap is same as recommendedMaxFeeRate but for swap transactions.
+func (eth *baseWallet) recommendedMaxFeeRateSwap(ctx context.Context) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
+	userConfiguredTotalCap := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
+	userConfiguredTotalCap = new(big.Int).Mul(userConfiguredTotalCap, big.NewInt(2))
+	return eth.recommendedMaxFeeRateWithCap(ctx, userConfiguredTotalCap)
+}
+
+// recommendedMaxFeeRateWithCap finds recommended max fee rate (in wei units) using the
+// somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
+func (eth *baseWallet) recommendedMaxFeeRateWithCap(ctx context.Context, userConfiguredTotalCap *big.Int) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("Error getting net fee state: %v", err)
 	}
 
-	userConfiguredMaxTotal := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
 	recommendedTotal := new(big.Int).Add(tip, new(big.Int).Mul(base, big.NewInt(2)))
 	// make sure we don't blindly follow 3rd-party supplied estimates by capping it
 	// at user-configured value
-	if recommendedTotal.Cmp(userConfiguredMaxTotal) > 0 {
+	if recommendedTotal.Cmp(userConfiguredTotalCap) > 0 {
 		recommendedTotalGwei, err := dexeth.WeiToGweiSafe(recommendedTotal)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("couldn't convert Wei to Gwei: %v", err)
 		}
-		userConfiguredMaxTotalGwei, err := dexeth.WeiToGweiSafe(userConfiguredMaxTotal)
+		userConfiguredTotalCapGwei, err := dexeth.WeiToGweiSafe(userConfiguredTotalCap)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("couldn't convert Wei to Gwei: %v", err)
 		}
 		tooLow = false
-		if float64(recommendedTotalGwei) > 1.5*float64(userConfiguredMaxTotalGwei) {
+		if float64(recommendedTotalGwei) > 1.5*float64(userConfiguredTotalCapGwei) {
 			tooLow = true
 		}
-		return userConfiguredMaxTotal, tip, tooLow, nil
+		return userConfiguredTotalCap, tip, tooLow, nil
 	}
 	return recommendedTotal, tip, false, nil
 }
 
-// recommendedMaxFeeRateGwei gets the recommended max fee rate and converts it
-// to gwei.
 func (w *baseWallet) recommendedMaxFeeRateGwei(ctx context.Context) (maxRate uint64, tooLow bool, err error) {
 	feeRate, _, tooLow, err := w.recommendedMaxFeeRate(ctx)
 	if err != nil {
@@ -3675,9 +3687,28 @@ func (w *baseWallet) recommendedMaxFeeRateGwei(ctx context.Context) (maxRate uin
 	return maxRate, tooLow, err
 }
 
-// FeeRate satisfies asset.FeeRater.
+func (w *baseWallet) recommendedMaxFeeRateSwapGwei(ctx context.Context) (maxRate uint64, tooLow bool, err error) {
+	feeRate, _, tooLow, err := w.recommendedMaxFeeRateSwap(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	maxRate, err = dexeth.WeiToGweiSafe(feeRate)
+	return maxRate, tooLow, err
+}
+
+// FeeRate satisfies asset.FeeRater and returns fee rate (gas price) in Gwei.
 func (eth *baseWallet) FeeRate() (rate uint64, tooLow bool) {
 	r, tooLow, err := eth.recommendedMaxFeeRateGwei(eth.ctx)
+	if err != nil {
+		eth.log.Errorf("Error getting max fee recommendation: %v", err)
+		return 0, false
+	}
+	return r, tooLow
+}
+
+// FeeRateSwap is same as FeeRate but for swaps.
+func (eth *baseWallet) FeeRateSwap() (rate uint64, tooLow bool) {
+	r, tooLow, err := eth.recommendedMaxFeeRateSwapGwei(eth.ctx)
 	if err != nil {
 		eth.log.Errorf("Error getting max fee recommendation: %v", err)
 		return 0, false

@@ -752,6 +752,11 @@ type FeeRater interface {
 	// as well as tooLow signalling if this rate would be too low with respect to
 	// current networking conditions.
 	FeeRate() (rate uint64, tooLow bool)
+	// FeeRateSwap is same as FeeRate but returns fee rate specifically for swap transactions,
+	// the main difference being that swap transactions have a tight time-constraints so it's
+	// very desirable to have higher fee rate for swaps than all other types of transactions
+	// wallet supports.
+	FeeRateSwap() (rate uint64, tooLow bool)
 }
 
 // FundsMixingStats describes the current state of a wallet's funds mixer.
