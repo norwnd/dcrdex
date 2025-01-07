@@ -3,8 +3,10 @@ set -e
 #!/usr/bin/env bash
 
 ## mainnet
+#
 # pprof is available at:
 # http://127.0.0.1:3333/debug/pprof/goroutine?debug=1
+#
 (./client/cmd/bisonw/bisonw --webaddr=127.0.0.1:3333 --log=trace --httpprof)
 
 ## mainnet with dedicated DB:
