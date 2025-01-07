@@ -75,8 +75,7 @@ func init() {
 const (
 	// BipID is the BIP-0044 asset ID for Ethereum.
 	BipID               = 60
-	defaultGasFee       = 82  // gwei
-	defaultGasFeeLimit  = 200 // gwei
+	defaultGasFeeLimit  = 100 // gwei
 	defaultSendGasLimit = 21_000
 
 	// gweiConversionFactor is used to convert between gwei and wei
