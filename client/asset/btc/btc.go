@@ -1896,7 +1896,7 @@ func (btc *baseWallet) feeRate(confTarget uint64, feeRateCap uint64) (feeRate ui
 	btc.log.Tracef("Retrieved fee rate from external API: %v", feeRate)
 	if feeRate > feeRateCap {
 		btc.log.Tracef("capping fee rate %v retrieved from external API at user-configured limit of %v", feeRate, btc.feeRateLimit())
-		if float64(feeRate) > 1.5*float64(feeRateCap) {
+		if float64(feeRate) > 1.1*float64(feeRateCap) {
 			tooLow = true // capped rate will be too low
 		}
 		feeRate = feeRateCap

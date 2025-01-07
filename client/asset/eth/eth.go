@@ -3645,19 +3645,28 @@ func (eth *baseWallet) recommendedMaxFeeRate(ctx context.Context) (maxFeeRate, t
 // recommendedMaxFeeRateSwap is same as recommendedMaxFeeRate but for swap transactions.
 func (eth *baseWallet) recommendedMaxFeeRateSwap(ctx context.Context) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
 	userConfiguredTotalCap := new(big.Int).Mul(big.NewInt(int64(eth.gasFeeLimitV)), big.NewInt(gweiConversionFactor))
-	userConfiguredTotalCap = new(big.Int).Mul(userConfiguredTotalCap, big.NewInt(2))
-	return eth.recommendedMaxFeeRateWithCap(ctx, userConfiguredTotalCap)
+	userConfiguredTotalCap = new(big.Int).Mul(userConfiguredTotalCap, big.NewInt(2)) // doubling it
+	_, tipRate, tooLow, err = eth.recommendedMaxFeeRateWithCap(ctx, userConfiguredTotalCap)
+	// for swaps it's best to return the highest fee rate we are allowed to use because it would
+	// be dumb to get swap transaction stuck (especially since we don't have fee-bump mechanism
+	// in place for it at the moment) due to low fee while we could have set it higher
+	return userConfiguredTotalCap, tipRate, tooLow, err
 }
 
 // recommendedMaxFeeRateWithCap finds recommended max fee rate (in wei units) using the
-// somewhat standard baseRate * 2 + tip formula, capping it at user-configured value.
-func (eth *baseWallet) recommendedMaxFeeRateWithCap(ctx context.Context, userConfiguredTotalCap *big.Int) (maxFeeRate, tipRate *big.Int, tooLow bool, err error) {
+// somewhat standard baseRate + 2 * tip formula (we use 2x the tip to create an additional
+// buffer to handle small fee spikes), capping it at user-configured value.
+func (eth *baseWallet) recommendedMaxFeeRateWithCap(ctx context.Context, userConfiguredTotalCap *big.Int) (
+	maxFeeRate, tipRate *big.Int,
+	tooLow bool,
+	err error,
+) {
 	base, tip, err := eth.currentNetworkFees(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("Error getting net fee state: %v", err)
 	}
 
-	recommendedTotal := new(big.Int).Add(tip, new(big.Int).Mul(base, big.NewInt(2)))
+	recommendedTotal := new(big.Int).Add(base, new(big.Int).Mul(tip, big.NewInt(2)))
 	// make sure we don't blindly follow 3rd-party supplied estimates by capping it
 	// at user-configured value
 	if recommendedTotal.Cmp(userConfiguredTotalCap) > 0 {
@@ -3670,7 +3679,7 @@ func (eth *baseWallet) recommendedMaxFeeRateWithCap(ctx context.Context, userCon
 			return nil, nil, false, fmt.Errorf("couldn't convert Wei to Gwei: %v", err)
 		}
 		tooLow = false
-		if float64(recommendedTotalGwei) > 1.5*float64(userConfiguredTotalCapGwei) {
+		if float64(recommendedTotalGwei) > 1.1*float64(userConfiguredTotalCapGwei) {
 			tooLow = true
 		}
 		return userConfiguredTotalCap, tip, tooLow, nil
