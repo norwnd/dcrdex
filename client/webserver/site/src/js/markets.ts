@@ -829,58 +829,58 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
-
-    if (this.canTradeBuy()) {
-      // reset limit-order buy form inputs to defaults
-      const defaultRateAtom = this.book?.bestBuyRateAtom() || 0
-      const adjQtyBuy = this.lotToQty(1)
-      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
-      page.qtyFieldBuy.value = String(adjQtyBuy)
-      page.qtySliderBuyInput.value = '0'
-      if (defaultRateAtom !== 0) {
-        this.chosenRateBuyAtom = defaultRateAtom
-        page.rateFieldBuy.value = String(defaultRateAtom / mkt.rateConversionFactor)
-        this.setPageElementEnabled(this.page.priceBoxBuy, true)
-        this.setPageElementEnabled(this.page.qtyBoxBuy, true)
-        // we'll eventually need to fetch max estimate for slider to work, plus to
-        // do validation on user inputs, might as well do it now
-        this.finalizeTotalBuy()
-      } else {
-        this.setPageElementEnabled(this.page.priceBoxBuy, true)
-        this.setPageElementEnabled(this.page.qtyBoxBuy, false)
-        this.setPageElementEnabled(this.page.qtySliderBuy, false)
-        this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
-        this.setOrderBttnBuyEnabled(false, 'choose your price')
-      }
+    if (!this.walletsAreReadyToTrade()) {
+      return
     }
 
-    if (this.canTradeSell()) {
-      // reset limit-order sell form inputs to defaults
-      const defaultRateAtom = this.book?.bestSellRateAtom() || 0
-      const adjQtySell = this.lotToQty(1)
-      this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
-      page.qtyFieldSell.value = String(adjQtySell)
-      page.qtySliderSellInput.value = '0'
-      if (defaultRateAtom !== 0) {
-        this.chosenRateSellAtom = defaultRateAtom
-        page.rateFieldSell.value = String(defaultRateAtom / mkt.rateConversionFactor)
-        this.setPageElementEnabled(this.page.priceBoxSell, true)
-        this.setPageElementEnabled(this.page.qtyBoxSell, true)
-        // we'll eventually need to fetch max estimate for slider to work, plus to
-        // do validation on user inputs, might as well do it now
-        this.finalizeTotalSell()
-      } else {
-        this.chosenRateSellAtom = 0
-        page.rateFieldSell.value = ''
-        page.orderTotalPreviewSellLeft.textContent = ''
-        page.orderTotalPreviewSellRight.textContent = ''
-        this.setPageElementEnabled(this.page.priceBoxSell, true)
-        this.setPageElementEnabled(this.page.qtyBoxSell, false)
-        this.setPageElementEnabled(this.page.qtySliderSell, false)
-        this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
-        this.setOrderBttnSellEnabled(false, 'choose your price')
-      }
+    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
+
+    // reset limit-order buy form inputs to defaults
+    const defaultBuyRateAtom = this.book?.bestBuyRateAtom() || 0
+    const adjQtyBuy = this.lotToQty(1)
+    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
+    page.qtyFieldBuy.value = String(adjQtyBuy)
+    page.qtySliderBuyInput.value = '0'
+    if (defaultBuyRateAtom !== 0) {
+      this.chosenRateBuyAtom = defaultBuyRateAtom
+      page.rateFieldBuy.value = String(defaultBuyRateAtom / mkt.rateConversionFactor)
+      this.setPageElementEnabled(this.page.priceBoxBuy, true)
+      this.setPageElementEnabled(this.page.qtyBoxBuy, true)
+      // we'll eventually need to fetch max estimate for slider to work, plus to
+      // do validation on user inputs, might as well do it now
+      this.finalizeTotalBuy()
+    } else {
+      this.setPageElementEnabled(this.page.priceBoxBuy, true)
+      this.setPageElementEnabled(this.page.qtyBoxBuy, false)
+      this.setPageElementEnabled(this.page.qtySliderBuy, false)
+      this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+      this.setOrderBttnBuyEnabled(false, 'choose your price')
+    }
+
+    // reset limit-order sell form inputs to defaults
+    const defaultSellRateAtom = this.book?.bestSellRateAtom() || 0
+    const adjQtySell = this.lotToQty(1)
+    this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
+    page.qtyFieldSell.value = String(adjQtySell)
+    page.qtySliderSellInput.value = '0'
+    if (defaultSellRateAtom !== 0) {
+      this.chosenRateSellAtom = defaultSellRateAtom
+      page.rateFieldSell.value = String(defaultSellRateAtom / mkt.rateConversionFactor)
+      this.setPageElementEnabled(this.page.priceBoxSell, true)
+      this.setPageElementEnabled(this.page.qtyBoxSell, true)
+      // we'll eventually need to fetch max estimate for slider to work, plus to
+      // do validation on user inputs, might as well do it now
+      this.finalizeTotalSell()
+    } else {
+      this.chosenRateSellAtom = 0
+      page.rateFieldSell.value = ''
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
+      this.setPageElementEnabled(this.page.priceBoxSell, true)
+      this.setPageElementEnabled(this.page.qtyBoxSell, false)
+      this.setPageElementEnabled(this.page.qtySliderSell, false)
+      this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
+      this.setOrderBttnSellEnabled(false, 'choose your price')
     }
   }
 
@@ -1485,24 +1485,24 @@ export default class MarketsPage extends BasePage {
     }
   }
 
-  canTradeBuy (): boolean {
+  walletsAreReadyToTrade (): boolean {
     const mkt = this.market
-    const quoteWallet = app().assets[mkt.quote.id].wallet
-    if (!quoteWallet) {
-      console.warn('assertion failed, no quote wallet in app assets for:', mkt.quote.id)
-      return false
-    }
-    return true
-  }
 
-  canTradeSell (): boolean {
-    const mkt = this.market
     const baseWallet = app().assets[mkt.base.id].wallet
     if (!baseWallet) {
-      console.warn('assertion failed, no base wallet in app assets for:', mkt.base.id)
-      return false
+      this.setOrderBttnBuyEnabled(false, 'base wallet doesn\'t exist')
+    } else if (!baseWallet.synced) {
+      this.setOrderBttnBuyEnabled(false, 'base wallet isn\'t synced')
     }
-    return true
+
+    const quoteWallet = app().assets[mkt.quote.id].wallet
+    if (!quoteWallet) {
+      this.setOrderBttnBuyEnabled(false, 'quote wallet doesn\'t exist')
+    } else if (!quoteWallet.synced) {
+      this.setOrderBttnBuyEnabled(false, 'quote wallet isn\'t synced')
+    }
+
+    return baseWallet && baseWallet.synced && quoteWallet && quoteWallet.synced
   }
 
   /**
