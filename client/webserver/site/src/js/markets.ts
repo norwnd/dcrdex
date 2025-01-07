@@ -1821,15 +1821,16 @@ export default class MarketsPage extends BasePage {
       recentlyActiveUserOrders[ord.id] = { ord: ord } as MetaOrder
     }
 
-    // we have to cap how many orders we can show in UI
+    // get rid of inactive orders (cancels, revokes, etc.) - showing these would be too spammy
     const orderIsActive = (ord: Order) => ord.status < OrderUtil.StatusExecuted || OrderUtil.hasActiveMatches(ord)
     let sortedOrders = Object.keys(recentlyActiveUserOrders).map((oid: string) => recentlyActiveUserOrders[oid])
+    sortedOrders = sortedOrders.filter((mo: MetaOrder): boolean => {
+      return orderIsActive(mo.ord)
+    })
     sortedOrders.sort((a: MetaOrder, b: MetaOrder) => {
-      const [aActive, bActive] = [orderIsActive(a.ord), orderIsActive(b.ord)]
-      if (aActive && !bActive) return -1
-      else if (!aActive && bActive) return 1
       return b.ord.submitTime - a.ord.submitTime
     })
+    // we have to cap how many orders we can show in UI
     if (sortedOrders.length > maxRecentlyActiveUserOrdersShown) {
       sortedOrders = sortedOrders.slice(0, maxRecentlyActiveUserOrdersShown)
     }
