@@ -334,8 +334,6 @@ export default class MarketsPage extends BasePage {
     bindForm(page.orderFormSell, page.submitBttnSell, async () => { this.stepSubmitSell() })
     // Order verification form.
     bindForm(page.verifyForm, page.vSubmit, async () => { this.submitVerifiedOrder() })
-    // Cancel order form.
-    bindForm(page.cancelForm, page.cancelSubmit, async () => { this.submitCancel() })
 
     const closePopups = () => {
       this.forms.close()
@@ -1893,9 +1891,21 @@ export default class MarketsPage extends BasePage {
       details.type.textContent = OrderUtil.orderTypeText(ord.type)
       this.updateMetaOrder(mord)
 
-      const showCancel = (e: Event) => {
+      const cancelOrder = async (e: Event) => {
         e.stopPropagation()
-        this.showCancel(div, orderID)
+
+        const order = this.recentlyActiveUserOrders[orderID].ord
+
+        const req = {
+          orderID: order.id
+        }
+        const res = await postJSON('/api/cancel', req)
+        // Display error on confirmation modal.
+        if (!app().checkResponse(res)) {
+          console.log("couldn't cancel order, error response:", res.msg)
+          return
+        }
+        order.cancelling = true
       }
 
       if (!orderID) {
@@ -1904,7 +1914,7 @@ export default class MarketsPage extends BasePage {
       } else {
         if (OrderUtil.isCancellable(ord)) {
           Doc.show(details.cancelBttn)
-          bind(details.cancelBttn, 'click', (e: Event) => { showCancel(e) })
+          bind(details.cancelBttn, 'click', (e: Event) => { cancelOrder(e) })
         }
 
         details.link.href = `order/${orderID}`
@@ -1953,7 +1963,7 @@ export default class MarketsPage extends BasePage {
           bind(icon, 'click', (e: Event) => { cb(e) })
         }
 
-        if (OrderUtil.isCancellable(ord)) addButton(details.cancelBttn, (e: Event) => { showCancel(e) })
+        if (OrderUtil.isCancellable(ord)) addButton(details.cancelBttn, (e: Event) => { cancelOrder(e) })
         floater.appendChild(details.link.cloneNode(true))
 
         const ogScrollY = page.orderScroller.scrollTop
@@ -2316,7 +2326,7 @@ export default class MarketsPage extends BasePage {
   /* showVerify shows the form to accept the currently parsed order information
    * and confirm submission of the order to the dex.
    */
-  showVerify (order: TradeForm) {
+  async showVerify (order: TradeForm) {
     const page = this.page
     const mkt = this.market
     const isSell = order.sell
@@ -2390,7 +2400,7 @@ export default class MarketsPage extends BasePage {
       page.vSubmit.classList.add(buyBtnClass)
       page.vSubmit.classList.remove(sellBtnClass)
     }
-    this.showVerifyForm()
+    await this.showVerifyForm()
   }
 
   // showFiatValue displays the fiat equivalent for an order quantity.
@@ -2407,54 +2417,7 @@ export default class MarketsPage extends BasePage {
   async showVerifyForm () {
     const page = this.page
     Doc.hide(page.vErr)
-    this.forms.show(page.verifyForm)
-  }
-
-  async submitCancel () {
-    // this will be the page.cancelSubmit button (evt.currentTarget)
-    const page = this.page
-    const cancelData = this.cancelData
-    const order = cancelData.order
-    const req = {
-      orderID: order.id
-    }
-    // Toggle the loader and submit button.
-    const loaded = app().loading(page.cancelSubmit)
-    const res = await postJSON('/api/cancel', req)
-    loaded()
-    // Display error on confirmation modal.
-    if (!app().checkResponse(res)) {
-      page.cancelErr.textContent = res.msg
-      Doc.show(page.cancelErr)
-      return
-    }
-    // Hide confirmation modal only on success.
-    Doc.hide(cancelData.bttn, page.forms)
-    order.cancelling = true
-  }
-
-  /* showCancel shows a form to confirm submission of a cancel order. */
-  showCancel (row: HTMLElement, orderID: string) {
-    const ord = this.recentlyActiveUserOrders[orderID].ord
-    const page = this.page
-    const remaining = ord.qty - ord.filled
-    const asset = OrderUtil.isMarketBuy(ord) ? this.market.quote : this.market.base
-    page.cancelRemain.textContent = Doc.formatCoinAtom(remaining, asset.unitInfo)
-    page.cancelUnit.textContent = asset.symbol.toUpperCase()
-    Doc.hide(page.cancelErr)
-    this.forms.show(page.cancelForm)
-    this.cancelData = {
-      bttn: Doc.tmplElement(row, 'cancelBttn'),
-      order: ord
-    }
-  }
-
-  /* showCreate shows the new wallet creation form. */
-  showCreate (asset: SupportedAsset) {
-    const page = this.page
-    this.currentCreate = asset
-    this.newWalletForm.setAsset(asset.id)
-    this.forms.show(page.newWalletForm)
+    await this.forms.show(page.verifyForm)
   }
 
   /*
@@ -2464,7 +2427,7 @@ export default class MarketsPage extends BasePage {
    * will attempt to be unlocked in the order submission process, negating the
    * need to unlock ahead of time.
    */
-  stepSubmitBuy () {
+  async stepSubmitBuy () {
     const page = this.page
     const market = this.market
 
@@ -2491,17 +2454,17 @@ export default class MarketsPage extends BasePage {
       return
     }
     this.verifiedOrder = order
-    this.showVerify(this.verifiedOrder)
+    await this.showVerify(this.verifiedOrder)
   }
 
   /*
- * stepSubmitSell will examine the current state of wallets and step the user
- * through the process of order submission.
- * NOTE: I expect this process will be streamlined soon such that the wallets
- * will attempt to be unlocked in the order submission process, negating the
- * need to unlock ahead of time.
- */
-  stepSubmitSell () {
+   * stepSubmitSell will examine the current state of wallets and step the user
+   * through the process of order submission.
+   * NOTE: I expect this process will be streamlined soon such that the wallets
+   * will attempt to be unlocked in the order submission process, negating the
+   * need to unlock ahead of time.
+   */
+  async stepSubmitSell () {
     const page = this.page
     const market = this.market
 
@@ -2528,17 +2491,7 @@ export default class MarketsPage extends BasePage {
       return
     }
     this.verifiedOrder = order
-    this.showVerify(this.verifiedOrder)
-  }
-
-  /* Display a deposit address. */
-  async showDeposit (assetID: number) {
-    this.depositAddrForm.setAsset(assetID)
-    this.forms.show(this.page.deposit)
-  }
-
-  showCustomProviderDialog (assetID: number) {
-    app().loadPage('wallets', { promptProvider: assetID, goBack: 'markets' })
+    await this.showVerify(this.verifiedOrder)
   }
 
   /*
