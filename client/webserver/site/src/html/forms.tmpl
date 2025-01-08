@@ -526,23 +526,6 @@
 <div class="fs15 p-3 text-center d-hide text-danger text-break" id="changePWErrMsg"></div>
 {{end}}
 
-{{define "cancelOrderForm"}}
-<div class="form-closer"><span class="ico-cross"></span></div>
-<header>
-  [[[:title:cancel_order]]]
-</header>
-<div>
-  [[[cancel_no_pw]]]
-  <span id="cancelRemain" class="fs16 sans"></span>
-  <span id="cancelUnit" class="fs14 sans"></span>.<br>
-  [[[cancel_remain]]]
-</div>
-<div class="flex-stretch-column">
-  <button id="cancelSubmit" type="button" class="feature">[[[Submit]]]</button>
-</div>
-<div class="fs15 text-center d-hide text-danger" id="cancelErr"></div>
-{{end}}
-
 {{define "accelerateForm"}}
 <div class="form-closer"><span class="ico-cross"></span></div>
 <header>[[[:title:accelerate_order]]]</header>
