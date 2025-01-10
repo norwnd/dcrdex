@@ -279,7 +279,9 @@ func (p *provider) subscribeHeaders(ctx context.Context, sub ethereum.Subscripti
 		// will never return because geth does not use a timeout.
 		doneUnsubbing := make(chan struct{})
 		go func() {
-			sub.Unsubscribe()
+			if sub != nil {
+				sub.Unsubscribe()
+			}
 			close(doneUnsubbing)
 		}()
 		select {

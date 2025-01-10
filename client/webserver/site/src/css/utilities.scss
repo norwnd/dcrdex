@@ -131,6 +131,10 @@ sup.token-parent {
   white-space: pre-line;
 }
 
+.preserve-spaces {
+  white-space:pre;
+}
+
 .vscroll {
   @extend .stylish-overflow;
 
