@@ -1,9 +1,9 @@
-a:
+all:
 	make build
-	./a.sh
+	make run
 
-l:
-	./a.sh
+run:
+	./run.sh
 
 build:
 	./build.sh
