@@ -2038,8 +2038,7 @@ export default class MarketsPage extends BasePage {
       details.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       header.side.classList.add(ord.sell ? 'sellcolor' : 'buycolor')
       const settledFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(OrderUtil.settled(ord), market.baseUnitInfo, market.cfg.lotsize)
-      const totalQtyFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
-      header.qty.textContent = `[ ${settledFormatted} / ${totalQtyFormatted} ]`
+      header.qty.textContent = `${settledFormatted}`
       details.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
       let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
       let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
