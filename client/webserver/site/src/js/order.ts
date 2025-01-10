@@ -1,7 +1,7 @@
 import Doc from './doc'
 import BasePage from './basepage'
 import * as OrderUtil from './orderutil'
-import { bind as bindForm, AccelerateOrderForm } from './forms'
+import { AccelerateOrderForm } from './forms'
 import { postJSON } from './http'
 import * as intl from './locales'
 import {
@@ -72,7 +72,7 @@ export default class OrderPage extends BasePage {
 
     if (page.cancelBttn) {
       Doc.bind(page.cancelBttn, 'click', () => {
-        this.showForm(page.cancelForm)
+        this.submitCancel()
       })
     }
 
@@ -98,9 +98,6 @@ export default class OrderPage extends BasePage {
         Doc.hide(page.forms)
       }
     })
-
-    // Cancel order form
-    bindForm(page.cancelForm, page.cancelSubmit, async () => { this.submitCancel() })
 
     this.secondTicker = window.setInterval(() => {
       setStamp()
@@ -417,7 +414,7 @@ export default class OrderPage extends BasePage {
   async showForm (form: HTMLElement) {
     this.currentForm = form
     const page = this.page
-    Doc.hide(page.cancelForm, page.accelerateForm)
+    Doc.hide(page.accelerateForm)
     form.style.right = '10000px'
     Doc.show(page.forms, form)
     const shift = (page.forms.offsetWidth + form.offsetWidth) / 2
@@ -429,15 +426,12 @@ export default class OrderPage extends BasePage {
 
   /* submitCancel submits a cancellation for the order. */
   async submitCancel () {
-    // this will be the page.cancelSubmit button (evt.currentTarget)
     const page = this.page
     const order = this.order
     const req = {
       orderID: order.id
     }
-    const loaded = app().loading(page.cancelForm)
     const res = await postJSON('/api/cancel', req)
-    loaded()
     if (!app().checkResponse(res)) return
     page.status.textContent = intl.prep(intl.ID_CANCELING)
     Doc.hide(page.forms)
