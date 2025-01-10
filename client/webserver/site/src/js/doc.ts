@@ -671,8 +671,8 @@ export default class Doc {
    * ageSinceFromMs returns a string representation of the duration since the
    * specified unix timestamp (milliseconds).
    */
-  static ageSinceFromMs (ms: number): string {
-    return Doc.formatDuration((new Date().getTime()) - ms)
+  static ageSinceFromMs (ms: number, trimSeconds?: boolean): string {
+    return Doc.formatDuration((new Date().getTime()) - ms, trimSeconds)
   }
 
   /*
@@ -696,9 +696,9 @@ export default class Doc {
   }
 
   /*
- * hmsSinceFromS returns a time duration since the specified unix timestamp
- * formatted as YYYY/MM/DD hh:mm.
- */
+   * hmsSinceFromS returns a time duration since the specified unix timestamp
+   * formatted as YYYY/MM/DD hh:mm.
+   */
   static ymdhmSinceFromMS (ms: number): string {
     const date = new Date(ms)
     const year = String(date.getFullYear())
@@ -710,29 +710,54 @@ export default class Doc {
   }
 
   /* formatDuration returns a string representation of the duration */
-  static formatDuration (dur: number): string {
+  static formatDuration (dur: number, trimSeconds?: boolean): string {
     let seconds = Math.floor(dur)
     let result = ''
-    let count = 0
-    const add = (n: number, s: string) => {
-      if (n > 0 || count > 0) count++
-      if (n > 0) result += `${n}${s} `
-      return count >= 2
+    // significantChunkCnt counts how many chunks (year, month, day, hour, minute) we've added to the result.
+    let significantChunkCnt = 0
+    const add = (n: number, s: string): boolean => {
+      if (n === 0 && significantChunkCnt === 0) {
+        // we haven't started building the result, so we aren't done yet
+        return false
+      }
+      significantChunkCnt++
+      let chunk = `${n}${s} `
+      if (n < 10) {
+        // gotta pad 1-digit number chunk so that it occupies the same amount of space as 2-digit chunk
+        chunk = ' ' + chunk // use a space that's of the same size as a digit
+      }
+      result += chunk
+      return significantChunkCnt >= 2 // we want to show 2 chunks (year, month, day, hour, minute) at most
     }
-    let y, mo, d, h, m, s
-    [y, seconds] = timeMod(seconds, aYear)
-    if (add(y, 'y')) { return result }
-    [mo, seconds] = timeMod(seconds, aMonth)
-    if (add(mo, 'mo')) { return result }
-    [d, seconds] = timeMod(seconds, aDay)
-    if (add(d, 'd')) { return result }
+
+    const aYear = 31536000000
+    const aMonth = 2592000000
+    const aDay = 86400000
+    const anHour = 3600000
+    const aMinute = 60000
+    const aSecond = 1000
+
+    let Y, M, D, h, m, s
+    [Y, seconds] = timeMod(seconds, aYear)
+    if (add(Y, 'y')) { return result }
+    [M, seconds] = timeMod(seconds, aMonth)
+    if (add(M, 'm')) { return result }
+    [D, seconds] = timeMod(seconds, aDay)
+    if (add(D, 'd')) { return result }
     [h, seconds] = timeMod(seconds, anHour)
     if (add(h, 'h')) { return result }
+    if (trimSeconds) {
+      // show minutes chunk and be done with it
+      [m, seconds] = timeMod(seconds, aMinute)
+      add(m, 'm')
+      return result || '0m'
+    }
+    // show both minutes and seconds chunks then
     [m, seconds] = timeMod(seconds, aMinute)
     if (add(m, 'm')) { return result }
-    [s, seconds] = timeMod(seconds, 1000)
+    [s, seconds] = timeMod(seconds, aSecond)
     add(s, 's')
-    return result.trimEnd() || '0s'
+    return result || '0s'
   }
 
   // showFormError can be used to set and display error message on forms.
@@ -874,12 +899,6 @@ export class AniToggle {
 function sleep (ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
-
-const aYear = 31536000000
-const aMonth = 2592000000
-const aDay = 86400000
-const anHour = 3600000
-const aMinute = 60000
 
 /* timeMod returns the quotient and remainder of t / dur. */
 function timeMod (t: number, dur: number) {

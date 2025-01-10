@@ -202,7 +202,7 @@ export default class MarketsPage extends BasePage {
     this.recentMatches = []
     this.hovers = []
     // 'Recent Matches' list sort key and direction.
-    this.recentMatchesSortKey = 'time'
+    this.recentMatchesSortKey = 'age'
     this.recentMatchesSortDirection = -1
     // store original title so we can re-append it when updating market value.
     this.ogTitle = document.title
@@ -449,8 +449,8 @@ export default class MarketsPage extends BasePage {
       for (const mord of Object.values(this.recentlyActiveUserOrders)) {
         mord.details.age.textContent = Doc.ageSinceFromMs(mord.ord.submitTime)
       }
-      for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=time]')) {
-        td.textContent = Doc.timeFromMs(parseFloat(td.dataset.timestampMs ?? '0'))
+      for (const td of Doc.applySelector(page.recentMatchesLiveList, '[data-tmpl=age]')) {
+        td.textContent = Doc.ageSinceFromMs(parseFloat(td.dataset.timestampMs ?? '0'), true)
       }
     }, 1000)
 
@@ -572,7 +572,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const recentMatches = this.recentMatchesSorted('time', -1) // freshest first
+    const recentMatches = this.recentMatchesSorted('age', -1) // freshest first
     if (recentMatches.length === 0) {
       // not enough info to display current market price
       setDummyValues()
@@ -1280,7 +1280,7 @@ export default class MarketsPage extends BasePage {
 
     // update header for "matches" section
     page.priceHdr.textContent = `Price (${Doc.shortSymbol(this.market.quote.symbol)})`
-    page.timeHdr.textContent = 'Time'
+    page.ageHdr.textContent = 'Age'
     page.qtyHdr.textContent = `Size (${Doc.shortSymbol(this.market.base.symbol)})`
   }
 
@@ -2661,7 +2661,7 @@ export default class MarketsPage extends BasePage {
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.rate - b.rate))
       case 'qty':
         return this.recentMatches.sort((a: RecentMatch, b: RecentMatch) => direction * (a.qty - b.qty))
-      case 'time':
+      case 'age':
         return this.recentMatches.sort((a: RecentMatch, b:RecentMatch) => direction * (a.stamp - b.stamp))
       default:
         return []
@@ -2691,8 +2691,8 @@ export default class MarketsPage extends BasePage {
       tmpl.price.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
       tmpl.qty.classList.add(match.sell ? 'sellcolor' : 'buycolor')
-      tmpl.time.textContent = Doc.timeFromMs(match.stamp)
-      tmpl.time.dataset.timestampMs = String(match.stamp)
+      tmpl.age.textContent = Doc.ageSinceFromMs(match.stamp, true)
+      tmpl.age.dataset.timestampMs = String(match.stamp)
       page.recentMatchesLiveList.append(row)
     }
   }

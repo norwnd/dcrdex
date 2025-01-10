@@ -990,7 +990,7 @@ export default class WalletsPage extends BasePage {
     page.assetLogo.src = Doc.logoPath(symbol)
     Doc.hide(
       page.balanceBox, page.fiatBalanceBox, page.createWallet, page.walletDetails,
-      page.sendReceive, page.connectBttnBox, page.statusLocked, page.statusReady,
+      page.sendReceive, page.connectBttnBox,
       page.statusOff, page.connectBttnBox, page.peerCountBox, page.syncProgressBox,
       page.statusDisabled, page.tokenInfoBox, page.needsProviderBox, page.feeStateBox,
       page.txSyncBox, page.txProgress, page.txFindingAddrs
@@ -1021,14 +1021,11 @@ export default class WalletsPage extends BasePage {
   updateSyncAndPeers (assetID: number) {
     const { page, selectedAssetID } = this
     if (assetID !== selectedAssetID) return
-    const { peerCount, syncProgress, syncStatus, open, running } = app().walletMap[assetID]
+    const { peerCount, syncProgress, syncStatus, running } = app().walletMap[assetID]
     if (!running) return
     Doc.show(page.sendReceive, page.peerCountBox, page.syncProgressBox)
     page.peerCount.textContent = String(peerCount)
     page.syncProgress.textContent = `${(syncProgress * 100).toFixed(1)}%`
-    if (open) {
-      Doc.show(page.statusReady)
-    } else Doc.show(page.statusLocked) // wallet not unlocked
     Doc.setVis(syncStatus.txs !== undefined, page.txSyncBox)
     if (syncStatus.txs !== undefined) {
       Doc.hide(page.txProgress, page.txFindingAddrs)
@@ -2005,21 +2002,6 @@ export default class WalletsPage extends BasePage {
   showRecoverWallet () {
     Doc.hide(this.page.recoverWalletErr)
     this.showForm(this.page.recoverWalletConfirm)
-  }
-
-  /* Show the open wallet form if the password is not cached, and otherwise
-   * attempt to open the wallet.
-   */
-  async openWallet (assetID: number) {
-    const open = {
-      assetID: assetID
-    }
-    const res = await postJSON('/api/openwallet', open)
-    if (!app().checkResponse(res)) {
-      console.error('openwallet error', res)
-      return
-    }
-    this.assetUpdated(assetID, undefined, intl.prep(intl.ID_WALLET_UNLOCKED))
   }
 
   /* Show the form used to change wallet configuration settings. */
