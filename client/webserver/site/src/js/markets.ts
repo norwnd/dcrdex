@@ -350,12 +350,12 @@ export default class MarketsPage extends BasePage {
 
     // Limit order buy: event listeners for handling user interactions.
     bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyInputHandler() })
-    bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyChangeHandler() })
+    bind(page.rateFieldBuy, 'change', () => { this.rateFieldBuyChangeHandler() })
     bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyInputHandler() })
     bind(page.qtyFieldBuy, 'change', () => { this.qtyFieldBuyChangeHandler() })
     // Limit order sell: event listeners for handling user interactions.
     bind(page.rateFieldSell, 'input', () => { this.rateFieldSellInputHandler() })
-    bind(page.rateFieldSell, 'input', () => { this.rateFieldSellChangeHandler() })
+    bind(page.rateFieldSell, 'change', () => { this.rateFieldSellChangeHandler() })
     bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellInputHandler() })
     bind(page.qtyFieldSell, 'change', () => { this.qtyFieldSellChangeHandler() })
 
