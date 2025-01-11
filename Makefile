@@ -5,6 +5,9 @@ all:
 run:
 	./run.sh
 
+l:
+	make run
+
 build:
 	./build.sh
 
