@@ -805,7 +805,7 @@ export default class MarketsPage extends BasePage {
     this.setPageElementEnabled(this.page.qtySliderSell, false)
     this.setPageElementEnabled(this.page.previewTotalSell, false)
     this.setOrderBttnSellEnabled(false)
-    this.reInitOrderForms(1)
+    this.reInitOrderForms(0)
     Doc.show(page.orderFormBuy, page.orderFormSell)
 
     // show also our reputation on this market
@@ -814,16 +814,17 @@ export default class MarketsPage extends BasePage {
   }
 
   reInitOrderForms (retryNum: number) {
-    const maxRetries = 16
-
     const page = this.page
     const mkt = this.market
 
-    if (!mkt.bookLoaded && retryNum <= maxRetries) {
-      // we don't have order-book yet to fetch default rate, try later again
+    const retryDelay = 250 // 250ms delay
+    const maxRetries = 60 // 60 equals to 15s total retries (with 250ms delay)
+
+    if (!mkt.bookLoaded && retryNum < maxRetries) {
+      // we don't have order-book to fetch default buy/sell rates yet, try again later
       setTimeout(() => {
         this.reInitOrderForms(retryNum + 1)
-      }, 250) // 250ms delay
+      }, retryDelay)
       return
     }
 
@@ -1483,24 +1484,23 @@ export default class MarketsPage extends BasePage {
     }
   }
 
+  // walletsAreReadyToTrade checks if wallets exist, note we could also check if wallets
+  // are synced as well but that could be too aggressive (result in false-positives) and
+  // we check for it on back-end anyway (so it's not mandatory to do it here).
   walletsAreReadyToTrade (): boolean {
     const mkt = this.market
 
-    const baseWallet = app().assets[mkt.base.id].wallet
-    if (!baseWallet) {
+    const baseAsset = app().assets[mkt.base.id]
+    if (!baseAsset) {
       this.setOrderBttnBuyEnabled(false, 'base wallet doesn\'t exist')
-    } else if (!baseWallet.synced) {
-      this.setOrderBttnBuyEnabled(false, 'base wallet isn\'t synced')
     }
 
-    const quoteWallet = app().assets[mkt.quote.id].wallet
-    if (!quoteWallet) {
-      this.setOrderBttnBuyEnabled(false, 'quote wallet doesn\'t exist')
-    } else if (!quoteWallet.synced) {
-      this.setOrderBttnBuyEnabled(false, 'quote wallet isn\'t synced')
+    const quoteAsset = app().assets[mkt.quote.id]
+    if (!quoteAsset) {
+      this.setOrderBttnSellEnabled(false, 'quote wallet doesn\'t exist')
     }
 
-    return baseWallet && baseWallet.synced && quoteWallet && quoteWallet.synced
+    return baseAsset != null && quoteAsset != null
   }
 
   /**
