@@ -1700,12 +1700,23 @@ func (c *Core) Run(ctx context.Context) {
 	// Store the context as a field, since we will need to spawn new DEX threads
 	// when new accounts are registered.
 	c.ctx = ctx
-	if err := c.initialize(); err != nil { // connectDEX gets ctx for the wsConn
-		c.log.Critical(err)
+
+	// Start initialization, retries are needed to mitigate temporary failures
+	// to connect to DEX servers.
+	go func() {
+		const maxRetries = 10
+		var err error
+		for retry := 0; retry < maxRetries; retry++ {
+			err = c.initialize()
+			if err == nil {
+				close(c.ready) // signal that Core has been initialized
+				return
+			}
+		}
+		c.log.Critical(fmt.Errorf("couldn't initialize core after %d retries: %w", maxRetries, err))
 		close(c.ready) // unblock <-Ready()
 		return
-	}
-	close(c.ready)
+	}()
 
 	// The DB starts first and stops last.
 	ctxDB, stopDB := context.WithCancel(context.Background())
@@ -3121,11 +3132,13 @@ func (c *Core) isActiveBondAsset(assetID uint32, includeLive bool) bool {
 	assetIDs := map[uint32]bool{
 		assetID: true,
 	}
-	if ra := asset.Asset(assetID); ra != nil { // it's a base asset, all tokens need it
+	if ra := asset.Asset(assetID); ra != nil {
+		// it's a base asset, all tokens need it
 		for tknAssetID := range ra.Tokens {
 			assetIDs[tknAssetID] = true
 		}
-	} else { // it's a token and we only care about the parent, not sibling tokens
+	} else {
+		// it's a token and we only care about the parent, not sibling tokens
 		if tkn := asset.TokenInfo(assetID); tkn != nil { // it should be
 			assetIDs[tkn.ParentID] = true
 		}
@@ -7275,12 +7288,12 @@ func (c *Core) initialize() error {
 	// loadWallet requires dexConnections loaded to set proper locked balances
 	// (contracts and bonds), so we don't wait after the dbWallets loop.
 	wg.Wait()
-	c.log.Infof("Connected to %d of %d DEX servers", liveConns, len(accts))
 
-	// TODO - work-around for annoying bug that Bison wallet doesn't recover from
-	if liveConns == 0 {
-		os.Exit(1)
+	msgConnectedServersInfo := fmt.Sprintf("Connected to %d of %d DEX servers", liveConns, len(accts))
+	if len(accts) > 0 && liveConns == 0 {
+		return fmt.Errorf(msgConnectedServersInfo)
 	}
+	c.log.Infof(msgConnectedServersInfo)
 
 	for _, dbWallet := range dbWallets {
 		if asset.Asset(dbWallet.AssetID) == nil && asset.TokenInfo(dbWallet.AssetID) == nil {
