@@ -260,15 +260,15 @@ var originLocale = map[Topic]*translation{
 	},
 	TopicUpgradeNeeded: {
 		subject:  intl.Translation{T: "Upgrade needed"},
-		template: intl.Translation{T: "You may need to update your client to trade at %s.", Notes: "args: [host]"},
+		template: intl.Translation{T: "You may need to update your client to trade at %s", Notes: "args: [host]"},
 	},
 	TopicDEXConnected: {
 		subject:  intl.Translation{T: "Server connected"},
-		template: intl.Translation{T: "%s is connected", Notes: "args: [host]"},
+		template: intl.Translation{T: "%s", Notes: "args: [host]"},
 	},
 	TopicDEXDisconnected: {
 		subject:  intl.Translation{T: "Server disconnect"},
-		template: intl.Translation{T: "%s is disconnected", Notes: "args: [host]"},
+		template: intl.Translation{T: "%s", Notes: "args: [host]"},
 	},
 	TopicDexConnectivity: {
 		subject:  intl.Translation{T: "Internet Connectivity"},
