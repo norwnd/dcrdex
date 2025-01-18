@@ -707,7 +707,9 @@ func (w *xcWallet) feeRateSwap() (rate uint64, tooLow bool) {
 	if rater, is := w.Wallet.(asset.FeeRater); !is {
 		return 0, false
 	} else if r, tooLow := rater.FeeRateSwap(); r != 0 {
-		w.setFeeState(r)
+		// TODO - might want to implement similar updates for Swaps (as setFeeState) but
+		// that's not super important at the moment
+		//w.setFeeState(r)
 		return r, tooLow
 	}
 	return 0, false
