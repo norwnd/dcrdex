@@ -8,8 +8,8 @@ export default class OrderBook {
   baseSymbol: string
   quote: number
   quoteSymbol: string
-  buys: MiniOrder[]
-  sells: MiniOrder[]
+  buys: MiniOrder[] // includes epoch orders
+  sells: MiniOrder[] // includes epoch orders
 
   constructor (mktBook: MarketOrderBook, baseSymbol: string, quoteSymbol: string) {
     this.base = mktBook.base
@@ -43,14 +43,14 @@ export default class OrderBook {
   }
 
   /* remove removes an order from the order book. */
-  remove (token: string) {
-    if (this.removeFromSide(this.sells, token)) return
-    this.removeFromSide(this.buys, token)
+  remove (id: string) {
+    if (this.removeFromSide(this.sells, id)) return
+    this.removeFromSide(this.buys, id)
   }
 
   /* removeFromSide removes an order from the list of orders. */
-  removeFromSide (side: MiniOrder[], token: string) {
-    const [ord, i] = this.findOrder(side, token)
+  removeFromSide (side: MiniOrder[], id: string) {
+    const [ord, i] = this.findOrder(side, id)
     if (ord) {
       side.splice(i, 1)
       return true
@@ -59,9 +59,9 @@ export default class OrderBook {
   }
 
   /* findOrder finds an order in a specified side */
-  findOrder (side: MiniOrder[], token: string): [MiniOrder | null, number] {
+  findOrder (side: MiniOrder[], id: string): [MiniOrder | null, number] {
     for (let i = 0; i < side.length; i++) {
-      if (side[i].token === token) {
+      if (side[i].id === id) {
         return [side[i], i]
       }
     }
@@ -107,27 +107,69 @@ export default class OrderBook {
     return this.sells.length + this.buys.length
   }
 
-  /* bestGapOrder will return the best non-epoch order if one exists, or the
-   * best epoch order if there are only epoch orders, or null if there are no
-   * orders.
-   */
-  bestGapOrder (side: MiniOrder[]) {
-    let best = null
-    for (const ord of side) {
-      if (!ord.epoch) return ord
-      if (!best) {
-        best = ord
-      }
+  // bestOrder will return the best order in book-side if one exists
+  // (including epoch-orders) or null if there are no orders in book-side
+  bestOrder (sell: boolean): MiniOrder | null {
+    let side = this.buys
+    if (sell) {
+      side = this.sells
     }
-    return best
+
+    if (side.length > 0) {
+      return side[0]
+    }
+    return null
   }
 
-  bestGapBuy () {
-    return this.bestGapOrder(this.buys)
+  bestBuyRateAtom (): number {
+    const bestBuy = this.bestOrder(false)
+    if (!bestBuy) {
+      return 0
+    }
+    return bestBuy.msgRate
   }
 
-  bestGapSell () {
-    return this.bestGapOrder(this.sells)
+  bestSellRateAtom (): number {
+    const bestSell = this.bestOrder(true)
+    if (!bestSell) {
+      return 0
+    }
+    return bestSell.msgRate
+  }
+
+  // heaviestOrder will return the order in book-side of highest quantity if one exists
+  // (including epoch-orders) or null if there are no orders in book-side, the
+  // bestPriceDriftTolerance parameter value is between 0 and 1 (when set) allows for
+  // skipping orders with price that's too far from best price for this side of the book
+  heaviestOrder (sell: boolean, bestPriceDriftTolerance: number): MiniOrder | null {
+    let side = this.buys
+    if (sell) {
+      side = this.sells
+    }
+    if (side.length <= 0) {
+      return null
+    }
+
+    const bestOrder = this.bestOrder(sell)
+    if (!bestOrder) {
+      return null
+    }
+
+    let heaviestOrder = side[0]
+    side.forEach((order: MiniOrder) => {
+      if (bestPriceDriftTolerance > 0 && bestPriceDriftTolerance <= 1) {
+        if (!sell && (bestOrder.msgRate - order.msgRate > bestPriceDriftTolerance * bestOrder.msgRate)) {
+          return // order price drifted too far to consider it relevant
+        }
+        if (sell && (order.msgRate - bestOrder.msgRate > bestPriceDriftTolerance * bestOrder.msgRate)) {
+          return // order price drifted too far to consider it relevant
+        }
+      }
+      if (order.qtyAtomic > heaviestOrder.qtyAtomic) {
+        heaviestOrder = order
+      }
+    })
+    return heaviestOrder
   }
 }
 

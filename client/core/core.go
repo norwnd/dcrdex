@@ -164,6 +164,9 @@ type dexConnection struct {
 
 	booksMtx sync.RWMutex
 	books    map[string]*bookie
+	// obSyncReqCnt counts order book sync requests issued to server
+	// through this dexConnection
+	obSyncReqCnt uint64
 
 	// tradeMtx is used to synchronize access to the trades map.
 	tradeMtx sync.RWMutex
@@ -1538,6 +1541,10 @@ type Core struct {
 
 	requestedActionMtx sync.RWMutex
 	requestedActions   map[string]*asset.ActionRequiredNote
+
+	// previouslyFailedTradeAttempt is used to track last trade user tried to place but
+	// failed to pass all validation rules
+	previouslyFailedTradeAttempt atomic.Pointer[tradeAttempt]
 }
 
 // New is the constructor for a new Core.
@@ -1696,12 +1703,23 @@ func (c *Core) Run(ctx context.Context) {
 	// Store the context as a field, since we will need to spawn new DEX threads
 	// when new accounts are registered.
 	c.ctx = ctx
-	if err := c.initialize(); err != nil { // connectDEX gets ctx for the wsConn
-		c.log.Critical(err)
+
+	// Start initialization, retries are needed to mitigate temporary failures
+	// to connect to DEX servers.
+	go func() {
+		const maxRetries = 10
+		var err error
+		for retry := 0; retry < maxRetries; retry++ {
+			err = c.initialize()
+			if err == nil {
+				close(c.ready) // signal that Core has been initialized
+				return
+			}
+		}
+		c.log.Critical(fmt.Errorf("couldn't initialize core after %d retries: %w", maxRetries, err))
 		close(c.ready) // unblock <-Ready()
 		return
-	}
-	close(c.ready)
+	}()
 
 	// The DB starts first and stops last.
 	ctxDB, stopDB := context.WithCancel(context.Background())
@@ -3117,11 +3135,13 @@ func (c *Core) isActiveBondAsset(assetID uint32, includeLive bool) bool {
 	assetIDs := map[uint32]bool{
 		assetID: true,
 	}
-	if ra := asset.Asset(assetID); ra != nil { // it's a base asset, all tokens need it
+	if ra := asset.Asset(assetID); ra != nil {
+		// it's a base asset, all tokens need it
 		for tknAssetID := range ra.Tokens {
 			assetIDs[tknAssetID] = true
 		}
-	} else { // it's a token and we only care about the parent, not sibling tokens
+	} else {
+		// it's a token and we only care about the parent, not sibling tokens
 		if tkn := asset.TokenInfo(assetID); tkn != nil { // it should be
 			assetIDs[tkn.ParentID] = true
 		}
@@ -4929,12 +4949,14 @@ func (c *Core) Orders(filter *OrderFilter) ([]*Order, error) {
 	}
 
 	ords, err := c.db.Orders(&db.OrderFilter{
-		N:        filter.N,
-		Offset:   oid,
-		Hosts:    filter.Hosts,
-		Assets:   filter.Assets,
-		Market:   mkt,
-		Statuses: filter.Statuses,
+		N:                 filter.N,
+		Offset:            oid,
+		Hosts:             filter.Hosts,
+		Assets:            filter.Assets,
+		Market:            mkt,
+		Statuses:          filter.Statuses,
+		CompletedOnly:     filter.CompletedOnly,
+		FresherThanUnixMs: filter.FresherThanUnixMs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("UserOrders error: %w", err)
@@ -5280,8 +5302,13 @@ func (c *Core) removeWaiter(id string) {
 func (c *Core) feeSuggestionAny(assetID uint32, preferredConns ...*dexConnection) uint64 {
 	// See if the wallet supports fee rates.
 	w, found := c.wallet(assetID)
-	if found && w.connected() {
-		if r := w.feeRate(); r != 0 {
+	if found {
+		if !w.connected() {
+			// wait until wallet connects, refuse to use any other rate than wallet-provided
+			// so we can respect wallet settings (such as max fee)
+			return 0
+		}
+		if r, _ := w.feeRate(); r != 0 {
 			return r
 		}
 	}
@@ -6155,8 +6182,90 @@ func (c *Core) createTradeRequest(wallets *walletSet, coins asset.Coins, redeemS
 	}, nil
 }
 
+// tradeAttempt represents user-initiated trade attempt.
+type tradeAttempt struct {
+	market string
+	rate   uint64
+}
+
+func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexConnection) (err error) {
+	if rate == 0 {
+		return newError(orderParamsErr, "zero rate is invalid")
+	}
+
+	// code below implements a warning for the caller for cases where there is quite large
+	// chance he is about to do something stupid; this is indeed a warning and not an
+	// error because caller can retry same trade-request 2nd time to succeed
+
+	defer func() {
+		if err != nil {
+			// remember this failed attempt to do future trade-requests validation properly
+			c.previouslyFailedTradeAttempt.Store(&tradeAttempt{market: market, rate: rate})
+			return
+		}
+		c.previouslyFailedTradeAttempt.Store(nil) // resetting to default
+		return
+	}()
+
+	prevTradeAttempt := c.previouslyFailedTradeAttempt.Load()
+	if prevTradeAttempt != nil &&
+		market == prevTradeAttempt.market && rate == prevTradeAttempt.rate {
+		// the caller repeated the same trade-request for the 2nd time now, assume it means he
+		// understood the warning and don't perform any strict rate validation (as is done below)
+		// this time around
+		return nil
+	}
+
+	// to prevent accidental placement of orders with unreasonable rates we'll warn
+	// the caller when he is trying to place a trade that:
+	// 1) is immediately matched
+	// 2) will execute and result into slippage of 1% or more
+
+	book := dc.bookie(market)
+	bestBuy, err := book.BestBuy()
+	if err != nil {
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best buy order in Bison book: %v", err))
+	}
+	if sell && bestBuy != nil {
+		bestBisonBuyRate := bestBuy.Rate
+		if rate <= bestBisonBuyRate {
+			return newError(
+				orderParamsErr, fmt.Sprintf(
+					"(1-time warning, retry to proceed) you are trying to place trade with rate %d "+
+						"that would immediately match a buy order in Bison book with rate %d",
+					rate,
+					bestBisonBuyRate,
+				),
+			)
+		}
+	}
+	bestSell, err := book.BestSell()
+	if err != nil {
+		return newError(walletErr, fmt.Sprintf("couldn't fetch best sell order in Bison book: %v", err))
+	}
+	if !sell && bestSell != nil {
+		bestBisonSellRate := bestSell.Rate
+		if rate >= bestBisonSellRate {
+			return newError(
+				orderParamsErr, fmt.Sprintf(
+					"(1-time warning, retry to proceed) you are trying to place trade with rate %d "+
+						"that would immediately match a sell order in Bison book with rate %d",
+					rate,
+					bestBisonSellRate,
+				),
+			)
+		}
+	}
+
+	return nil
+}
+
 // prepareTradeRequest prepares a trade request.
 func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, error) {
+	if !form.IsLimit {
+		return nil, newError(orderParamsErr, "market orders are disabled (for safety reasons)")
+	}
+
 	wallets, assetConfigs, dc, mktConf, err := c.prepareForTradeRequestPrep(pw, form.Base, form.Quote, form.Host, form.Sell)
 	if err != nil {
 		return nil, err
@@ -6167,8 +6276,11 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 
 	rate, qty := form.Rate, form.Qty
 	if form.IsLimit {
-		if rate == 0 {
-			return nil, newError(orderParamsErr, "zero-rate order not allowed")
+		if qty == 0 {
+			return nil, newError(orderParamsErr, "zero quantity order not allowed")
+		}
+		if err := c.validateTradeRate(form.Sell, rate, mktID, dc); err != nil {
+			return nil, err
 		}
 		if minRate := dc.minimumMarketRate(assetConfigs.quoteAsset, mktConf.LotSize); rate < minRate {
 			return nil, newError(orderParamsErr, "order's rate is lower than market's minimum rate. %d < %d", rate, minRate)
@@ -6287,13 +6399,14 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 		return nil, err
 	}
 	fromWallet, toWallet := wallets.fromWallet, wallets.toWallet
+	mktID := marketName(form.Base, form.Quote)
 
 	for _, trade := range form.Placements {
-		if trade.Rate == 0 {
-			return nil, newError(orderParamsErr, "zero rate is invalid")
-		}
 		if trade.Qty == 0 {
 			return nil, newError(orderParamsErr, "zero quantity is invalid")
+		}
+		if err := c.validateTradeRate(form.Sell, trade.Rate, mktID, dc); err != nil {
+			return nil, err
 		}
 	}
 
@@ -7184,7 +7297,12 @@ func (c *Core) initialize() error {
 	// loadWallet requires dexConnections loaded to set proper locked balances
 	// (contracts and bonds), so we don't wait after the dbWallets loop.
 	wg.Wait()
-	c.log.Infof("Connected to %d of %d DEX servers", liveConns, len(accts))
+
+	msgConnectedServersInfo := fmt.Sprintf("Connected to %d of %d DEX servers", liveConns, len(accts))
+	if len(accts) > 0 && liveConns == 0 {
+		return fmt.Errorf(msgConnectedServersInfo)
+	}
+	c.log.Infof(msgConnectedServersInfo)
 
 	for _, dbWallet := range dbWallets {
 		if asset.Asset(dbWallet.AssetID) == nil && asset.TokenInfo(dbWallet.AssetID) == nil {
@@ -7218,7 +7336,7 @@ func (c *Core) initialize() error {
 // connectAccount makes a connection to the DEX for the given account. If a
 // non-nil dexConnection is returned from newDEXConnection, it was inserted into
 // the conns map even if the connection attempt failed (connected == false), and
-// the connect retry / keepalive loop is active. The intial connection attempt
+// the connect retry / keepalive loop is active. The initial connection attempt
 // or keepalive loop will not run if acct is disabled.
 func (c *Core) connectAccount(acct *db.AccountInfo) (dc *dexConnection, connected bool) {
 	host, err := addrHost(acct.Host)
@@ -8163,7 +8281,7 @@ func (c *Core) newDEXConnection(acctInfo *db.AccountInfo, flag connectDEXFlag) (
 
 	wsCfg := comms.WsCfg{
 		URL:      wsURL.String(),
-		PingWait: 20 * time.Second, // larger than server's pingPeriod (server/comms/server.go)
+		PingWait: 50 * time.Second, // larger than server's pingPeriod (server/comms/server.go)
 		Cert:     acctInfo.Cert,
 		Logger:   c.log.SubLogger(wsURL.String()),
 	}

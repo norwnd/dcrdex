@@ -62,7 +62,7 @@ import {
   CEXNotification,
   CEXBalanceUpdate,
   EpochReportNote,
-  CEXProblemsNote
+  CEXProblemsNote, app
 } from './registry'
 import { setCoinHref } from './coinexplorers'
 
@@ -119,26 +119,6 @@ const languageData: Record<string, LangData> = {
   'en-US': {
     name: 'English',
     flag: '🇺🇸' // Not 🇬🇧. MURICA!
-  },
-  'pt-BR': {
-    name: 'Portugese',
-    flag: '🇧🇷'
-  },
-  'zh-CN': {
-    name: 'Chinese',
-    flag: '🇨🇳'
-  },
-  'pl-PL': {
-    name: 'Polish',
-    flag: '🇵🇱'
-  },
-  'de-DE': {
-    name: 'German',
-    flag: '🇩🇪'
-  },
-  'ar': {
-    name: 'Arabic',
-    flag: '🇪🇬' // Egypt I guess
   }
 }
 
@@ -167,7 +147,8 @@ export default class Application {
   recorders: Record<string, LogMessage[]>
   main: HTMLElement
   header: HTMLElement
-  headerSpace: HTMLElement
+  mmTitle: HTMLElement
+  marketStats: HTMLElement
   assets: Record<number, SupportedAsset>
   exchanges: Record<string, Exchange>
   walletMap: Record<number, WalletState>
@@ -253,6 +234,36 @@ export default class Application {
       if (!page && page !== '') return
       this.loadPage(page, e.state.data, true)
     })
+    // disable mouse-wheel based events for number input forms because it's an
+    // undesirable foot gun,
+    // setting "passive" to "true" (in "bind" below) seemingly results into smoother
+    // page-scrolling, see this for details:
+    // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener#using_passive_listeners
+    const ignoreWheelOnNumberInputs = () => {
+      if (!document.activeElement) {
+        return
+      }
+      if (document.activeElement instanceof HTMLElement) {
+        if (document.activeElement.nodeName.toLowerCase() === 'input') {
+          // blurring this element is a hacky work-around that allows us to get rid of
+          // default behavior of "number input" field which treats mouse-scrolling as
+          // number increment/decrement, this solution isn't perfect because it results
+          // in focus loss (for the input element involved), a proper solution would be
+          // to implement some mechanism to re-focus input element involved once we are
+          // done scrolling - perhaps we might consider trying it out in the future
+          document.activeElement.blur()
+        }
+      }
+    }
+    bind(document, 'wheel', ignoreWheelOnNumberInputs, { passive: true })
+    bind(document, 'mousewheel', ignoreWheelOnNumberInputs, { passive: true })
+    bind(document, 'DOMMouseScroll', ignoreWheelOnNumberInputs, { passive: true })
+
+    bind(window, 'popstate', (e: PopStateEvent) => {
+      const page = e.state?.page
+      if (!page && page !== '') return
+      this.loadPage(page, e.state.data, true)
+    })
     // The main element is the interchangeable part of the page that doesn't
     // include the header. Main should define a data-handler attribute
     // associated with one of the available constructors.
@@ -317,6 +328,30 @@ export default class Application {
     this.user = user
     this.assets = user.assets
     this.exchanges = user.exchanges
+    // for whatever reason current DEX server(s) are configured to have insanely large rate-step,
+    // I guess this allows for tweaking prices very precisely but at a detriment to how all rates
+    // are displayed in UI (markets page is especially affected by this) - hence to remedy this
+    // we introduce "magnifying factors" (these are different for every market) that let us cut
+    // down high rate-step precision so that rate/price numbers look better in UI
+    const rateStepMagnifyingFactors: {
+      [key: string]: number
+    } = {
+      'dcr_usdc.polygon': 1000,
+      'dcr_usdt.polygon': 1000,
+      'ltc_usdt.polygon': 1000,
+      'dcr_btc': 1, // this one is already fine
+      'usdc.polygon_usdt.polygon': 1000,
+      'btc_usdt.polygon': 1000,
+      'dcr_polygon': 1000000
+    }
+    for (const [, exchange] of (Object.entries(this.exchanges))) {
+      for (const [mktId, mkt] of (Object.entries(exchange.markets))) {
+        const magnifyingFactor = rateStepMagnifyingFactors[mktId]
+        if (magnifyingFactor) {
+          mkt.ratestep = mkt.ratestep * magnifyingFactor
+        }
+      }
+    }
     this.walletMap = {}
     this.fiatRatesMap = user.fiatRates
     for (const [assetID, asset] of (Object.entries(user.assets) as [any, SupportedAsset][])) {
@@ -358,7 +393,8 @@ export default class Application {
     this.main.replaceWith(main)
     this.main = main
     this.noteReceivers = []
-    Doc.empty(this.headerSpace)
+    Doc.hide(this.mmTitle)
+    Doc.hide(this.marketStats)
     this.attach(data)
     return true
   }
@@ -469,7 +505,8 @@ export default class Application {
   attachHeader () {
     this.header = idel(document.body, 'header')
     const page = this.page = Doc.idDescendants(this.header)
-    this.headerSpace = page.headerSpace
+    this.mmTitle = page.mmTitle
+    this.marketStats = page.marketStats
     this.popupNotes = idel(document.body, 'popupNotes')
     this.popupTmpl = Doc.tmplElement(this.popupNotes, 'note')
     if (this.popupTmpl) this.popupTmpl.remove()
@@ -654,22 +691,27 @@ export default class Application {
     const { assetID, payload } = req
     const n = payload as TransactionActionNote
     const { unitInfo: ui, token } = this.assets[assetID]
+    const xcRate = app().fiatRatesMap[assetID]
+
     const table = this.page.actionTxTableTmpl.cloneNode(true) as PageElement
     const tmpl = Doc.parseTemplate(table)
+
     tmpl.lostTxID.textContent = n.tx.id
     tmpl.lostTxID.dataset.explorerCoin = n.tx.id
     setCoinHref(token ? token.parentID : assetID, tmpl.lostTxID)
-    tmpl.txAmt.textContent = Doc.formatCoinValue(n.tx.amount, ui)
+    tmpl.txAmt.textContent = Doc.formatCoinAtom(n.tx.amount, ui)
     tmpl.amtUnit.textContent = ui.conventional.unit
     const parentUI = token ? this.unitInfo(token.parentID) : ui
     tmpl.type.textContent = txTypeString(n.tx.type)
-    tmpl.feeAmount.textContent = Doc.formatCoinValue(n.tx.fees, parentUI)
+    tmpl.feeAmount.textContent = Doc.formatCoinAtom(n.tx.fees, parentUI)
     tmpl.feeUnit.textContent = parentUI.conventional.unit
+    Doc.showFiatValue(tmpl.feeAmountFiat, n.tx.fees, xcRate, ui)
     switch (req.actionID) {
       case 'tooCheap': {
-        Doc.show(tmpl.newFeesRow)
-        tmpl.newFees.textContent = Doc.formatCoinValue(n.tx.fees, parentUI)
+        tmpl.newFees.textContent = Doc.formatCoinAtom(n.newFees, parentUI)
         tmpl.newFeesUnit.textContent = parentUI.conventional.unit
+        Doc.showFiatValue(tmpl.newFeesFiat, n.newFees, xcRate, ui)
+        Doc.show(tmpl.newFeesRow)
         break
       }
     }
@@ -716,14 +758,17 @@ export default class Application {
     const { name } = this.assets[assetID]
     tmpl.assetName.textContent = name
     tmpl.txTable.appendChild(this.actionTxTable(req))
-    const act = (bump: boolean) => {
+    const act = (bump: boolean, abandon: boolean) => {
       this.submitAction(req, {
         txID: n.tx.id,
-        bump
+        bump: bump,
+        newFees: n.newFees,
+        abandon: abandon
       }, tmpl.errMsg)
     }
-    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false))
-    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true))
+    Doc.bind(tmpl.keepWaitingBttn, 'click', () => act(false, false))
+    Doc.bind(tmpl.addFeesBttn, 'click', () => act(true, false))
+    Doc.bind(tmpl.abandonBttn, 'click', () => act(false, true))
     return div
   }
 
@@ -861,7 +906,7 @@ export default class Application {
 
   setNoteTimes (noteList: HTMLElement) {
     for (const el of (Array.from(noteList.children) as NoteElement[])) {
-      Doc.safeSelector(el, 'span.note-time').textContent = Doc.timeSince(el.note.stamp)
+      Doc.safeSelector(el, 'span.note-time').textContent = Doc.ageSinceFromMs(el.note.stamp)
     }
   }
 
@@ -903,13 +948,11 @@ export default class Application {
     }
     if (!authed) {
       page.profileBox.classList.remove('authed')
-      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry)
+      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry, page.mmLink)
       return
     }
-    Doc.setVis(Object.keys(this.exchanges).length > 0, page.marketsMenuEntry, page.mmLink)
-
     page.profileBox.classList.add('authed')
-    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry)
+    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry)
     Doc.setVis(mmStatus, page.mmLink)
   }
 
@@ -1362,10 +1405,10 @@ export default class Application {
     return () => { loader.remove() }
   }
 
-  /* orders retrieves a list of orders for the specified dex and market
-   * including inflight orders.
+  /* orders returns a list of recent user orders for the specified dex and market
+   * including inflight/canceled/revoked orders.
    */
-  orders (host: string, mktID: string): Order[] {
+  recentOrders (host: string, mktID: string): Order[] {
     let orders: Order[] = []
     const mkt = this.user.exchanges[host].markets[mktID]
     if (mkt.orders) orders = orders.concat(mkt.orders)

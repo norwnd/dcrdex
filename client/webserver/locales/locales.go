@@ -26,11 +26,6 @@ func RegisterTranslations() {
 func init() {
 	Locales = map[string]map[string]*intl.Translation{
 		"en-US": EnUS,
-		"pt-BR": PtBr,
-		"zh-CN": ZhCN,
-		"pl-PL": PlPL,
-		"de-DE": DeDE,
-		"ar":    Ar,
 	}
 
 	for localeName := range Locales {

@@ -105,7 +105,7 @@
   color: var(--text-grey);
 }
 
-.rounded3 {
+.border-rounded3 {
   border-radius: 3px;
 }
 
@@ -129,6 +129,10 @@ sup.token-parent {
 
 .preline {
   white-space: pre-line;
+}
+
+.preserve-spaces {
+  white-space:pre;
 }
 
 .vscroll {

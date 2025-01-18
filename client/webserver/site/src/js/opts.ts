@@ -20,8 +20,8 @@ export function setOptionTemplates (page: Record<string, PageElement>): void {
 }
 
 const threeSigFigs = new Intl.NumberFormat(Doc.languages(), {
-  minimumSignificantDigits: 3,
-  maximumSignificantDigits: 3
+  maximumSignificantDigits: 3,
+  useGrouping: false
 })
 
 /*

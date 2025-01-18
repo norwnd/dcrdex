@@ -51,6 +51,7 @@ import {
   GapStrategyAbsolutePlus,
   GapStrategyPercent,
   GapStrategyPercentPlus,
+  GapStrategyCompetitive,
   feesAndCommit
 } from './mmutil'
 import { Forms, bind as bindForm, NewWalletForm, TokenApprovalForm, DepositAddress, CEXConfigurationForm } from './forms'
@@ -63,7 +64,7 @@ const lastArbExchangeLK = 'lastArbExchange'
 const arbMMRowCacheKey = 'arbmm'
 
 const defaultSwapReserves = {
-  n: 50,
+  n: 0,
   prec: 0,
   inc: 10,
   minR: 0,
@@ -73,9 +74,9 @@ const defaultSwapReserves = {
 const defaultOrderReserves = {
   factor: 1.0,
   minR: 0,
-  maxR: 3,
-  range: 3,
-  prec: 3
+  maxR: 10,
+  range: 10,
+  prec: 10
 }
 const defaultTransfer = {
   factor: 0.1,
@@ -84,14 +85,14 @@ const defaultTransfer = {
   range: 1
 }
 const defaultSlippage = {
-  factor: 0.05,
+  factor: 0.0,
   minR: 0,
   maxR: 0.3,
   range: 0.3,
   prec: 3
 }
 const defaultDriftTolerance = {
-  value: 0.002,
+  value: 0.0,
   minV: 0,
   maxV: 0.02,
   range: 0.02,
@@ -106,10 +107,10 @@ const defaultOrderPersistence = {
 }
 const defaultProfit = {
   prec: 3,
-  value: 0.01,
+  value: 0.05,
   minV: 0.001,
   maxV: 0.1,
-  range: 0.1 - 0.001
+  range: 0.05 - 0.001
 }
 const defaultLevelSpacing = {
   prec: 3,
@@ -142,11 +143,11 @@ const defaultUSDPerSide = {
 }
 
 const defaultMarketMakingConfig: ConfigState = {
-  gapStrategy: GapStrategyPercentPlus,
+  gapStrategy: GapStrategyCompetitive,
   sellPlacements: [],
   buyPlacements: [],
   driftTolerance: defaultDriftTolerance.value,
-  profit: 0.02,
+  profit: 0.005,
   orderPersistence: defaultOrderPersistence.value,
   cexRebalance: true,
   simpleArbLots: 1
@@ -275,7 +276,11 @@ export default class MarketMakerSettingsPage extends BasePage {
     this.basePane = new AssetPane(this, page.basePane)
     this.quotePane = new AssetPane(this, page.quotePane)
 
-    app().headerSpace.appendChild(page.mmTitle)
+    // since marketStats resides directly on the header (not markets page) we need to fetch
+    // it through markets page parent
+    if (!main.parentElement) return // Not gonna happen, but TypeScript cares.
+    const mmTitleElem = Doc.idDescendants(main.parentElement).mmTitle
+    Doc.show(mmTitleElem)
 
     setOptionTemplates(page)
     Doc.cleanTemplates(
@@ -668,9 +673,9 @@ export default class MarketMakerSettingsPage extends BasePage {
 
     // If this is a new bot, show the quick config form.
     const isQuickPlacements = !botCfg || this.isQuickPlacements(this.updatedConfig.buyPlacements, this.updatedConfig.sellPlacements)
-    const gapStrategy = botCfg?.basicMarketMakingConfig?.gapStrategy ?? GapStrategyPercentPlus
+    const gapStrategy = botCfg?.basicMarketMakingConfig?.gapStrategy ?? GapStrategyCompetitive
     page.gapStrategySelect.value = gapStrategy
-    if (botType === botTypeBasicArb || (isQuickPlacements && gapStrategy === GapStrategyPercentPlus)) this.showQuickConfig()
+    if (botType === botTypeBasicArb || (isQuickPlacements && gapStrategy === GapStrategyCompetitive)) this.showQuickConfig()
     else this.showAdvancedConfig()
 
     this.setOriginalValues()
@@ -1337,6 +1342,7 @@ export default class MarketMakerSettingsPage extends BasePage {
       }
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         return ['Percent', '%']
       default:
         throw new Error(`Unknown gap strategy ${gapStrategy}`)
@@ -1362,6 +1368,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return null
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (value <= 0 || value > 10) {
           return 'Percent must be between 0 and 10'
         }
@@ -1387,6 +1394,7 @@ export default class MarketMakerSettingsPage extends BasePage {
         return gapFactor
       case GapStrategyPercent:
       case GapStrategyPercentPlus:
+      case GapStrategyCompetitive:
         if (toDisplay) {
           return gapFactor * 100
         }
@@ -1542,8 +1550,10 @@ export default class MarketMakerSettingsPage extends BasePage {
     const header = this.gapFactorHeaderUnit(gapStrategy)[0]
     page.buyGapFactorHdr.textContent = header
     page.sellGapFactorHdr.textContent = header
-    Doc.hide(page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
+    Doc.hide(page.competitiveInfo, page.percentPlusInfo, page.percentInfo, page.absolutePlusInfo, page.absoluteInfo, page.multiplierInfo)
     switch (gapStrategy) {
+      case 'competitive':
+        return Doc.show(page.competitiveInfo)
       case 'percent-plus':
         return Doc.show(page.percentPlusInfo)
       case 'percent':
@@ -2181,9 +2191,9 @@ class AssetPane {
     }
     if (isQuote) {
       const basis = inv.book + inv.cex + inv.orderReserves
-      page.slippageBufferBasis.textContent = Doc.formatCoinValue(basis * ui.conventional.conversionFactor, ui)
+      page.slippageBufferBasis.textContent = Doc.formatCoinAtom(basis * ui.conventional.conversionFactor, ui)
       inv.slippageBuffer = basis * cfg.slippageBufferFactor
-      page.slippageBuffer.textContent = Doc.formatCoinValue(inv.slippageBuffer * ui.conventional.conversionFactor, ui)
+      page.slippageBuffer.textContent = Doc.formatCoinAtom(inv.slippageBuffer * ui.conventional.conversionFactor, ui)
     }
     Doc.setVis(fees.bookingFeesPerCounterLot > 0, page.redemptionFeesBox)
     if (fees.bookingFeesPerCounterLot > 0) {
@@ -2200,7 +2210,7 @@ class AssetPane {
   updateCommitTotal () {
     const { page, assetID, ui } = this
     const commit = this.commit()
-    page.commitTotal.textContent = Doc.formatCoinValue(Math.round(commit * ui.conventional.conversionFactor), ui)
+    page.commitTotal.textContent = Doc.formatCoinAtom(Math.round(commit * ui.conventional.conversionFactor), ui)
     page.commitTotalFiat.textContent = Doc.formatFourSigFigs(commit * app().fiatRatesMap[assetID])
   }
 
@@ -2208,7 +2218,7 @@ class AssetPane {
     const { page, inv, feeAssetID, feeUI, isToken } = this
     if (!isToken) return
     const feeReserves = inv.bookingFees + inv.swapFeeReserves
-    page.feeTotal.textContent = Doc.formatCoinValue(feeReserves * feeUI.conventional.conversionFactor, feeUI)
+    page.feeTotal.textContent = Doc.formatCoinAtom(feeReserves * feeUI.conventional.conversionFactor, feeUI)
     page.feeTotalFiat.textContent = Doc.formatFourSigFigs(feeReserves * app().fiatRatesMap[feeAssetID])
   }
 

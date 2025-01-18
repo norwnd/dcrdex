@@ -91,14 +91,6 @@
               <div class="d-flex justify-content-start align-items-stretch flex-column border-start col-sm-24 col-md-12 p-2" id="walletInfo">
                 <table id="walletInfoTable" class="w-100">
                   <tbody>
-                    <tr id="statusLocked">
-                      <td class="grey">[[[Status]]]</td>
-                      <td><span class="ico-locked fs14 me-2"></span class="demi">[[[:title:locked]]]</td>
-                    </tr>
-                    <tr id="statusReady">
-                      <td class="grey">[[[Status]]]</td>
-                      <td class="demi"><span class="ico-unlocked fs14 me-2"></span>[[[:title:ready]]]</td>
-                    </tr>
                     <tr id="statusOff">
                       <td class="grey">[[[Status]]]</td>
                       <td><span class="ico-sleeping fs14 me-2"></span class="demi">[[[:title:off]]]</td>
@@ -106,16 +98,6 @@
                     <tr id="statusDisabled">
                       <td class="grey">[[[Status]]]</td>
                       <td><span class="ico-cross text-danger fs14 me-2"></span class="demi">[[[Disabled]]]</td>
-                    </tr>
-                    <tr id="unlockBttnBox">
-                      <td colspan="2" class="pb-2">
-                        <button id="unlockBttn" class="small">[[[Unlock]]]</button>
-                      </td>
-                    </tr>
-                    <tr id="lockBttnBox">
-                      <td colspan="2" class="pb-2">
-                        <button id="lockBttn" class="small">[[[Lock]]]</button>
-                      </td>
                     </tr>
                     <tr id="connectBttnBox">
                       <td colspan="2" class="pb-2">
@@ -178,10 +160,10 @@
                   </span>
                 </div>
                 <div class="d-flex flex-column align-items-center py-3">
-                  <span class="grey demi">Exchange Rate</span>
+                  <span class="grey demi">Fiat Price</span>
                   <span>
                     <span id="feeStateXcRate" class="fs20"></span>
-                    <span class="fs17 grey">USD/<span data-ticker></span></span>
+                    <span class="fs17 grey">USD</span>
                   </span>
                 </div>
               </div>
@@ -192,7 +174,6 @@
                     <span class="fs20" data-value></span>
                     <span class="grey fs17">
                       <span data-unit-box><span data-unit></span></span>
-                      and up
                     </span>
                   </span>
                   <span class="grey fs15">
@@ -206,7 +187,6 @@
                     <span class="fs20" data-value></span>
                     <span class="grey fs17">
                       <span data-unit-box><span data-unit></span></span>
-                      and up
                     </span>
                   </span>
                   <span class="fs15 grey">
@@ -220,7 +200,6 @@
                     <span class="fs20" data-value></span>
                     <span class="grey fs17">
                       <span data-unit-box><span data-unit></span></span>
-                      and up
                     </span>
                   </span>
                   <span class="fs15 grey">
@@ -404,7 +383,7 @@
                 </table>
                 <span id="earlierTxs" class="mx-2">[[[load_earlier_transactions]]]</span>
               </div>
-              <div class="flex-center p-2 mb-3 mx-3 fs18 border rounded3 d-hide" id="noTxHistory">
+              <div class="flex-center p-2 mb-3 mx-3 fs18 border d-hide" id="noTxHistory">
                 [[[no_tx_history]]]
               </div>
             </section>
@@ -481,7 +460,7 @@
                   </tbody>
                 </table>
               </div>
-              <div class="flex-center p-2 mb-3 mx-3 b-3 fs18 border rounded3 d-hide" id="noActivity">
+              <div class="flex-center p-2 mb-3 mx-3 b-3 fs18 border d-hide" id="noActivity">
                 [[[No Recent Activity]]]
               </div>
             </section>
@@ -868,7 +847,7 @@
       <div class="form-closer hoverbg"><span class="ico-cross"></span></div>
       <div>
         <div class="flex-center">[[[select_vsp_from_list]]]</div>
-        <table id="vspPickerTable" class="row-border row-hover rounded3 mt-2">
+        <table id="vspPickerTable" class="row-border row-hover border-rounded3 mt-2">
           <thead>
             <tr>
               <th>[[[URL]]]</th>
@@ -942,7 +921,7 @@
         <span>[[[Ticket History]]]</span>
       </header>
       <div id="ticketHistoryTable">
-        <table class="row-border rounded3">
+        <table class="row-border">
           <thead>
             <tr>
               <th>[[[Age]]]</th>
@@ -997,7 +976,7 @@
       </div>
 
       {{- /* TREASURY SPENDS */ -}}
-      <div class="flex-center fs26">[[[Treasury Spends]]]</div>
+      <div class="flex-center fs24">[[[Treasury Spends]]]</div>
       <div id="votingTspends" class="flex-stretch-column py-0">
         <div id="tspendTmpl" class="d-flex align-items-stretch py-3 border-bottom">
           <div class="d-flex flex-column flex-grow-1 pe-3">
@@ -1021,7 +1000,7 @@
       </div>
 
       {{- /* TREASURY KEYS */ -}}
-      <div class="flex-center fs26">[[[Treasury Keys]]]</div>
+      <div class="flex-center fs24">[[[Treasury Keys]]]</div>
       <div id="votingTKeys" class="flex-stretch-column">
         <div id="tkeyTmpl" class="d-flex justify-content-between align-items-stretch py-2 border-bottom">
           <div class="flex-center flex-grow-1 justify-content-start pe-3">

@@ -50,9 +50,9 @@ const (
 
 	// The default fee is passed to the user as part of the asset.WalletInfo
 	// structure.
-	defaultFee = 100
+	defaultFee = 5
 	// defaultFeeRateLimit is the default value for the feeratelimit.
-	defaultFeeRateLimit = 1400
+	defaultFeeRateLimit = 5
 	// defaultRedeemConfTarget is the default redeem transaction confirmation
 	// target in blocks used by estimatesmartfee to get the optimal fee for a
 	// redeem transaction.
@@ -989,13 +989,23 @@ var _ asset.FeeRater = (*ExchangeWalletFullNode)(nil)
 var _ asset.FeeRater = (*ExchangeWalletNoAuth)(nil)
 
 // FeeRate satisfies asset.FeeRater.
-func (btc *baseWallet) FeeRate() uint64 {
-	rate, err := btc.feeRate(1)
+func (btc *baseWallet) FeeRate() (rate uint64, tooLow bool) {
+	rate, tooLow, err := btc.feeRate(1, btc.feeRateLimit())
 	if err != nil {
 		btc.log.Tracef("Failed to get fee rate: %v", err)
-		return 0
+		return 0, false
 	}
-	return rate
+	return rate, tooLow
+}
+
+// FeeRateSwap is same as FeeRate but for swaps.
+func (btc *baseWallet) FeeRateSwap() (rate uint64, tooLow bool) {
+	rate, tooLow, err := btc.feeRate(1, 2*btc.feeRateLimit())
+	if err != nil {
+		btc.log.Tracef("Failed to get fee rate: %v", err)
+		return 0, false
+	}
+	return rate, tooLow
 }
 
 // LogFilePath returns the path to the neutrino log file.
@@ -1019,7 +1029,7 @@ func (btc *ExchangeWalletSPV) WithdrawTx(ctx context.Context, walletPW []byte, a
 		return nil, fmt.Errorf("error unlocking wallet: %w", err)
 	}
 
-	feeRate := btc.FeeRate()
+	feeRate, _ := btc.FeeRate()
 	if feeRate == 0 {
 		return nil, errors.New("no fee rate")
 	}
@@ -1604,7 +1614,7 @@ func (btc *baseWallet) connect(ctx context.Context) (*sync.WaitGroup, error) {
 		return nil, fmt.Errorf("invalid best block hash from %s node: %v", btc.symbol, err)
 	}
 	// Check for method unknown error for feeRate method.
-	_, err = btc.feeRate(1)
+	_, _, err = btc.feeRate(1, btc.feeRateLimit())
 	if isMethodNotFoundErr(err) {
 		return nil, fmt.Errorf("fee estimation method not found. Are you configured for the correct RPC?")
 	}
@@ -1855,21 +1865,21 @@ func (btc *baseWallet) legacyBalance() (*asset.Balance, error) {
 
 // feeRate returns the current optimal fee rate in sat / byte using the
 // estimatesmartfee RPC or an external API if configured and enabled.
-func (btc *baseWallet) feeRate(confTarget uint64) (feeRate uint64, err error) {
+func (btc *baseWallet) feeRate(confTarget uint64, feeRateCap uint64) (feeRate uint64, tooLow bool, err error) {
 	allowExternalFeeRate := btc.apiFeeFallback()
 	// Because of the problems Bitcoin's unstable estimatesmartfee has caused,
 	// we won't use it.
 	if btc.symbol != "btc" || !allowExternalFeeRate {
 		feeRate, err := btc.localFeeRate(btc.ctx, btc.node, confTarget) // e.g. rpcFeeRate
 		if err == nil {
-			return feeRate, nil
+			return feeRate, false, nil
 		} else if !allowExternalFeeRate {
-			return 0, fmt.Errorf("error getting local rate and external rates are disabled: %w", err)
+			return 0, false, fmt.Errorf("error getting local rate and external rates are disabled: %w", err)
 		}
 	}
 
 	if btc.feeCache == nil {
-		return 0, fmt.Errorf("external fee rate fetcher not configured")
+		return 0, false, fmt.Errorf("external fee rate fetcher not configured")
 	}
 
 	// External estimate fallback. Error if it exceeds our limit, and the caller
@@ -1877,13 +1887,22 @@ func (btc *baseWallet) feeRate(confTarget uint64) (feeRate uint64, err error) {
 	feeRate, err = btc.feeCache.rate(btc.ctx, btc.Network) // e.g. externalFeeRate
 	if err != nil {
 		btc.log.Meter("feeRate.rate.fail", time.Hour).Errorf("Failed to get fee rate from external API: %v", err)
-		return 0, nil
+		return 0, false, nil
 	}
-	if feeRate <= 0 || feeRate > btc.feeRateLimit() { // but fetcher shouldn't return <= 0 without error
-		return 0, fmt.Errorf("external fee rate %v exceeds configured limit", feeRate)
+	if feeRate <= 0 { // but fetcher shouldn't return <= 0 without error
+		return 0, false, fmt.Errorf("external fee rate value %v doesn't make sense", feeRate)
 	}
+
 	btc.log.Tracef("Retrieved fee rate from external API: %v", feeRate)
-	return feeRate, nil
+	if feeRate > feeRateCap {
+		btc.log.Tracef("capping fee rate %v retrieved from external API at user-configured limit of %v", feeRate, btc.feeRateLimit())
+		if float64(feeRate) > 1.1*float64(feeRateCap) {
+			tooLow = true // capped rate will be too low
+		}
+		feeRate = feeRateCap
+	}
+
+	return feeRate, tooLow, nil
 }
 
 func rpcFeeRate(ctx context.Context, rr RawRequester, confTarget uint64) (uint64, error) {
@@ -1946,7 +1965,7 @@ func (a amount) String() string {
 // number of confirmations, but falls back to the suggestion or fallbackFeeRate
 // via feeRateWithFallback.
 func (btc *baseWallet) targetFeeRateWithFallback(confTarget, feeSuggestion uint64) uint64 {
-	feeRate, err := btc.feeRate(confTarget)
+	feeRate, _, err := btc.feeRate(confTarget, btc.feeRateLimit())
 	if err == nil && feeRate > 0 {
 		btc.log.Tracef("Obtained estimate for %d-conf fee rate, %d", confTarget, feeRate)
 		return feeRate
@@ -1964,7 +1983,7 @@ func (btc *baseWallet) feeRateWithFallback(feeSuggestion uint64) uint64 {
 			feeSuggestion)
 		return feeSuggestion
 	}
-	btc.log.Warnf("Unable to get optimal fee rate, using fallback of %d", btc.fallbackFeeRate)
+	btc.log.Warnf("Unable to get optimal fee rate, using fallback of %d", btc.fallbackFeeRate())
 	return btc.fallbackFeeRate()
 }
 
@@ -2421,12 +2440,15 @@ func (btc *baseWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes, ui
 	if ord.FeeSuggestion > ord.MaxFeeRate {
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", ord.FeeSuggestion, ord.MaxFeeRate)
 	}
-	// Check wallets fee rate limit against server's max fee rate
-	if btc.feeRateLimit() < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configued fee rate limit %v",
-			dex.BipIDSymbol(BipID), ord.MaxFeeRate, btc.feeRateLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// on client side (server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallets fee rate limit against server's max fee rate
+	//if btc.feeRateLimit() < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configued fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), ord.MaxFeeRate, btc.feeRateLimit())
+	//}
 
 	customCfg := new(swapOptions)
 	err := config.Unmapify(ord.Options, customCfg)
@@ -5501,12 +5523,15 @@ func (btc *baseWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) ([]a
 	if mo.FeeSuggestion > mo.MaxFeeRate {
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", mo.FeeSuggestion, mo.MaxFeeRate)
 	}
-	// Check wallets fee rate limit against server's max fee rate
-	if btc.feeRateLimit() < mo.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configued fee rate limit %v",
-			dex.BipIDSymbol(BipID), mo.MaxFeeRate, btc.feeRateLimit())
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// on client side (server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallets fee rate limit against server's max fee rate
+	//if btc.feeRateLimit() < mo.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configued fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), mo.MaxFeeRate, btc.feeRateLimit())
+	//}
 
 	bal, err := btc.Balance()
 	if err != nil {
@@ -5623,7 +5648,7 @@ func (btc *baseWallet) idUnknownTx(tx *ListTransactionsResult) (*asset.WalletTra
 		}
 		return
 	}
-	if v := txPaysToScriptHash(msgTx); tx.Send && v > 0 {
+	if v := txPaysToScriptHash(msgTx); v > 0 {
 		return &asset.WalletTransaction{
 			ID:     tx.TxID,
 			Type:   asset.SwapOrSend,
@@ -5649,7 +5674,7 @@ func (btc *baseWallet) idUnknownTx(tx *ListTransactionsResult) (*asset.WalletTra
 				// not segwit
 				const scriptVer = 0
 				tokenizer := txscript.MakeScriptTokenizer(scriptVer, txIn.SignatureScript)
-				for i := 0; i <= idx; i++ { // contract is 5th item item in redemption and 4th in refund
+				for i := 0; i <= idx; i++ { // contract is 5th item in redemption and 4th in refund
 					if !tokenizer.Next() {
 						continue txinloop
 					}

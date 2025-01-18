@@ -1,7 +1,7 @@
 import Doc from './doc'
 import BasePage from './basepage'
 import * as OrderUtil from './orderutil'
-import { bind as bindForm, AccelerateOrderForm } from './forms'
+import { AccelerateOrderForm } from './forms'
 import { postJSON } from './http'
 import * as intl from './locales'
 import {
@@ -46,7 +46,7 @@ export default class OrderPage extends BasePage {
 
     const setStamp = () => {
       for (const span of this.stampers) {
-        span.textContent = Doc.timeSince(parseInt(span.dataset.stamp || ''))
+        span.textContent = Doc.ageSinceFromMs(parseInt(span.dataset.stamp || ''))
       }
     }
     setStamp()
@@ -72,7 +72,7 @@ export default class OrderPage extends BasePage {
 
     if (page.cancelBttn) {
       Doc.bind(page.cancelBttn, 'click', () => {
-        this.showForm(page.cancelForm)
+        this.submitCancel()
       })
     }
 
@@ -98,9 +98,6 @@ export default class OrderPage extends BasePage {
         Doc.hide(page.forms)
       }
     })
-
-    // Cancel order form
-    bindForm(page.cancelForm, page.cancelSubmit, async () => { this.submitCancel() })
 
     this.secondTicker = window.setInterval(() => {
       setStamp()
@@ -159,7 +156,7 @@ export default class OrderPage extends BasePage {
     })
 
     tmpl.matchTimeAgo.dataset.stamp = match.stamp.toString()
-    tmpl.matchTimeAgo.textContent = Doc.timeSince(match.stamp)
+    tmpl.matchTimeAgo.textContent = Doc.ageSinceFromMs(match.stamp)
     this.stampers.push(tmpl.matchTimeAgo)
 
     const orderPortion = OrderUtil.orderPortion(this.order, match)
@@ -175,10 +172,10 @@ export default class OrderPage extends BasePage {
       Doc.hide(tmpl.infoDiv, tmpl.status, tmpl.statusHdr)
 
       if (this.order.sell) {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.baseID)
       } else {
-        tmpl.cancelAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+        tmpl.cancelAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
         tmpl.cancelIcon.src = Doc.logoPathFromID(this.order.quoteID)
       }
 
@@ -240,14 +237,14 @@ export default class OrderPage extends BasePage {
 
     if (this.order.sell) {
       tmpl.refundAsset.textContent = baseSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.baseID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.quoteID)
     } else {
       tmpl.refundAsset.textContent = quoteSymbol
-      tmpl.fromAmount.textContent = Doc.formatCoinValue(quoteAmount, quoteUnitInfo)
-      tmpl.toAmount.textContent = Doc.formatCoinValue(match.qty, baseUnitInfo)
+      tmpl.fromAmount.textContent = Doc.formatCoinAtom(quoteAmount, quoteUnitInfo)
+      tmpl.toAmount.textContent = Doc.formatCoinAtom(match.qty, baseUnitInfo)
       tmpl.fromIcon.src = Doc.logoPathFromID(this.order.quoteID)
       tmpl.toIcon.src = Doc.logoPathFromID(this.order.baseID)
     }
@@ -283,10 +280,13 @@ export default class OrderPage extends BasePage {
     if (!m.refund) {
       // Special messaging for pending refunds.
       let lockTime = lockTimeMakerMs
-      if (m.side === OrderUtil.Taker) lockTime = lockTimeTakerMs
+      if (m.side === OrderUtil.Taker) {
+        lockTime = lockTimeTakerMs
+      }
       const refundAfter = new Date(m.stamp + lockTime)
-      if (Date.now() > refundAfter.getTime()) tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
-      else {
+      if (Date.now() > refundAfter.getTime()) {
+        tmpl.refundPending.textContent = intl.prep(intl.ID_REFUND_IMMINENT)
+      } else {
         const refundAfterStr = refundAfter.toLocaleTimeString(Doc.languages(), {
           year: 'numeric',
           month: 'short',
@@ -410,22 +410,11 @@ export default class OrderPage extends BasePage {
     order.matches.forEach((match) => this.addNewMatchCard(match))
   }
 
-  /* showCancel shows a form to confirm submission of a cancel order. */
-  showCancel () {
-    const order = this.order
-    const page = this.page
-    const remaining = order.qty - order.filled
-    const asset = OrderUtil.isMarketBuy(order) ? app().assets[order.quoteID] : app().assets[order.baseID]
-    page.cancelRemain.textContent = Doc.formatCoinValue(remaining, asset.unitInfo)
-    page.cancelUnit.textContent = asset.unitInfo.conventional.unit.toUpperCase()
-    this.showForm(page.cancelForm)
-  }
-
   /* showForm shows a modal form with a little animation. */
   async showForm (form: HTMLElement) {
     this.currentForm = form
     const page = this.page
-    Doc.hide(page.cancelForm, page.accelerateForm)
+    Doc.hide(page.accelerateForm)
     form.style.right = '10000px'
     Doc.show(page.forms, form)
     const shift = (page.forms.offsetWidth + form.offsetWidth) / 2
@@ -437,15 +426,12 @@ export default class OrderPage extends BasePage {
 
   /* submitCancel submits a cancellation for the order. */
   async submitCancel () {
-    // this will be the page.cancelSubmit button (evt.currentTarget)
     const page = this.page
     const order = this.order
     const req = {
       orderID: order.id
     }
-    const loaded = app().loading(page.cancelForm)
     const res = await postJSON('/api/cancel', req)
-    loaded()
     if (!app().checkResponse(res)) return
     page.status.textContent = intl.prep(intl.ID_CANCELING)
     Doc.hide(page.forms)
@@ -466,9 +452,9 @@ export default class OrderPage extends BasePage {
   /* showAccelerateForm shows a form to accelerate an order */
   async showAccelerateForm () {
     const loaded = app().loading(this.page.accelerateBttn)
-    this.accelerateOrderForm.refresh(this.order)
+    await this.accelerateOrderForm.refresh(this.order)
     loaded()
-    this.showForm(this.page.accelerateForm)
+    await this.showForm(this.page.accelerateForm)
   }
 
   /*

@@ -6,6 +6,7 @@ package orderbook
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"sync"
 	"sync/atomic"
 
@@ -476,6 +477,64 @@ func (ob *OrderBook) Unbook(note *msgjson.UnbookOrderNote) error {
 	return ob.unbook(note, false)
 }
 
+// BestBuy returns the best buy order (including epoch orders).
+func (ob *OrderBook) BestBuy() (*Order, error) {
+	if !ob.isSynced() {
+		return nil, fmt.Errorf("order book is unsynced")
+	}
+
+	var (
+		bestBuy         *Order
+		bestBuyRateAtom uint64 = 0
+	)
+	buyOrders, ok := ob.buys.BestNOrders(1)
+	if ok {
+		bestBuy = buyOrders[0]
+		bestBuyRateAtom = buyOrders[0].Rate
+	}
+	_, _, epochOrders := ob.Orders()
+	for _, ord := range epochOrders {
+		if ord.sell() {
+			continue
+		}
+		if ord.Rate > bestBuyRateAtom {
+			bestBuy = ord
+			bestBuyRateAtom = ord.Rate
+		}
+	}
+
+	return bestBuy, nil
+}
+
+// BestSell returns the best sell order (including epoch orders).
+func (ob *OrderBook) BestSell() (*Order, error) {
+	if !ob.isSynced() {
+		return nil, fmt.Errorf("order book is unsynced")
+	}
+
+	var (
+		bestSell         *Order
+		bestSellRateAtom uint64 = math.MaxUint64
+	)
+	sellOrders, ok := ob.sells.BestNOrders(1)
+	if ok {
+		bestSell = sellOrders[0]
+		bestSellRateAtom = sellOrders[0].Rate
+	}
+	_, _, epochOrders := ob.Orders()
+	for _, ord := range epochOrders {
+		if !ord.sell() {
+			continue
+		}
+		if ord.Rate < bestSellRateAtom {
+			bestSell = ord
+			bestSellRateAtom = ord.Rate
+		}
+	}
+
+	return bestSell, nil
+}
+
 // BestNOrders returns the best n orders from the provided side.
 func (ob *OrderBook) BestNOrders(n int, sell bool) ([]*Order, bool, error) {
 	if !ob.isSynced() {
@@ -674,7 +733,7 @@ func (ob *OrderBook) ValidateMatchProof(note msgjson.MatchProofNote) error {
 }
 
 // MidGap returns the mid-gap price for the market. If one market side is empty
-// the bets rate from the other side will be used. If both sides are empty, an
+// the best rate from the other side will be used. If both sides are empty, an
 // error will be returned.
 func (ob *OrderBook) MidGap() (uint64, error) {
 	s, senough := ob.sells.BestNOrders(1)

@@ -255,7 +255,7 @@ export default class WalletsPage extends BasePage {
     const setStamp = () => {
       for (const span of this.stampers) {
         if (span.dataset.stamp) {
-          span.textContent = Doc.timeSince(parseInt(span.dataset.stamp || '') * 1000)
+          span.textContent = Doc.ageSinceFromMs(parseInt(span.dataset.stamp || '') * 1000)
         }
       }
     }
@@ -284,8 +284,6 @@ export default class WalletsPage extends BasePage {
     Doc.bind(page.connectBttn, 'click', () => this.doConnect(this.selectedAssetID))
     Doc.bind(page.send, 'click', () => this.showSendForm(this.selectedAssetID))
     Doc.bind(page.receive, 'click', () => this.showDeposit(this.selectedAssetID))
-    Doc.bind(page.unlockBttn, 'click', () => this.openWallet(this.selectedAssetID))
-    Doc.bind(page.lockBttn, 'click', () => this.lock(this.selectedAssetID))
     Doc.bind(page.reconfigureBttn, 'click', () => this.showReconfig(this.selectedAssetID))
     Doc.bind(page.needsProviderBttn, 'click', () => this.showReconfig(this.selectedAssetID))
     Doc.bind(page.rescanWallet, 'click', () => this.rescanWallet(this.selectedAssetID))
@@ -427,7 +425,7 @@ export default class WalletsPage extends BasePage {
     setInterval(() => {
       for (const row of this.page.txHistoryTableBody.children) {
         const age = Doc.tmplElement(row as PageElement, 'age')
-        age.textContent = Doc.timeSince(parseInt(age.dataset.timestamp as string))
+        age.textContent = Doc.ageSinceFromMs(parseInt(age.dataset.timestamp as string))
       }
     }, 5000)
   }
@@ -640,7 +638,7 @@ export default class WalletsPage extends BasePage {
       page.unapproveTokenErr.textContent = res.msg
       Doc.show(page.unapproveTokenErr)
     } else {
-      let feeText = `${Doc.formatCoinValue(res.txFee, parentAsset.unitInfo)} ${parentAsset.unitInfo.conventional.unit}`
+      let feeText = `${Doc.formatCoinAtom(res.txFee, parentAsset.unitInfo)} ${parentAsset.unitInfo.conventional.unit}`
       const rate = app().fiatRatesMap[parentAsset.id]
       if (rate) {
         feeText += ` (${Doc.formatFiatConversion(res.txFee, rate, parentAsset.unitInfo)} USD)`
@@ -896,7 +894,7 @@ export default class WalletsPage extends BasePage {
   async showNewWallet (assetID: number) {
     const page = this.page
     const box = page.newWalletForm
-    this.newWalletForm.setAsset(assetID)
+    await this.newWalletForm.setAsset(assetID)
     const defaultsLoaded = this.newWalletForm.loadDefaults()
     await this.showForm(box)
     await defaultsLoaded
@@ -974,7 +972,7 @@ export default class WalletsPage extends BasePage {
     this.assetButtons[assetID].bttn.classList.add('selected')
     this.selectedAssetID = assetID
     this.page.hideMixTxsCheckbox.checked = true
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
     this.showAvailableMarkets(assetID)
     const a = this.showRecentActivity(assetID)
     const b = this.showTxHistory(assetID)
@@ -983,22 +981,20 @@ export default class WalletsPage extends BasePage {
     for (const p of [a, b, c, d]) await p
   }
 
-  updateDisplayedAsset (assetID: number) {
+  async updateDisplayedAsset (assetID: number) {
     if (assetID !== this.selectedAssetID) return
-    const { symbol, wallet, name, token, unitInfo } = app().assets[assetID]
+    const { symbol, wallet, name, token } = app().assets[assetID]
     const { page, body } = this
     Doc.setText(body, '[data-asset-name]', name)
-    Doc.setText(body, '[data-ticker]', unitInfo.conventional.unit)
     page.assetLogo.src = Doc.logoPath(symbol)
     Doc.hide(
       page.balanceBox, page.fiatBalanceBox, page.createWallet, page.walletDetails,
-      page.sendReceive, page.connectBttnBox, page.statusLocked, page.statusReady,
-      page.statusOff, page.unlockBttnBox, page.lockBttnBox, page.connectBttnBox,
-      page.peerCountBox, page.syncProgressBox, page.statusDisabled, page.tokenInfoBox,
-      page.needsProviderBox, page.feeStateBox, page.txSyncBox, page.txProgress,
-      page.txFindingAddrs
+      page.sendReceive, page.connectBttnBox,
+      page.statusOff, page.connectBttnBox, page.peerCountBox, page.syncProgressBox,
+      page.statusDisabled, page.tokenInfoBox, page.needsProviderBox, page.feeStateBox,
+      page.txSyncBox, page.txProgress, page.txFindingAddrs
     )
-    this.checkNeedsProvider(assetID)
+    await this.checkNeedsProvider(assetID)
     if (token) {
       const parentAsset = app().assets[token.parentID]
       page.tokenParentLogo.src = Doc.logoPath(parentAsset.symbol)
@@ -1024,15 +1020,11 @@ export default class WalletsPage extends BasePage {
   updateSyncAndPeers (assetID: number) {
     const { page, selectedAssetID } = this
     if (assetID !== selectedAssetID) return
-    const { peerCount, syncProgress, syncStatus, encrypted, open, running } = app().walletMap[assetID]
+    const { peerCount, syncProgress, syncStatus, running } = app().walletMap[assetID]
     if (!running) return
     Doc.show(page.sendReceive, page.peerCountBox, page.syncProgressBox)
     page.peerCount.textContent = String(peerCount)
     page.syncProgress.textContent = `${(syncProgress * 100).toFixed(1)}%`
-    if (open) {
-      Doc.show(page.statusReady)
-      if (!app().haveActiveOrders(assetID) && encrypted) Doc.show(page.lockBttnBox)
-    } else Doc.show(page.statusLocked, page.unlockBttnBox) // wallet not unlocked
     Doc.setVis(syncStatus.txs !== undefined, page.txSyncBox)
     if (syncStatus.txs !== undefined) {
       Doc.hide(page.txProgress, page.txFindingAddrs)
@@ -1075,7 +1067,7 @@ export default class WalletsPage extends BasePage {
     const { page: { needsProviderBox: box, needsProviderBttn: bttn } } = this
     Doc.setVis(needs, box)
     if (!needs) return
-    Doc.blink(bttn)
+    await Doc.blink(bttn)
   }
 
   async updateTicketBuyer (assetID: number) {
@@ -1112,7 +1104,7 @@ export default class WalletsPage extends BasePage {
     page.stakingAgendaCount.textContent = String(stakeStatus.stances.agendas.length)
     page.stakingTspendCount.textContent = String(stakeStatus.stances.tspends.length)
     page.purchaserCurrentPrice.textContent = Doc.formatFourSigFigs(stakeStatus.ticketPrice / ui.conventional.conversionFactor)
-    page.purchaserBal.textContent = Doc.formatCoinValue(wallet.balance.available, ui)
+    page.purchaserBal.textContent = Doc.formatCoinAtom(wallet.balance.available, ui)
     this.updateTicketStats(stakeStatus.stats, ui, stakeStatus.ticketPrice, stakeStatus.votingSubsidy)
     // If this is an extension wallet, we'll might to disable all controls.
     const disableStaking = app().extensionWallet(this.selectedAssetID)?.disableStaking
@@ -1292,7 +1284,7 @@ export default class WalletsPage extends BasePage {
       page.ticketHistoryRows.appendChild(tr)
       app().bindUrlHandlers(tr)
       const tmpl = Doc.parseTemplate(tr)
-      tmpl.age.textContent = Doc.timeSince(tx.stamp * 1000)
+      tmpl.age.textContent = Doc.ageSinceFromMs(tx.stamp * 1000)
       tmpl.price.textContent = Doc.formatFullPrecision(tx.ticketPrice, ui)
       tmpl.status.textContent = intl.prep(ticketStatusTranslationKeys[status])
       tmpl.hashStart.textContent = tx.hash.slice(0, 6)
@@ -1341,7 +1333,7 @@ export default class WalletsPage extends BasePage {
   }
 
   async showTicketHistory () {
-    this.showForm(this.page.ticketHistoryForm)
+    await this.showForm(this.page.ticketHistoryForm)
     await this.ticketPageN(this.ticketPage.number)
   }
 
@@ -1495,9 +1487,8 @@ export default class WalletsPage extends BasePage {
     const { wallet, unitInfo: ui, id: assetID } = asset
     const bal = wallet.balance
     Doc.show(page.balanceBox, page.walletDetails)
-    const totalLocked = bal.locked + bal.contractlocked + bal.bondlocked
-    const totalBalance = bal.available + totalLocked + bal.immature
-    page.balance.textContent = Doc.formatCoinValue(totalBalance, ui)
+    const totalBalance = bal.available + bal.locked + bal.immature
+    page.balance.textContent = Doc.formatCoinAtom(totalBalance, ui)
     page.balanceUnit.textContent = ui.conventional.unit
     const rate = app().fiatRatesMap[assetID]
     if (rate) {
@@ -1515,7 +1506,7 @@ export default class WalletsPage extends BasePage {
         tmpl.tooltipMsg.dataset.tooltip = tooltipMsg
         Doc.show(tmpl.tooltipMsg)
       }
-      tmpl.balance.textContent = Doc.formatCoinValue(bal, ui)
+      tmpl.balance.textContent = Doc.formatCoinAtom(bal, ui)
       return row
     }
 
@@ -1543,7 +1534,7 @@ export default class WalletsPage extends BasePage {
     }
     setRowClasses()
 
-    addPrimaryBalance(intl.prep(intl.ID_LOCKED_TITLE), totalLocked, intl.prep(intl.ID_LOCKED_BAL_MSG))
+    addPrimaryBalance(intl.prep(intl.ID_LOCKED_TITLE), bal.locked, intl.prep(intl.ID_LOCKED_BAL_MSG))
     if (bal.orderlocked > 0) addSubBalance(intl.prep(intl.ID_ORDER), bal.orderlocked, intl.prep(intl.ID_LOCKED_ORDER_BAL_MSG))
     if (bal.contractlocked > 0) addSubBalance(intl.prep(intl.ID_SWAPPING), bal.contractlocked, intl.prep(intl.ID_LOCKED_SWAPPING_BAL_MSG))
     if (bal.bondlocked > 0) addSubBalance(intl.prep(intl.ID_BONDED), bal.bondlocked, intl.prep(intl.ID_LOCKED_BOND_BAL_MSG))
@@ -1642,17 +1633,17 @@ export default class WalletsPage extends BasePage {
       const [baseUnitInfo, quoteUnitInfo] = [app().unitInfo(ord.baseID), app().unitInfo(ord.quoteID)]
       if (ord.sell) {
         [from, to] = [app().assets[ord.baseID], app().assets[ord.quoteID]]
-        tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+        tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         if (ord.type === OrderUtil.Limit) {
-          tmpl.toQty.textContent = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          tmpl.toQty.textContent = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
         }
       } else {
         [from, to] = [app().assets[ord.quoteID], app().assets[ord.baseID]]
         if (ord.type === OrderUtil.Market) {
-          tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         } else {
-          tmpl.fromQty.textContent = Doc.formatCoinValue(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
-          tmpl.toQty.textContent = Doc.formatCoinValue(ord.qty, baseUnitInfo)
+          tmpl.fromQty.textContent = Doc.formatCoinAtom(ord.qty / OrderUtil.RateEncodingFactor * ord.rate, quoteUnitInfo)
+          tmpl.toQty.textContent = Doc.formatCoinAtom(ord.qty, baseUnitInfo)
         }
       }
 
@@ -1663,7 +1654,7 @@ export default class WalletsPage extends BasePage {
       tmpl.toSymbol.appendChild(Doc.symbolize(to, true))
       tmpl.status.textContent = OrderUtil.statusString(ord)
       tmpl.filled.textContent = `${(OrderUtil.filled(ord) / ord.qty * 100).toFixed(1)}%`
-      tmpl.age.textContent = Doc.timeSince(ord.submitTime)
+      tmpl.age.textContent = Doc.ageSinceFromMs(ord.submitTime)
       tmpl.link.href = `order/${ord.id}`
       app().bindInternalNavigation(row)
     }
@@ -1685,7 +1676,7 @@ export default class WalletsPage extends BasePage {
     }
     const amtAssetUI = app().unitInfo(amtAssetID)
     const feesAssetUI = app().unitInfo(feesAssetID)
-    tmpl.age.textContent = Doc.timeSince(tx.timestamp * 1000)
+    tmpl.age.textContent = Doc.ageSinceFromMs(tx.timestamp * 1000)
     tmpl.age.dataset.timestamp = String(tx.timestamp * 1000)
     Doc.setVis(tx.timestamp === 0, tmpl.pending)
     Doc.setVis(tx.timestamp !== 0, tmpl.age)
@@ -1699,12 +1690,12 @@ export default class WalletsPage extends BasePage {
     tmpl.type.textContent = txType
     tmpl.id.textContent = trimStringWithEllipsis(tx.id, 12)
     tmpl.id.setAttribute('title', tx.id)
-    tmpl.fees.textContent = Doc.formatCoinValue(tx.fees, feesAssetUI)
+    tmpl.fees.textContent = Doc.formatCoinAtom(tx.fees, feesAssetUI)
     if (noAmtTxTypes.includes(tx.type)) {
       tmpl.amount.textContent = '-'
     } else {
       const [u, c] = txTypeSignAndClass(tx.type)
-      const amt = Doc.formatCoinValue(tx.amount, amtAssetUI)
+      const amt = Doc.formatCoinAtom(tx.amount, amtAssetUI)
       tmpl.amount.textContent = `${u}${amt}`
       if (c !== '') tmpl.amount.classList.add(c)
     }
@@ -1754,7 +1745,7 @@ export default class WalletsPage extends BasePage {
       if (tx.tokenID) assetID = tx.tokenID
       Doc.show(page.txDetailsAmtSection)
       const ui = app().unitInfo(assetID)
-      const amt = Doc.formatCoinValue(tx.amount, ui)
+      const amt = Doc.formatCoinAtom(tx.amount, ui)
       const [s, c] = txTypeSignAndClass(tx.type)
       page.txDetailsAmount.textContent = `${s}${amt} ${ui.conventional.unit}`
       if (c !== '') page.txDetailsAmount.classList.add(c)
@@ -1771,7 +1762,7 @@ export default class WalletsPage extends BasePage {
       }
     }
     const feeUI = app().unitInfo(feeAsset)
-    const fee = Doc.formatCoinValue(tx.fees, feeUI)
+    const fee = Doc.formatCoinAtom(tx.fees, feeUI)
     page.txDetailsFee.textContent = `${fee} ${feeUI.conventional.unit}`
 
     // Time / block number
@@ -2012,21 +2003,6 @@ export default class WalletsPage extends BasePage {
     this.showForm(this.page.recoverWalletConfirm)
   }
 
-  /* Show the open wallet form if the password is not cached, and otherwise
-   * attempt to open the wallet.
-   */
-  async openWallet (assetID: number) {
-    const open = {
-      assetID: assetID
-    }
-    const res = await postJSON('/api/openwallet', open)
-    if (!app().checkResponse(res)) {
-      console.error('openwallet error', res)
-      return
-    }
-    this.assetUpdated(assetID, undefined, intl.prep(intl.ID_WALLET_UNLOCKED))
-  }
-
   /* Show the form used to change wallet configuration settings. */
   async showReconfig (assetID: number, cfg?: reconfigSettings) {
     const page = this.page
@@ -2142,7 +2118,7 @@ export default class WalletsPage extends BasePage {
 
   /* Display a deposit address. */
   async showDeposit (assetID: number) {
-    this.depositAddrForm.setAsset(assetID)
+    await this.depositAddrForm.setAsset(assetID)
     this.showForm(this.page.deposit)
   }
 
@@ -2227,12 +2203,12 @@ export default class WalletsPage extends BasePage {
       page.errorModalMsg.textContent = intl.prep(intl.ID_CONNECT_WALLET_ERR_MSG, { assetName: symbol, errMsg: res.msg })
       this.showForm(page.errorModal)
     }
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
   }
 
-  assetUpdated (assetID: number, oldForm?: PageElement, successMsg?: string) {
+  async assetUpdated (assetID: number, oldForm?: PageElement, successMsg?: string) {
     if (assetID !== this.selectedAssetID) return
-    this.updateDisplayedAsset(assetID)
+    await this.updateDisplayedAsset(assetID)
     if (oldForm && Object.is(this.currentForm, oldForm)) {
       if (successMsg) this.showSuccess(successMsg)
       else this.closePopups()
@@ -2316,15 +2292,15 @@ export default class WalletsPage extends BasePage {
       return
     }
     if (this.data?.goBack) {
-      app().loadPage(this.data.goBack)
+      await app().loadPage(this.data.goBack)
       return
     }
     this.assetUpdated(assetID, page.reconfigForm, intl.prep(intl.ID_RECONFIG_SUCCESS))
-    this.updateTicketBuyer(assetID)
+    await this.updateTicketBuyer(assetID)
     app().clearTxHistory(assetID)
-    this.showTxHistory(assetID)
-    this.updatePrivacy(assetID)
-    this.checkNeedsProvider(assetID)
+    await this.showTxHistory(assetID)
+    await this.updatePrivacy(assetID)
+    await this.checkNeedsProvider(assetID)
   }
 
   /* lock instructs the API to lock the wallet. */
@@ -2334,8 +2310,8 @@ export default class WalletsPage extends BasePage {
     const res = await postJSON('/api/closewallet', { assetID: assetID })
     loaded()
     if (!app().checkResponse(res)) return
-    this.updateDisplayedAsset(assetID)
-    this.updatePrivacy(assetID)
+    await this.updateDisplayedAsset(assetID)
+    await this.updatePrivacy(assetID)
   }
 
   async downloadLogs (): Promise<void> {
@@ -2353,7 +2329,7 @@ export default class WalletsPage extends BasePage {
     const page = this.page
     Doc.hide(page.exportWalletErr)
     page.exportWalletPW.value = ''
-    this.showForm(page.exportWalletAuth)
+    await this.showForm(page.exportWalletAuth)
   }
 
   // exportWalletAuthSubmit is called after the user enters their password to
@@ -2371,7 +2347,7 @@ export default class WalletsPage extends BasePage {
     loaded()
     if (app().checkResponse(res)) {
       page.exportWalletPW.value = ''
-      this.displayRestoreWalletInfo(res.restorationinfo)
+      await this.displayRestoreWalletInfo(res.restorationinfo)
     } else {
       Doc.showFormError(page.exportWalletErr, res.msg)
     }
@@ -2391,7 +2367,7 @@ export default class WalletsPage extends BasePage {
       tmpl.instructions.textContent = wr.instructions
       page.restoreInfoCardsList.appendChild(card)
     }
-    this.showForm(page.restoreWalletInfo)
+    await this.showForm(page.restoreWalletInfo)
   }
 
   async recoverWallet (): Promise<void> {

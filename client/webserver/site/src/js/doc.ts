@@ -2,7 +2,6 @@ import * as intl from './locales'
 import {
   UnitInfo,
   LayoutMetrics,
-  WalletState,
   PageElement
 } from './registry'
 import State from './state'
@@ -51,29 +50,18 @@ const BipSymbolIDs: Record<string, number> = {};
 
 const BipSymbols = Object.values(BipIDs)
 
-const RateEncodingFactor = 1e8 // same as value defined in ./orderutil
+const RateEncodingFactor = 1e8
 
 const log10RateEncodingFactor = Math.round(Math.log10(RateEncodingFactor))
 
 const languages = navigator.languages.filter((locale: string) => locale !== 'c')
 
-const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0 })
+const intFormatter = new Intl.NumberFormat(languages, { maximumFractionDigits: 0, useGrouping: false })
 
 const fourSigFigs = new Intl.NumberFormat(languages, {
-  minimumSignificantDigits: 4,
-  maximumSignificantDigits: 4
+  maximumSignificantDigits: 4,
+  useGrouping: false
 })
-
-/* A cache for formatters used for Doc.formatCoinValue. */
-const decimalFormatters: Record<number, Intl.NumberFormat> = {}
-
-/*
- * decimalFormatter gets the formatCoinValue formatter for the specified decimal
- * precision.
- */
-function decimalFormatter (prec: number) {
-  return formatter(decimalFormatters, 2, prec)
-}
 
 /* A cache for formatters used for Doc.formatFullPrecision. */
 const fullPrecisionFormatters: Record<number, Intl.NumberFormat> = {}
@@ -83,6 +71,14 @@ const fullPrecisionFormatters: Record<number, Intl.NumberFormat> = {}
  * specified decimal precision.
  */
 function fullPrecisionFormatter (prec: number, locales?: string | string[]) {
+  return formatter(fullPrecisionFormatters, 0, prec, locales)
+}
+
+/*
+ * fullPrecisionFormatter gets the formatFullPrecision formatter for the
+ * specified decimal precision.
+ */
+function fullPrecisionFormatterWithPreservingZeroes (prec: number, locales?: string | string[]) {
   return formatter(fullPrecisionFormatters, prec, prec, locales)
 }
 
@@ -96,7 +92,8 @@ function formatter (formatters: Record<string, Intl.NumberFormat>, min: number, 
   if (!fmt) {
     fmt = new Intl.NumberFormat(locales ?? languages, {
       minimumFractionDigits: min,
-      maximumFractionDigits: max
+      maximumFractionDigits: max,
+      useGrouping: false
     })
     formatters[k] = fmt
   }
@@ -104,7 +101,7 @@ function formatter (formatters: Record<string, Intl.NumberFormat>, min: number, 
 }
 
 /*
- * convertToConventional converts the value in atomic units to conventional
+ * convertToConventional converts coin value in atomic units to conventional
  * units.
  */
 function convertToConventional (v: number, unitInfo?: UnitInfo) {
@@ -257,6 +254,22 @@ export default class Doc {
   }
 
   /*
+   * hidePreservingLayout hides the specified elements without affecting page layout
+   * (like Doc.hide can). Use Doc.showPreservingLayout to undo.
+   */
+  static hidePreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'hidden'
+  }
+
+  /*
+   * showPreservingLayout shows the specified elements, undoing changes by made with
+   * Doc.hidePreservingLayout.
+   */
+  static showPreservingLayout (...els: HTMLElement[]) {
+    for (const el of els) el.style.visibility = 'visible'
+  }
+
+  /*
    * show or hide the specified elements, based on value of the truthiness of
    * vis.
    */
@@ -322,36 +335,110 @@ export default class Doc {
   }
 
   /*
-   * formatCoinValue formats the value in atomic units into a string
+   * formatCoinAtom formats the value in atomic units into a string
    * representation in conventional units. If the value happens to be an
    * integer, no decimals are displayed. Trailing zeros may be truncated.
+   * By default full precision of unitInfo will be used, but `precision`
+   * parameter allows for specifying the desired one (note, `precision` is
+   * max number of significant digits after decimal point).
    */
-  static formatCoinValue (vAtomic: number, unitInfo?: UnitInfo): string {
-    const [v, prec] = convertToConventional(vAtomic, unitInfo)
+  static formatCoinAtom (coinAtom: number, unitInfo?: UnitInfo, precision?: number): string {
+    const [v, precisionFull] = convertToConventional(coinAtom, unitInfo)
     if (Number.isInteger(v)) return intFormatter.format(v)
-    return decimalFormatter(prec).format(v)
-  }
-
-  static conventionalCoinValue (vAtomic: number, unitInfo?: UnitInfo): number {
-    const [v] = convertToConventional(vAtomic, unitInfo)
-    return v
+    if (!precision) {
+      precision = precisionFull
+    }
+    return fullPrecisionFormatter(precision).format(v)
   }
 
   /*
-   * formatRateFullPrecision formats rate to represent it exactly at rate step
-   * precision, trimming non-effectual zeros if there are any.
+   * formatCoinAtomToLotSizeBaseCurrency formats atomic coin value to represent it exactly
+   * at lot size precision (corresponds to base currency).
    */
-  static formatRateFullPrecision (encRate: number, bui: UnitInfo, qui: UnitInfo, rateStepEnc: number) {
-    const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
-    const convRate = encRate * r / RateEncodingFactor
-    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepEnc)) -
-      Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
-    if (rateStepDigits <= 0) return intFormatter.format(convRate)
-    return fullPrecisionFormatter(rateStepDigits).format(convRate)
+  static formatCoinAtomToLotSizeBaseCurrency (coinAtom: number, baseUnitInfo: UnitInfo, lotSizeAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, baseUnitInfo)
+    const [lotSize] = convertToConventional(lotSizeAtom, baseUnitInfo)
+    const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
+    if (lotSizeDigits <= 0) {
+      // no decimals, display as integer then
+      return intFormatter.format(coin)
+    }
+    return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits).format(coin)
   }
 
+  /*
+ * formatCoinAtomToLotSizeQuoteCurrency formats atomic coin value to represent it exactly
+ * at lot size precision that would correspond to quote currency.
+ */
+  static formatCoinAtomToLotSizeQuoteCurrency (coinAtom: number, bui: UnitInfo, qui: UnitInfo, lotSizeAtom: number, rateStepAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, qui)
+    const [lotSize] = convertToConventional(lotSizeAtom, qui)
+    const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
+        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
+    if (lotSizeDigits + rateStepDigits <= 0) {
+      // no decimals, display as integer then
+      return intFormatter.format(coin)
+    }
+    return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits + rateStepDigits).format(coin)
+  }
+
+  /*
+   * formatCoinAtomFourSigFigs should actually be called formatCoinAtomBestWeCan, but
+   * this name is left for compatibility purposes (simpler to rebase onto upstream).
+   *
+   * formatCoinAtomFourSigFigs is similar to formatCoinAtom but is more flexible
+   * in the way it treats decimals (can omit them if necessary).
+   */
+  static formatCoinAtomFourSigFigs (coinAtom: number, unitInfo?: UnitInfo): string {
+    const [v, precisionFull] = convertToConventional(coinAtom, unitInfo)
+    return Doc.formatFourSigFigs(v, precisionFull)
+  }
+
+  /*
+   * formatRateAtomToRateStep formats atomic rate value to represent it exactly at rate step
+   * precision.
+   */
+  static formatRateAtomToRateStep (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
+    const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
+    const rateConv = rateAtom * r / RateEncodingFactor
+    return Doc.formatRateToRateStep(rateConv, bui, qui, rateStepAtom)
+  }
+
+  /*
+   * formatRateToRateStep formats conventional rate value to represent it exactly at rate step
+   * precision.
+   */
+  static formatRateToRateStep (rateConv: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
+    const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
+        Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
+    if (rateStepDigits <= 0) {
+      // no decimals, display as integer then
+      return intFormatter.format(rateConv)
+    }
+    return fullPrecisionFormatterWithPreservingZeroes(rateStepDigits).format(rateConv)
+  }
+
+  /*
+   * formatFourSigFigs should actually be called formatBestWeCan, but this name is
+   * left for compatibility purposes (simpler to rebase onto upstream).
+   *
+   * formatFourSigFigs formats number n using 4 decimals at most, sacrificing
+   * them as needed. Parameter maxDecimals helps it figure our if it even needs all 4
+   * digits or not (e.g. if maxDecimals is 2 there is no point in displaying 4 digits).
+   */
   static formatFourSigFigs (n: number, maxDecimals?: number): string {
-    return formatSigFigsWithFormatters(intFormatter, fourSigFigs, n, maxDecimals)
+    if (n >= 1000) {
+      // can't show decimals, might as well format as integer
+      return intFormatter.format(n)
+    }
+    if (!maxDecimals) {
+      // since maxDecimals is not specified formatting with fourSigFigs is
+      // the best we can do here
+      return fourSigFigs.format(n)
+    }
+    // otherwise it's best to format with full precision up to maxDecimals
+    return fullPrecisionFormatter(maxDecimals).format(n)
   }
 
   static formatInt (i: number): string {
@@ -385,7 +472,11 @@ export default class Doc {
   }
 
   static formatFiatValue (value: number): string {
-    return fullPrecisionFormatter(2).format(value)
+    return fullPrecisionFormatterWithPreservingZeroes(2).format(value)
+  }
+
+  static formatOneDecimalPrecision (value: number): string {
+    return fullPrecisionFormatterWithPreservingZeroes(1).format(value)
   }
 
   /*
@@ -563,18 +654,32 @@ export default class Doc {
   }
 
   /*
-   * timeSince returns a string representation of the duration since the
-   * specified unix timestamp (milliseconds).
+   * timeFromMs returns a string representation of the timestamp specified
+   * as unix timestamp (milliseconds) formatted as hh:mm:ss.
    */
-  static timeSince (ms: number): string {
-    return Doc.formatDuration((new Date().getTime()) - ms)
+  static timeFromMs (ms: number): string {
+    const date = new Date(ms)
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
   }
 
   /*
-   * hmsSince returns a time duration since the specified unix timestamp
-   * formatted as HH:MM:SS
+   * ageSinceFromMs returns a string representation of the duration since the
+   * specified unix timestamp (milliseconds).
    */
-  static hmsSince (secs: number) {
+  static ageSinceFromMs (ms: number, trimSeconds?: boolean): string {
+    return Doc.formatDuration((new Date().getTime()) - ms, trimSeconds)
+  }
+
+  /*
+   * hmsSinceFromS returns a time duration since the specified unix timestamp
+   * formatted as hh:mm:ss.
+   */
+  static hmsSinceFromS (secs: number): string {
     let r = (new Date().getTime() / 1000) - secs
     const h = String(Math.floor(r / 3600))
     r = r % 3600
@@ -583,43 +688,76 @@ export default class Doc {
     return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`
   }
 
-  /* formatDuration returns a string representation of the duration */
-  static formatDuration (dur: number): string {
-    let seconds = Math.floor(dur)
-    let result = ''
-    let count = 0
-    const add = (n: number, s: string) => {
-      if (n > 0 || count > 0) count++
-      if (n > 0) result += `${n} ${s} `
-      return count >= 2
-    }
-    let y, mo, d, h, m, s
-    [y, seconds] = timeMod(seconds, aYear)
-    if (add(y, 'y')) { return result }
-    [mo, seconds] = timeMod(seconds, aMonth)
-    if (add(mo, 'mo')) { return result }
-    [d, seconds] = timeMod(seconds, aDay)
-    if (add(d, 'd')) { return result }
-    [h, seconds] = timeMod(seconds, anHour)
-    if (add(h, 'h')) { return result }
-    [m, seconds] = timeMod(seconds, aMinute)
-    if (add(m, 'm')) { return result }
-    [s, seconds] = timeMod(seconds, 1000)
-    add(s, 's')
-    return result || '0 s'
+  /*
+   * hmsSinceFromMs is same as hmsSinceFromS for milliseconds.
+   */
+  static hmsSinceFromMs (ms: number): string {
+    return Doc.hmsSinceFromS(ms / 1000)
   }
 
   /*
-   * disableMouseWheel can be used to disable the mouse wheel for any
-   * input. It is very easy to unknowingly scroll up on a number input
-   * and then submit an unexpected value. This function prevents the
-   * scroll increment/decrement behavior for a wheel action on a
-   * number input.
+   * hmsSinceFromS returns a time duration since the specified unix timestamp
+   * formatted as YYYY/MM/DD hh:mm.
    */
-  static disableMouseWheel (...inputFields: Element[]) {
-    for (const inputField of inputFields) {
-      Doc.bind(inputField, 'wheel', () => { /* pass */ }, { passive: true })
+  static ymdhmSinceFromMS (ms: number): string {
+    const date = new Date(ms)
+    const year = String(date.getFullYear())
+    const month = String(date.getMonth() + 1).padStart(2, '0') // JS enumerates months as 0-11
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}/${month}/${day} ${hours}:${minutes}`
+  }
+
+  /* formatDuration returns a string representation of the duration */
+  static formatDuration (dur: number, trimSeconds?: boolean): string {
+    let seconds = Math.floor(dur)
+    let result = ''
+    // significantChunkCnt counts how many chunks (year, month, day, hour, minute) we've added to the result.
+    let significantChunkCnt = 0
+    const add = (n: number, s: string): boolean => {
+      if (n === 0 && significantChunkCnt === 0) {
+        // we haven't started building the result, so we aren't done yet
+        return false
+      }
+      significantChunkCnt++
+      let chunk = `${n}${s} `
+      if (n < 10) {
+        // gotta pad 1-digit number chunk so that it occupies the same amount of space as 2-digit chunk
+        chunk = ' ' + chunk // use a space that's of the same size as a digit
+      }
+      result += chunk
+      return significantChunkCnt >= 2 // we want to show 2 chunks (year, month, day, hour, minute) at most
     }
+
+    const aYear = 31536000000
+    const aMonth = 2592000000
+    const aDay = 86400000
+    const anHour = 3600000
+    const aMinute = 60000
+    const aSecond = 1000
+
+    let Y, M, D, h, m, s
+    [Y, seconds] = timeMod(seconds, aYear)
+    if (add(Y, 'y')) { return result }
+    [M, seconds] = timeMod(seconds, aMonth)
+    if (add(M, 'm')) { return result }
+    [D, seconds] = timeMod(seconds, aDay)
+    if (add(D, 'd')) { return result }
+    [h, seconds] = timeMod(seconds, anHour)
+    if (add(h, 'h')) { return result }
+    if (trimSeconds) {
+      // show minutes chunk and be done with it
+      [m, seconds] = timeMod(seconds, aMinute)
+      add(m, 'm')
+      return result || '0m'
+    }
+    // show both minutes and seconds chunks then
+    [m, seconds] = timeMod(seconds, aMinute)
+    if (add(m, 'm')) { return result }
+    [s, seconds] = timeMod(seconds, aSecond)
+    add(s, 's')
+    return result || '0s'
   }
 
   // showFormError can be used to set and display error message on forms.
@@ -671,7 +809,7 @@ export class Animation {
       now = new Date().getTime()
     }
     f(1)
-    this.runCompletionFunction()
+    return this.runCompletionFunction()
   }
 
   /* wait returns a promise that will resolve when the animation completes. */
@@ -714,114 +852,6 @@ export const Easing: Record<string, (t: number) => number> = {
       : t === 1
         ? 1
         : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1
-  }
-}
-
-/* WalletIcons are used for controlling wallets in various places. */
-export class WalletIcons {
-  icons: Record<string, HTMLElement>
-  status: Element
-
-  constructor (box: HTMLElement) {
-    const stateElement = (name: string) => box.querySelector(`[data-state=${name}]`) as HTMLElement
-    this.icons = {}
-    this.icons.sleeping = stateElement('sleeping')
-    this.icons.locked = stateElement('locked')
-    this.icons.unlocked = stateElement('unlocked')
-    this.icons.nowallet = stateElement('nowallet')
-    this.icons.syncing = stateElement('syncing')
-    this.icons.nopeers = stateElement('nopeers')
-    this.icons.disabled = stateElement('disabled')
-    this.status = stateElement('status')
-  }
-
-  /* sleeping sets the icons to indicate that the wallet is not connected. */
-  sleeping () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.nowallet, i.syncing, i.disabled)
-    Doc.show(i.sleeping)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_OFF)
-  }
-
-  /*
-   * locked sets the icons to indicate that the wallet is connected, but locked.
-   */
-  locked () {
-    const i = this.icons
-    Doc.hide(i.unlocked, i.nowallet, i.sleeping, i.disabled)
-    Doc.show(i.locked)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_LOCKED)
-  }
-
-  /*
-   * unlocked sets the icons to indicate that the wallet is connected and
-   * unlocked.
-   */
-  unlocked () {
-    const i = this.icons
-    Doc.hide(i.locked, i.nowallet, i.sleeping, i.disabled)
-    Doc.show(i.unlocked)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_READY)
-  }
-
-  /* nowallet sets the icons to indicate that no wallet exists. */
-  nowallet () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.sleeping, i.syncing, i.disabled)
-    Doc.show(i.nowallet)
-    if (this.status) this.status.textContent = intl.prep(intl.ID_NO_WALLET)
-  }
-
-  /* set the icons to indicate that the wallet is disabled */
-  disabled () {
-    const i = this.icons
-    Doc.hide(i.locked, i.unlocked, i.sleeping, i.syncing, i.nowallet, i.nopeers)
-    Doc.show(i.disabled)
-    i.disabled.dataset.tooltip = intl.prep(intl.ID_DISABLED_MSG)
-  }
-
-  setSyncing (wallet: WalletState | null) {
-    const syncIcon = this.icons.syncing
-    if (!wallet || !wallet.running || wallet.disabled) {
-      Doc.hide(syncIcon)
-      return
-    }
-
-    if (wallet.peerCount === 0) {
-      Doc.show(this.icons.nopeers)
-      Doc.hide(syncIcon) // potentially misleading with no peers
-      return
-    }
-    Doc.hide(this.icons.nopeers)
-
-    if (!wallet.synced) {
-      Doc.show(syncIcon)
-      syncIcon.dataset.tooltip = intl.prep(intl.ID_WALLET_SYNC_PROGRESS, { syncProgress: (wallet.syncProgress * 100).toFixed(1) })
-      return
-    }
-    Doc.hide(syncIcon)
-  }
-
-  /* reads the core.Wallet state and sets the icon visibility. */
-  readWallet (wallet: WalletState | null) {
-    this.setSyncing(wallet)
-    if (!wallet) return this.nowallet()
-    switch (true) {
-      case (wallet.disabled):
-        this.disabled()
-        break
-      case (!wallet.running):
-        this.sleeping()
-        break
-      case (!wallet.open):
-        this.locked()
-        break
-      case (wallet.open):
-        this.unlocked()
-        break
-      default:
-        console.error('wallet in unknown state', wallet)
-    }
   }
 }
 
@@ -870,67 +900,14 @@ function sleep (ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const aYear = 31536000000
-const aMonth = 2592000000
-const aDay = 86400000
-const anHour = 3600000
-const aMinute = 60000
-
 /* timeMod returns the quotient and remainder of t / dur. */
 function timeMod (t: number, dur: number) {
   const n = Math.floor(t / dur)
   return [n, t - n * dur]
 }
 
-function formatSigFigsWithFormatters (intFormatter: Intl.NumberFormat, sigFigFormatter: Intl.NumberFormat, n: number, maxDecimals?: number, locales?: string | string[]): string {
-  if (n >= 1000) return intFormatter.format(n)
-  const s = sigFigFormatter.format(n)
-  if (typeof maxDecimals !== 'number') return s
-  const fractional = sigFigFormatter.formatToParts(n).filter((part: Intl.NumberFormatPart) => part.type === 'fraction')[0]?.value ?? ''
-  if (fractional.length <= maxDecimals) return s
-  return fullPrecisionFormatter(maxDecimals, locales).format(n)
-}
-
 if (process.env.NODE_ENV === 'development') {
-  // Code will only appear in dev build.
-  // https://webpack.js.org/guides/production/
-  window.testFormatFourSigFigs = () => {
-    const tests: [string, string, number | undefined, string][] = [
-      ['en-US', '1.234567', undefined, '1.235'], // sigFigFormatter
-      ['en-US', '1.234567', 2, '1.23'], // decimalFormatter
-      ['en-US', '1234', undefined, '1,234.0'], // oneFractionalDigit
-      ['en-US', '12', undefined, '12.00'], // sigFigFormatter
-      ['fr-FR', '123.45678', undefined, '123,5'], // oneFractionalDigit
-      ['fr-FR', '1234.5', undefined, '1 234,5'], // U+202F for thousands separator
-      // For Arabic, https://www.saitak.com/number is useful, but seems to use
-      // slightly different unicode points and no thousands separator. I think
-      // the Arabic decimal separator is supposed to be more like a point, not
-      // a comma, but Google Chrome uses U+066B (Arabic Decimal Separator),
-      // which looks like a comma to me. ¯\_(ツ)_/¯
-      ['ar-EG', '123.45678', undefined, '١٢٣٫٥'],
-      ['ar-EG', '1234', undefined, '١٬٢٣٤٫٠'],
-      ['ar-EG', '0.12345', 3, '٠٫١٢٣']
-    ]
-
-    // Reproduce the NumberFormats with ONLY our desired language.
-    for (const [code, unformatted, maxDecimals, expected] of tests) {
-      const intFormatter = new Intl.NumberFormat(code, { // oneFractionalDigit
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1
-      })
-      const sigFigFormatter = new Intl.NumberFormat(code, {
-        minimumSignificantDigits: 4,
-        maximumSignificantDigits: 4
-      })
-      for (const k in decimalFormatters) delete decimalFormatters[k] // cleanup
-      for (const k in fullPrecisionFormatters) delete fullPrecisionFormatters[k] // cleanup
-      const s = formatSigFigsWithFormatters(intFormatter, sigFigFormatter, parseFloatDefault(unformatted), maxDecimals, code)
-      if (s !== expected) console.log(`TEST FAILED: f('${code}', ${unformatted}, ${maxDecimals}) => '${s}' != '${expected}'}`)
-      else console.log(`✔️ f('${code}', ${unformatted}, ${maxDecimals}) => ${s} ✔️`)
-    }
-  }
-
-  window.testFormatRateFullPrecision = () => {
+  window.testFormatRateAtomToRateStep = () => {
     const tests: [number, number, number, number, string][] = [
       // Two utxo assets with a conventional rate of 0.15. Conventional rate
       // step is 100 / 1e8 = 1e-6, so there should be 6 decimal digits.
@@ -968,7 +945,7 @@ if (process.env.NODE_ENV === 'development') {
       for (const k in fullPrecisionFormatters) delete fullPrecisionFormatters[k] // cleanup
       const bui = { conventional: { conversionFactor: bFactor } } as any as UnitInfo
       const qui = { conventional: { conversionFactor: qFactor } } as any as UnitInfo
-      const enc = Doc.formatRateFullPrecision(encRate, bui, qui, rateStep)
+      const enc = Doc.formatRateAtomToRateStep(encRate, bui, qui, rateStep)
       if (enc !== expEncoding) console.log(`TEST FAILED: f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} != ${expEncoding}`)
       else console.log(`✔️ f(${encRate}, ${bFactor}, ${qFactor}, ${rateStep}) => ${enc} ✔️`)
     }

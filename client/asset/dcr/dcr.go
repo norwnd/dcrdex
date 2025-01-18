@@ -138,9 +138,9 @@ var (
 			Key:         "feeratelimit",
 			DisplayName: "Highest acceptable fee rate",
 			Description: "This is the highest network fee rate you are willing to " +
-				"pay on swap transactions. If feeratelimit is lower than a market's " +
-				"maxfeerate, you will not be able to trade on that market with this " +
-				"wallet.  Units: DCR/kB",
+				"pay for transactions, fee rate for Swap transactions will be 2x of that" +
+				"(because they need to be mined faster than any other transaction type for " +
+				"trades to execute). Units: DCR/kB",
 			DefaultValue: defaultFeeRateLimit * 1000 / 1e8,
 		},
 		{
@@ -1265,13 +1265,18 @@ func (dcr *ExchangeWallet) SetBondReserves(reserves uint64) {
 }
 
 // FeeRate satisfies asset.FeeRater.
-func (dcr *ExchangeWallet) FeeRate() uint64 {
+func (dcr *ExchangeWallet) FeeRate() (rate uint64, tooLow bool) {
 	const confTarget = 2 // 1 historically gives crazy rates
 	rate, err := dcr.feeRate(confTarget)
 	if err != nil && dcr.network != dex.Simnet { // log and return 0
 		dcr.log.Errorf("feeRate error: %v", err)
 	}
-	return rate
+	return rate, false // DCR fees are never too low in practice
+}
+
+// FeeRateSwap is same as FeeRate but for swaps.
+func (dcr *ExchangeWallet) FeeRateSwap() (rate uint64, tooLow bool) {
+	return dcr.FeeRate()
 }
 
 // feeRate returns the current optimal fee rate in atoms / byte.
@@ -1868,12 +1873,15 @@ func (dcr *ExchangeWallet) FundOrder(ord *asset.Order) (asset.Coins, []dex.Bytes
 	if ord.FeeSuggestion > cfg.feeRateLimit {
 		return nil, nil, 0, fmt.Errorf("suggested fee > configured limit. %d > %d", ord.FeeSuggestion, cfg.feeRateLimit)
 	}
-	// Check wallet's fee rate limit against server's max fee rate
-	if cfg.feeRateLimit < ord.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(BipID), ord.MaxFeeRate, cfg.feeRateLimit)
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// on client side (server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//// Check wallet's fee rate limit against server's max fee rate
+	//if cfg.feeRateLimit < ord.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), ord.MaxFeeRate, cfg.feeRateLimit)
+	//}
 
 	customCfg := new(swapOptions)
 	err := config.Unmapify(ord.Options, customCfg)
@@ -2258,7 +2266,10 @@ func (dcr *ExchangeWallet) submitMultiSplitTx(fundingCoins asset.Coins, _ /* spe
 			addr: outputAddresses[i].String(),
 		}
 	}
-	dcr.lockFundingCoins(fcs)
+	err = dcr.lockFundingCoins(fcs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("lockFundingCoins: %w", err)
+	}
 
 	var totalOut uint64
 	for _, txOut := range tx.TxOut {
@@ -2408,7 +2419,10 @@ func (dcr *ExchangeWallet) fundMultiWithSplit(keep, maxLock uint64, values []*as
 		}
 	}
 
-	dcr.lockFundingCoins(spents)
+	err = dcr.lockFundingCoins(spents)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("lockFundingCoins: %w", err)
+	}
 
 	return coins, redeemScripts, splitFees, nil
 }
@@ -2428,7 +2442,10 @@ func (dcr *ExchangeWallet) fundMulti(maxLock uint64, values []*asset.MultiOrderV
 		return nil, nil, 0, err
 	}
 	if len(coins) == len(values) || !allowSplit {
-		dcr.lockFundingCoins(fundingCoins)
+		err = dcr.lockFundingCoins(fundingCoins)
+		if err != nil {
+			return nil, nil, 0, fmt.Errorf("lockFundingCoins: %w", err)
+		}
 		return coins, redeemScripts, 0, nil
 	}
 
@@ -2457,12 +2474,15 @@ func (dcr *ExchangeWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) 
 		return nil, nil, 0, fmt.Errorf("fee suggestion %d > max fee rate %d", mo.FeeSuggestion, mo.MaxFeeRate)
 	}
 
-	cfg := dcr.config()
-	if cfg.feeRateLimit < mo.MaxFeeRate {
-		return nil, nil, 0, fmt.Errorf(
-			"%v: server's max fee rate %v higher than configured fee rate limit %v",
-			dex.BipIDSymbol(BipID), mo.MaxFeeRate, cfg.feeRateLimit)
-	}
+	// This is just a sanity check that doesn't allow Bison wallet to configure lower fees
+	// on client side (server doesn't enforce/check this really), we know better than whatever
+	// server suggests.
+	//cfg := dcr.config()
+	//if cfg.feeRateLimit < mo.MaxFeeRate {
+	//	return nil, nil, 0, fmt.Errorf(
+	//		"%v: server's max fee rate %v higher than configured fee rate limit %v",
+	//		dex.BipIDSymbol(BipID), mo.MaxFeeRate, cfg.feeRateLimit)
+	//}
 
 	bal, err := dcr.Balance()
 	if err != nil {

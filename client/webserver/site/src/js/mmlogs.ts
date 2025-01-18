@@ -344,7 +344,7 @@ export default class MarketMakerLogsPage extends BasePage {
           parent.insertBefore(el, tmpl.sumUSD)
         }
       }
-      el.textContent = Doc.formatCoinValue(sum, asset.unitInfo)
+      el.textContent = Doc.formatCoinAtom(sum, asset.unitInfo)
       const factor = asset.unitInfo.conventional.conversionFactor
       usd += sum / factor * this.fiatRates[asset.id] ?? 0
     }
@@ -430,8 +430,8 @@ export default class MarketMakerLogsPage extends BasePage {
       if (assetExplorer && assetExplorer[net]) {
         tmpl.explorerLink.href = assetExplorer[net](tx.id)
       }
-      tmpl.amt.textContent = `${Doc.formatCoinValue(tx.amount, asset.unitInfo)} ${asset.unitInfo.conventional.unit.toLowerCase()}`
-      tmpl.fees.textContent = `${Doc.formatCoinValue(tx.fees, asset.unitInfo)} ${asset.unitInfo.conventional.unit.toLowerCase()}`
+      tmpl.amt.textContent = `${Doc.formatCoinAtom(tx.amount, asset.unitInfo)} ${asset.unitInfo.conventional.unit.toLowerCase()}`
+      tmpl.fees.textContent = `${Doc.formatCoinAtom(tx.fees, asset.unitInfo)} ${asset.unitInfo.conventional.unit.toLowerCase()}`
       page.dexOrderTxsTableBody.appendChild(row)
     }
     this.forms.show(page.dexOrderDetailsForm)
@@ -475,12 +475,12 @@ export default class MarketMakerLogsPage extends BasePage {
     page.depositID.setAttribute('title', event.transaction.id)
     const unitInfo = app().assets[event.assetID].unitInfo
     const unit = unitInfo.conventional.unit
-    page.depositAmt.textContent = `${Doc.formatCoinValue(event.transaction.amount, unitInfo)} ${unit}`
-    page.depositFees.textContent = `${Doc.formatCoinValue(event.transaction.fees, unitInfo)} ${unit}`
+    page.depositAmt.textContent = `${Doc.formatCoinAtom(event.transaction.amount, unitInfo)} ${unit}`
+    page.depositFees.textContent = `${Doc.formatCoinAtom(event.transaction.fees, unitInfo)} ${unit}`
     page.depositStatus.textContent = pending ? intl.prep(intl.ID_PENDING) : intl.prep(intl.ID_COMPLETE)
     Doc.setVis(!pending, page.depositCreditSection)
     if (!pending) {
-      page.depositCredit.textContent = `${Doc.formatCoinValue(event.cexCredit, unitInfo)} ${unit}`
+      page.depositCredit.textContent = `${Doc.formatCoinAtom(event.cexCredit, unitInfo)} ${unit}`
     }
     this.forms.show(page.depositDetailsForm)
   }
@@ -496,12 +496,12 @@ export default class MarketMakerLogsPage extends BasePage {
     page.withdrawalID.setAttribute('title', event.id)
     const unitInfo = app().assets[event.assetID].unitInfo
     const unit = unitInfo.conventional.unit
-    page.withdrawalAmt.textContent = `${Doc.formatCoinValue(event.cexDebit, unitInfo)} ${unit}`
+    page.withdrawalAmt.textContent = `${Doc.formatCoinAtom(event.cexDebit, unitInfo)} ${unit}`
     page.withdrawalStatus.textContent = pending ? intl.prep(intl.ID_PENDING) : intl.prep(intl.ID_COMPLETE)
     if (event.transaction) {
       page.withdrawalTxID.textContent = trimStringWithEllipsis(event.transaction.id, 20)
       page.withdrawalTxID.setAttribute('title', event.transaction.id)
-      page.withdrawalReceived.textContent = `${Doc.formatCoinValue(event.transaction.amount, unitInfo)} ${unit}`
+      page.withdrawalReceived.textContent = `${Doc.formatCoinAtom(event.transaction.amount, unitInfo)} ${unit}`
     }
     this.forms.show(page.withdrawalDetailsForm)
   }

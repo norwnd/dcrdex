@@ -27,7 +27,6 @@
     <div class="col-24 col-md-12 col-xl-8 col-xxl-6">
       <section class="p-3">
         <div class="position-relative">
-          <div id="mmTitle" class="flex-center fs28 d-none d-md-block lh1">[[[Market Maker Settings]]]</div>
           <div id="marketBox" class="flex-stretch-column flex-grow-1 d-hide">
             <div class="d-flex">
               {{- /* MARKET NAME DISPLAY */ -}}
@@ -65,6 +64,7 @@
             <div class="d-flex flex-column align-items-stretch pb-2">
               <label class="text-nowrap me-2 mb-1 fs18 demi">[[[gap_strategy]]]</label>
               <select id="gapStrategySelect" class="form-select fs18">
+                <option value="competitive">[[[gap_strategy_competitive]]]</option>
                 <option value="percent-plus">[[[gap_strategy_percent_plus]]]</option>
                 <option value="percent">[[[gap_strategy_percent]]]</option>
                 <option value="absolute-plus">
@@ -75,6 +75,9 @@
               </select>
             </div>
             {{- /* STRATEGY DESCRIPTIONS */ -}}
+            <div id="competitiveInfo" class="w-100 pb-2 border-bottom fs16 text-justify">
+              [[[strategy_competitive]]]
+            </div>
             <div id="percentPlusInfo" class="w-100 pb-2 border-bottom fs16 text-justify">
               [[[strategy_percent_plus]]]
             </div>
@@ -173,7 +176,7 @@
               <span id="sellPlacementsErr" class="fs15 pt-3 text-center d-hide text-danger text-break"></span>
             </div>
           </div>
-          <div id="switchToQuickConfig" class="flex-center p-2 hoverbg pointer border rounded3 mt-3">
+          <div id="switchToQuickConfig" class="flex-center p-2 hoverbg pointer border mt-3">
             <span class="ico-settings fs14 me-1"></span>
             <span class="fs15">[[[Quick Placements]]]</span>
           </div>
@@ -364,7 +367,7 @@
             <div class="d-flex align-items-start justify-content-between px-3 pt-3 pb-2 border-bottom">
               <div class="d-flex align-items-center lh1">
                 <img class="me-1 mini-icon" data-logo>
-                <span class="fs26" data-name></span>
+                <span class="fs24" data-name></span>
               </div>
               <div class="d-flex flex-column align-items-end">
                 <div class="d-flex align-items-end lh1">
@@ -570,7 +573,7 @@
                   <span class="ico-settings fs15 pe-2"></span>
                   <span class="fs18">[[[Wallet Options]]]</span>
                 </div>
-                <div data-tmpl="walletSettingsNone" class="text-center p-2 my-2 border-top border-bottom rounded3">no settings available</div>
+                <div data-tmpl="walletSettingsNone" class="text-center p-2 my-2 border-top border-bottom border-rounded3">no settings available</div>
                 <div data-tmpl="walletSettings" class="flex-stretch-column fs15">
                   <div data-tmpl="boolSettingTmpl" class="d-flex align-items-center pt-2 mt-2 border-top">
                     <input type="checkbox" data-tmpl="input" class="form-check-input me-2 mt-0">
@@ -763,7 +766,7 @@
       </div>
 
       <div id="cexSelection" class="d-flex flex-wrap justify-content-between">
-        <div id="cexOptTmpl" class="position-relative p-2 col-11 flex-center flex-column border rounded3 cex-selector">
+        <div id="cexOptTmpl" class="position-relative p-2 col-11 flex-center flex-column border cex-selector">
           <div data-tmpl="reconfig" class="fs14 ico-settings p-2 hoverbg pointer reconfig"></div>
           <div class="flex-center lh1">
             <img data-tmpl="logo" class="mini-icon me-1 xclogo medium-icon">
@@ -792,7 +795,7 @@
       <div class="form-closer"><span class="ico-cross"></span></div>
       <header>
         <span class="me-2 ico-robot fs35 pb-1"></span>
-        <span class="fs26">[[[Select a Market]]]</span>
+        <span class="fs24">[[[Select a Market]]]</span>
       </header>
 
       <div id="marketFilterBox" class="flex-center">

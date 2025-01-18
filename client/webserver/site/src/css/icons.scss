@@ -78,6 +78,18 @@
   color: var(--buy-color);
 }
 
+.ico-check-buy::before {
+  content: "\ea10";
+  display: inline-block;
+  color: var(--buy-color);
+}
+
+.ico-check-sell::before {
+  content: "\ea10";
+  display: inline-block;
+  color: var(--sell-color);
+}
+
 .ico-bell::before {
   content: "\e900";
 }

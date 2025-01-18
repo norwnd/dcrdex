@@ -155,8 +155,8 @@
 <div class="form-closer"><span class="ico-cross"></span></div>
 <div class="flex-center pt-2 px-3">
   <img class="dex-logo mini-icon me-2">
-  <div data-tmpl="addDexHdr" class="fs26 d-flex align-items-center justify-content-center">[[[Add a DEX]]]</div>
-  <div data-tmpl="updateDexHdr" class="fs26 d-hide">[[[update dex host]]]</div>
+  <div data-tmpl="addDexHdr" class="fs24 d-flex align-items-center justify-content-center">[[[Add a DEX]]]</div>
+  <div data-tmpl="updateDexHdr" class="fs24 d-hide">[[[update dex host]]]</div>
 </div>
 <div data-tmpl="pickServerMsg" class="fs20 mt-2 border-top">
   [[[Pick a server]]]
@@ -232,16 +232,16 @@
 </div>
 
 <div data-tmpl="assetForm" class="flex-stretch-column">
-  <div class="flex-center fs26">
+  <div class="flex-center fs24">
     <span>[[[Select your bond asset]]]</span>
   </div>
   <div data-tmpl="regAssetErr" class="fs14 text-danger flex-center p-3"></div>
   <div data-tmpl="bondAssets" class="mt-3 border-top">
-    <div data-tmpl="bondAssetTmpl" class="border rounded3 d-flex align-items-stretch p-2 hoverbg pointer mt-3">
+    <div data-tmpl="bondAssetTmpl" class="border d-flex align-items-stretch p-2 hoverbg pointer mt-3">
       <div class="flex-center pe-4">
         <div class="flex-center">
           <img class="small-icon" data-tmpl="logo">
-          <span class="fs26 ms-2" data-tmpl="name"></span>
+          <span class="fs24 ms-2" data-tmpl="name"></span>
         </div>
         <div class="fs14 readygreen" data-tmpl="ready"></div>
       </div>
@@ -266,7 +266,7 @@
 </div>
 
 <div data-tmpl="tradingTierForm" class="flex-stretch-column d-hide">
-  <div class="flex-center fs26">
+  <div class="flex-center fs24">
     [[[Choose your trading tier]]]
   </div>
   <div class="d-flex align-items-center pt-3 mt-3 border-top">
@@ -407,7 +407,7 @@
 </div>
 
 <div data-tmpl="prepaidBonds" class="d-hide">
-  <div class="flex-center fs26">
+  <div class="flex-center fs24">
     <span>Redeem Pre-paid Bond</span>
   </div>
   <div class="flex-stretch-column mt-3 border-top">
@@ -506,7 +506,7 @@
 <div class="form-closer"><span class="ico-cross"></span></div>
 <div class="flex-center pt-2 px-3">
   <span class="ico-locked fs16 grey me-2"></span>
-  <span class="fs26">[[[Change Application Password]]]</span>
+  <span class="fs24">[[[Change Application Password]]]</span>
 </div>
 <div class="mt-2 pt-2 px-3 border-top">
   <label for="appPW">[[[Current Password]]]</label>
@@ -524,23 +524,6 @@
   <button id="submitNewPW" type="submit" class="feature">[[[Submit]]]</button>
 </div>
 <div class="fs15 p-3 text-center d-hide text-danger text-break" id="changePWErrMsg"></div>
-{{end}}
-
-{{define "cancelOrderForm"}}
-<div class="form-closer"><span class="ico-cross"></span></div>
-<header>
-  [[[:title:cancel_order]]]
-</header>
-<div>
-  [[[cancel_no_pw]]]
-  <span id="cancelRemain" class="fs16 sans"></span>
-  <span id="cancelUnit" class="fs14 sans"></span>.<br>
-  [[[cancel_remain]]]
-</div>
-<div class="flex-stretch-column">
-  <button id="cancelSubmit" type="button" class="feature">[[[Submit]]]</button>
-</div>
-<div class="fs15 text-center d-hide text-danger" id="cancelErr"></div>
 {{end}}
 
 {{define "accelerateForm"}}

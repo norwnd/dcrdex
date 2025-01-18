@@ -745,11 +745,18 @@ type DynamicSwapper interface {
 // shouldn't implement FeeRater. However, since the mode of external wallets may
 // not be known on construction, only connect, a zero rate may be returned. The
 // caller should always check for zero and have a fallback rate. The rates from
-// FeeRate should be used for rates that are not validated by the server
-// Withdraw and Send, and will/should not be used to generate a fee
-// suggestion for swap operations.
+// FeeRate should be used for rates that are not validated by the server (e.g. for
+// Send, Redeem, Refund operations).
 type FeeRater interface {
-	FeeRate() uint64
+	// FeeRate returns recommended fee rate to use (capped at user-configured limit)
+	// as well as tooLow signalling if this rate would be too low with respect to
+	// current networking conditions.
+	FeeRate() (rate uint64, tooLow bool)
+	// FeeRateSwap is same as FeeRate but returns fee rate specifically for swap transactions,
+	// the main difference being that swap transactions have a tight time-constraints so it's
+	// very desirable to have higher fee rate for swaps than all other types of transactions
+	// wallet supports.
+	FeeRateSwap() (rate uint64, tooLow bool)
 }
 
 // FundsMixingStats describes the current state of a wallet's funds mixer.
@@ -1219,13 +1226,15 @@ type Bond struct {
 
 // Balance is categorized information about a wallet's balance.
 type Balance struct {
-	// Available is the balance that is available for trading immediately.
+	// Available is the balance that is available for spending/trading immediately,
+	// it does not include Immature.
 	Available uint64 `json:"available"`
 	// Immature is the balance that is not ready, but will be after some
 	// confirmations.
 	Immature uint64 `json:"immature"`
-	// Locked is the total amount locked in the wallet which includes but
-	// is not limited to funds locked for swap but not actually swapped yet.
+	// Locked is the total amount locked in the wallet which includes but is not
+	// limited to funds reserved for sends and swaps (even if swap transaction
+	// hasn't been sent yet). It does not include Immature or BondReserves.
 	Locked uint64 `json:"locked"`
 	// BondReserves is the amount of funds locked in the wallet for expenses
 	// associated with bond maintenance.

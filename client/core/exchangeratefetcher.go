@@ -6,6 +6,9 @@ package core
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,19 +21,23 @@ const (
 	// DefaultFiatCurrency is the currency for displaying assets fiat value.
 	DefaultFiatCurrency = "USD"
 	// fiatRateRequestInterval is the amount of time between calls to the exchange API.
-	fiatRateRequestInterval = 12 * time.Minute
+	fiatRateRequestInterval = 60 * time.Second
 	// fiatRateDataExpiry : Any data older than fiatRateDataExpiry will be discarded.
-	fiatRateDataExpiry = 60 * time.Minute
-	fiatRequestTimeout = time.Second * 5
+	fiatRateDataExpiry = 150 * time.Second
+	fiatRequestTimeout = time.Second * 15
 
 	// Tokens. Used to identify fiat rate source, source name must not contain a
 	// comma.
 	messari       = "Messari"
 	coinpaprika   = "Coinpaprika"
 	dcrdataDotOrg = "dcrdata"
+	binance       = "Binance"
 )
 
 var (
+	btcBipID, _ = dex.BipSymbolID("btc")
+	dcrBipID, _ = dex.BipSymbolID("dcr")
+
 	dcrDataURL = "https://explorer.dcrdata.org/api/exchangerate"
 	// The best info I can find on Messari says
 	//    Without an API key requests are rate limited to 20 requests per minute
@@ -40,16 +47,19 @@ var (
 	// would need to have 20 * 12 = 480 assets. To hit 1000 requests per day,
 	// we would need 12 * 60 / (86,400 / 1000) = 8.33 assets. Very likely. So
 	// we're in a similar position to coinpaprika here too.
-	messariURL  = "https://data.messari.io/api/v1/assets/%s/metrics/market-data"
-	btcBipID, _ = dex.BipSymbolID("btc")
-	dcrBipID, _ = dex.BipSymbolID("dcr")
+	messariURL = "https://data.messari.io/api/v1/assets/%s/metrics/market-data"
+	binanceURL = "https://api.binance.com/api/v3/avgPrice?symbol=%sUSDT"
 )
 
 // fiatRateFetchers is the list of all supported fiat rate fetchers.
 var fiatRateFetchers = map[string]rateFetcher{
-	coinpaprika:   FetchCoinpaprikaRates,
-	dcrdataDotOrg: FetchDcrdataRates,
-	messari:       FetchMessariRates,
+	// disabling these for now because Binance is the only rate source that provides reasonably fresh
+	// prices (coinpaprika and messari for example have string rate limits, and dcrdataDotOrg probably
+	// has quite stale data)
+	//coinpaprika:   FetchCoinpaprikaRates,
+	//dcrdataDotOrg: FetchDcrdataRates,
+	//messari:       FetchMessariRates,
+	binance: FetchBinanceRates,
 }
 
 // fiatRateInfo holds the fiat rate and the last update time for an
@@ -157,10 +167,10 @@ func FetchDcrdataRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 		return nil
 	}
 
-	if !noBTCAsset {
+	if !noBTCAsset && !math.IsNaN(res.BtcPrice) && res.BtcPrice > 0 {
 		fiatRates[btcBipID] = res.BtcPrice
 	}
-	if !noDCRAsset {
+	if !noDCRAsset && !math.IsNaN(res.DcrPrice) && res.DcrPrice > 0 {
 		fiatRates[dcrBipID] = res.DcrPrice
 	}
 
@@ -194,11 +204,16 @@ func FetchMessariRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 		defer cancel()
 
 		if err := getRates(ctx, reqStr, res); err != nil {
-			log.Errorf("Error getting fiat exchange rates from messari: %v", err)
+			log.Errorf("Error getting fiat exchange rates from messari for asset %s: %v", sa.Symbol, err)
 			return
 		}
 
-		fiatRates[assetID] = res.Data.MarketData.Price
+		price := res.Data.MarketData.Price
+		if math.IsNaN(price) || price <= 0 {
+			log.Errorf("Invalid price returned from messari for asset %s, price %v", sa.Symbol, price)
+			return
+		}
+		fiatRates[assetID] = price
 	}
 
 	for _, sa := range assets {
@@ -208,5 +223,60 @@ func FetchMessariRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 }
 
 func getRates(ctx context.Context, uri string, thing any) error {
-	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<22))
+	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<26))
+}
+
+// FetchBinanceRates retrieves and parses rate data from Binance API.
+// See https://developers.binance.com/docs/binance-spot-api-docs/rest-api/public-api-endpoints
+// for sample request and response information.
+func FetchBinanceRates(ctx context.Context, log dex.Logger, assets map[uint32]*SupportedAsset) map[uint32]float64 {
+	fiatRates := make(map[uint32]float64)
+	fetchRate := func(sa *SupportedAsset) {
+		if sa.Wallet == nil {
+			// we don't want to fetch rate for assets with no wallet.
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(ctx, fiatRequestTimeout)
+		defer cancel()
+
+		res := new(struct {
+			Minutes   int64  `json:"mins"`
+			Price     string `json:"price"`
+			CloseTime int64  `json:"closeTime"`
+		})
+
+		slug := strings.ToUpper(dex.TokenSymbol(sa.Symbol)) // API expects upper-case
+		if slug == "USDT" {
+			// for Binance, we use USDT instead of USD, and hence we take this shortcut here
+			fiatRates[sa.ID] = 1.0
+			return
+		}
+		if slug == "POLYGON" {
+			slug = "POL" // Binance uses POL, not POLYGON
+		}
+		reqStr := fmt.Sprintf(binanceURL, slug)
+		if err := getRates(ctx, reqStr, res); err != nil {
+			log.Errorf("Error getting fiat exchange rates from Binance for asset %s: %v", sa.Symbol, err)
+			return
+		}
+
+		price, err := strconv.ParseFloat(res.Price, 64)
+		if err != nil {
+			log.Errorf("Couldn't parse price returned from Binance for asset %s, err: %v", sa.Symbol, err)
+			return
+		}
+		if math.IsNaN(price) || price <= 0 {
+			log.Errorf("Invalid price returned from Binance for asset %s, price %v", sa.Symbol, price)
+			return
+		}
+
+		fiatRates[sa.ID] = price
+	}
+
+	for _, sa := range assets {
+		fetchRate(sa)
+	}
+
+	return fiatRates
 }

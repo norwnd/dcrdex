@@ -3,6 +3,7 @@ package fiatrates
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -35,6 +36,8 @@ func parseCoinpapNameSymbol(name, symbol string) (string, string) {
 		symbol, network = parts[0], parts[1]
 	}
 	switch symbol {
+	case "usdt":
+		name = "tether"
 	case "usdc":
 		name = "usd-coin"
 	case "polygon":
@@ -85,8 +88,8 @@ func FetchCoinpaprikaRates(ctx context.Context, assets []*CoinpaprikaAsset, log 
 		}
 
 		price := coinInfo.Quotes.USD.Price
-		if price == 0 {
-			log.Errorf("zero-price returned from coinpaprika for slug %s", coinInfo.ID)
+		if math.IsNaN(price) || price <= 0 {
+			log.Errorf("invalid price returned from coinpaprika for slug %s, price %v", coinInfo.ID, price)
 			continue
 		}
 		for _, assetID := range assetIDs {
@@ -97,5 +100,5 @@ func FetchCoinpaprikaRates(ctx context.Context, assets []*CoinpaprikaAsset, log 
 }
 
 func getRates(ctx context.Context, uri string, thing any) error {
-	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<22))
+	return dexnet.Get(ctx, uri, thing, dexnet.WithSizeLimit(1<<26))
 }

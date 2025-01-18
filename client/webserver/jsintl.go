@@ -3,6 +3,9 @@ package webserver
 import "decred.org/dcrdex/client/intl"
 
 const (
+	limitOrderBuySellOutTotalPreview = "LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW"
+	limitOrderBuySellInTotalPreview  = "LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW"
+	noQuantityExceedsMax             = "NO_QUANTITY_EXCEEDS_MAX"
 	noPassErrMsgID                   = "NO_PASS_ERROR_MSG"
 	noAppPassErrMsgID                = "NO_APP_PASS_ERROR_MSG"
 	setButtonBuyID                   = "SET_BUTTON_BUY"
@@ -20,7 +23,6 @@ const (
 	notSupportedID                   = "NOT_SUPPORTED"
 	versionNotSupportedID            = "VERSION_NOT_SUPPORTED"
 	connectionFailedID               = "CONNECTION_FAILED"
-	orderPreviewID                   = "ORDER_PREVIEW"
 	calculatingID                    = "CALCULATING"
 	estimateUnavailableID            = "ESTIMATE_UNAVAILABLE"
 	noZeroRateID                     = "NO_ZERO_RATE"
@@ -155,6 +157,7 @@ const (
 	orderBttnSellBalErrID            = "ORDER_BUTTON_SELL_BALANCE_ERROR"
 	orderBttnQtyErrID                = "ORDER_BUTTON_QTY_ERROR"
 	orderBttnQtyRateErrID            = "ORDER_BUTTON_QTY_RATE_ERROR"
+	enableAssetWalletMsgID           = "ENABLE_ASSET_WALLET_MSG"
 	createAssetWalletMsgID           = "CREATE_ASSET_WALLET_MSG"
 	noWalletMsgID                    = "NO_WALLET_MSG"
 	tradingTierUpdateddID            = "TRADING_TIER_UPDATED"
@@ -222,15 +225,18 @@ const (
 )
 
 var enUS = map[string]*intl.Translation{
+	limitOrderBuySellOutTotalPreview: {T: "+{{ total }} {{ asset }}"},
+	limitOrderBuySellInTotalPreview:  {T: "-{{ total }} {{ asset }}"},
+	noQuantityExceedsMax:             {T: "not enough funds"},
 	noPassErrMsgID:                   {T: "password cannot be empty"},
 	noAppPassErrMsgID:                {T: "app password cannot be empty"},
 	passwordNotMatchID:               {T: "passwords do not match"},
-	setButtonBuyID:                   {T: "Place order to buy  {{ asset }}"},
-	setButtonSellID:                  {T: "Place order to sell {{ asset }}"},
-	orderBttnBuyBalErrID:             {T: "Insufficient balance to buy."},
-	orderBttnSellBalErrID:            {T: "Insufficient balance to sell."},
-	orderBttnQtyErrID:                {T: "Order quantity must be specified."},
-	orderBttnQtyRateErrID:            {T: "Order quantity and price must be specified."},
+	setButtonBuyID:                   {T: "Buy  {{ asset }}"},
+	setButtonSellID:                  {T: "Sell {{ asset }}"},
+	orderBttnBuyBalErrID:             {T: "insufficient balance to buy"},
+	orderBttnSellBalErrID:            {T: "insufficient balance to sell"},
+	orderBttnQtyErrID:                {T: "order quantity must be specified"},
+	orderBttnQtyRateErrID:            {T: "order quantity and price must be specified"},
 	offID:                            {T: "off"},
 	readyID:                          {T: "ready"},
 	lockedID:                         {T: "locked"},
@@ -243,7 +249,6 @@ var enUS = map[string]*intl.Translation{
 	notSupportedID:                   {T: "{{ asset }} is not supported"},
 	versionNotSupportedID:            {T: "{{ asset }} (v{{version}}) is not supported"},
 	connectionFailedID:               {T: "Connection to dex server failed. You can close bisonw and try again later or wait for it to reconnect."},
-	orderPreviewID:                   {T: "Total: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "calculating..."},
 	estimateUnavailableID:            {T: "estimate unavailable"},
 	noZeroRateID:                     {T: "zero rate not allowed"},
@@ -372,6 +377,7 @@ var enUS = map[string]*intl.Translation{
 	browserNtfnMatchesID:             {T: "Matches"},
 	browserNtfnBondsID:               {T: "Bonds"},
 	browserNtfnConnectionsID:         {T: "Server connections"},
+	enableAssetWalletMsgID:           {T: "Enable / Activate a {{ asset }} wallet to trade"},
 	createAssetWalletMsgID:           {T: "Create a {{ asset }} wallet to trade"},
 	noWalletMsgID:                    {T: "Create {{ asset1 }} and {{ asset2 }} wallet to trade"},
 	tradingTierUpdateddID:            {T: "Trading Tier Updated"},
@@ -456,7 +462,6 @@ var ptBR = map[string]*intl.Translation{
 	sellID:                   {T: "Vender"},
 	notSupportedID:           {T: "{{ asset }} não tem suporte"},
 	connectionFailedID:       {T: "Conexão ao server dex falhou. Pode fechar bisonw e tentar novamente depois ou esperar para tentar se reconectar."},
-	orderPreviewID:           {T: "Total: {{ total }} {{ asset }}"},
 	calculatingID:            {T: "calculando..."},
 	estimateUnavailableID:    {T: "estimativa indisponível"},
 	noZeroRateID:             {T: "taxa não pode ser zero"},
@@ -510,7 +515,6 @@ var zhCN = map[string]*intl.Translation{
 	sellID:                   {T: "卖出"},
 	notSupportedID:           {T: "{{ asset }}不受支持"},
 	connectionFailedID:       {T: "连接到服务器 dex 失败。您可以关闭 bisonw 并稍后重试或等待尝试重新连接。"},
-	orderPreviewID:           {T: "总计： {{ total }} {{ asset }}"},
 	calculatingID:            {T: "计算中..."},
 	estimateUnavailableID:    {T: "估计不可用"},
 	noZeroRateID:             {T: "汇率不能为零"},
@@ -553,7 +557,6 @@ var plPL = map[string]*intl.Translation{
 	sellID:                           {T: "Sprzedaj"},
 	notSupportedID:                   {T: "{{ asset }} nie jest wspierany"},
 	connectionFailedID:               {T: "Połączenie z serwerem dex nie powiodło się. Możesz zamknąć bisonw i spróbować ponownie później, lub poczekać na wznowienie połączenia."},
-	orderPreviewID:                   {T: "W sumie: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "obliczanie..."},
 	estimateUnavailableID:            {T: "brak szacunkowego wyliczenia"},
 	noZeroRateID:                     {T: "zero nie może być ceną"},
@@ -737,7 +740,6 @@ var deDE = map[string]*intl.Translation{
 	sellID:                   {T: "Verkaufen"},
 	notSupportedID:           {T: "{{ asset }} wird nicht unterstützt"},
 	connectionFailedID:       {T: "Die Verbindung zum Dex-Server fehlgeschlagen. Du kannst bisonw schließen und es später erneut versuchen oder warten bis die Verbindung wiederhergestellt ist."},
-	orderPreviewID:           {T: "Insgesamt: {{ total }} {{ asset }}"},
 	calculatingID:            {T: "kalkuliere..."},
 	estimateUnavailableID:    {T: "Schätzung nicht verfügbar"},
 	noZeroRateID:             {T: "Null-Satz nicht erlaubt"},
@@ -794,7 +796,6 @@ var ar = map[string]*intl.Translation{
 	sellID:                           {T: "بيع"},
 	notSupportedID:                   {T: "{{ asset }} غير مدعوم"},
 	connectionFailedID:               {T: "فشل الاتصال بخادم dex. يمكنك إغلاق dexc والمحاولة مرة أخرى لاحقًا أو انتظار إعادة الاتصال."},
-	orderPreviewID:                   {T: "إجمالي: {{ total }} {{ asset }}"},
 	calculatingID:                    {T: "جاري الحساب ..."},
 	estimateUnavailableID:            {T: "التقديرات غير متاحة"},
 	noZeroRateID:                     {T: "معدل الصفر غير مسموح به"},
@@ -963,11 +964,6 @@ var ar = map[string]*intl.Translation{
 
 var localesMap = map[string]map[string]*intl.Translation{
 	"en-US": enUS,
-	"pt-BR": ptBR,
-	"zh-CN": zhCN,
-	"pl-PL": plPL,
-	"de-DE": deDE,
-	"ar":    ar,
 }
 
 // RegisterTranslations registers translations with the init package for
