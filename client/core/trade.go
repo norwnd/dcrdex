@@ -3257,13 +3257,7 @@ func (c *Core) refundMatches(t *trackedTrade, matches []*matchTracker) (uint64, 
 		c.log.Infof("Refunding %s contract %s for match %s (%s)",
 			symbol, swapCoinString, match, matchFailureReason)
 
-		var feeRate uint64
-		if _, is := t.accountRefunder(); is {
-			feeRate = t.metaData.MaxFeeRate
-		}
-		if feeRate == 0 {
-			feeRate = c.feeSuggestionAny(assetID) // includes wallet itself
-		}
+		feeRate := c.feeSuggestionAny(assetID)
 
 		refundCoin, err := refundWallet.Refund(swapCoinID, contractToRefund, feeRate)
 		if err != nil {
