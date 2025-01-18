@@ -2804,8 +2804,9 @@ export default class MarketsPage extends BasePage {
 
     this.chosenRateBuyAtom = adjRateAtom
 
-    this.setPageElementEnabled(this.page.qtyBoxBuy, true)
-    this.setPageElementEnabled(this.page.qtySliderBuy, true)
+    // disable slider since it relies on max buy estimate that we'll be updating below,
+    // letting user play with slider doesn't make sense until this new estimate is in place
+    this.setPageElementEnabled(this.page.qtySliderBuy, false)
 
     // recalculate maxbuy value because it does change with every rate change
     this.finalizeTotalBuy()
@@ -2840,8 +2841,9 @@ export default class MarketsPage extends BasePage {
     page.rateFieldBuy.value = String(adjRate)
     this.chosenRateBuyAtom = adjRateAtom
 
-    this.setPageElementEnabled(this.page.qtyBoxBuy, true)
-    this.setPageElementEnabled(this.page.qtySliderBuy, true)
+    // disable slider since it relies on max buy estimate that we'll be updating below,
+    // letting user play with slider doesn't make sense until this new estimate is in place
+    this.setPageElementEnabled(this.page.qtySliderBuy, false)
 
     // recalculate maxbuy value because it does change with every rate change
     this.finalizeTotalBuy()
@@ -2908,9 +2910,6 @@ export default class MarketsPage extends BasePage {
     const adjRate = adjRateAtom / this.market.rateConversionFactor
     page.rateFieldSell.value = String(adjRate)
     this.chosenRateSellAtom = adjRateAtom
-
-    this.setPageElementEnabled(this.page.qtyBoxSell, true)
-    this.setPageElementEnabled(this.page.qtySliderSell, true)
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
