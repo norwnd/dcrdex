@@ -983,10 +983,9 @@ export default class WalletsPage extends BasePage {
 
   async updateDisplayedAsset (assetID: number) {
     if (assetID !== this.selectedAssetID) return
-    const { symbol, wallet, name, token, unitInfo } = app().assets[assetID]
+    const { symbol, wallet, name, token } = app().assets[assetID]
     const { page, body } = this
     Doc.setText(body, '[data-asset-name]', name)
-    Doc.setText(body, '[data-ticker]', unitInfo.conventional.unit)
     page.assetLogo.src = Doc.logoPath(symbol)
     Doc.hide(
       page.balanceBox, page.fiatBalanceBox, page.createWallet, page.walletDetails,
