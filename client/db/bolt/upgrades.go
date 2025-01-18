@@ -139,45 +139,8 @@ func v1Upgrade(dbtx *bbolt.Tx) error {
 // MaxFeeRate field for all historical trade orders to the max uint64. This
 // avoids any chance of rejecting a pre-existing active match.
 func v2Upgrade(dbtx *bbolt.Tx) error {
-	const oldVersion = 1
-	ordersBucket := []byte("orders")
-
-	dbVersion, err := getVersionTx(dbtx)
-	if err != nil {
-		return fmt.Errorf("error fetching database version: %w", err)
-	}
-
-	if dbVersion != oldVersion {
-		return fmt.Errorf("v2Upgrade inappropriately called")
-	}
-
-	// For each order, set a maxfeerate of max uint64.
-	maxFeeB := uint64Bytes(^uint64(0))
-
-	master := dbtx.Bucket(ordersBucket)
-	if master == nil {
-		return fmt.Errorf("failed to open orders bucket")
-	}
-
-	return master.ForEach(func(oid, _ []byte) error {
-		oBkt := master.Bucket(oid)
-		if oBkt == nil {
-			return fmt.Errorf("order %x bucket is not a bucket", oid)
-		}
-		// Cancel orders should be stored with a zero maxFeeRate, as done in
-		// (*Core).tryCancelTrade. Besides, the maxFeeRate should not be applied
-		// to cancel matches, as done in (*dexConnection).parseMatches.
-		oTypeB := oBkt.Get(typeKey)
-		if len(oTypeB) != 1 {
-			return fmt.Errorf("order %x type invalid: %x", oid, oTypeB)
-		}
-		if order.OrderType(oTypeB[0]) == order.CancelOrderType {
-			// Don't bother setting maxFeeRate for cancel orders.
-			// decodeOrderBucket will default to zero for cancels.
-			return nil
-		}
-		return oBkt.Put(maxFeeRateKey, maxFeeB)
-	})
+	// no longer relevant
+	return nil
 }
 
 func v3Upgrade(dbtx *bbolt.Tx) error {

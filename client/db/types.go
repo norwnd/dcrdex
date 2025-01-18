@@ -447,14 +447,6 @@ type OrderMetaData struct {
 	// orders, in which case the current asset config should be used.
 	FromSwapConf uint32
 	ToSwapConf   uint32
-	// MaxFeeRate is the dex.Asset.MaxFeeRate at the time of ordering. The rates
-	// assigned to matches will be validated against this value.
-	MaxFeeRate uint64
-	// RedeemMaxFeeRate is the dex.Asset.MaxFeeRate for the redemption asset at
-	// the time of ordering. This rate is used to reserve funds for redemption,
-	// and therefore this rate can be used when actually submitting a redemption
-	// transaction.
-	RedeemMaxFeeRate uint64
 	// FromVersion is the version of the from asset.
 	FromVersion uint32
 	// ToVersion is the version of the to asset.

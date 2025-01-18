@@ -470,7 +470,6 @@ func TestOrders(t *testing.T) {
 				Proof:              db.OrderProof{DEXSig: randBytes(73)},
 				SwapFeesPaid:       rand.Uint64(),
 				RedemptionFeesPaid: rand.Uint64(),
-				MaxFeeRate:         rand.Uint64(),
 			},
 			Order: ord,
 		}
@@ -507,9 +506,6 @@ func TestOrders(t *testing.T) {
 	}
 	if firstOrd.MetaData.RedemptionFeesPaid != mord.MetaData.RedemptionFeesPaid {
 		t.Fatalf("wrong RedemptionFeesPaid. wanted %d, got %d", firstOrd.MetaData.RedemptionFeesPaid, mord.MetaData.RedemptionFeesPaid)
-	}
-	if firstOrd.MetaData.MaxFeeRate != mord.MetaData.MaxFeeRate {
-		t.Fatalf("wrong MaxFeeRate. wanted %d, got %d", firstOrd.MetaData.MaxFeeRate, mord.MetaData.MaxFeeRate)
 	}
 
 	// Check the active orders.
@@ -1217,7 +1213,6 @@ func TestDeleteInactiveMatches(t *testing.T) {
 				Proof:              db.OrderProof{DEXSig: randBytes(73)},
 				SwapFeesPaid:       rand.Uint64(),
 				RedemptionFeesPaid: rand.Uint64(),
-				MaxFeeRate:         rand.Uint64(),
 			},
 			Order: ord,
 		}
@@ -1400,7 +1395,6 @@ func TestDeleteInactiveOrders(t *testing.T) {
 				Proof:              db.OrderProof{DEXSig: randBytes(73)},
 				SwapFeesPaid:       rand.Uint64(),
 				RedemptionFeesPaid: rand.Uint64(),
-				MaxFeeRate:         rand.Uint64(),
 			},
 			Order: ord,
 		}
@@ -1546,7 +1540,6 @@ func TestOrderSide(t *testing.T) {
 				Proof:              db.OrderProof{DEXSig: randBytes(73)},
 				SwapFeesPaid:       rand.Uint64(),
 				RedemptionFeesPaid: rand.Uint64(),
-				MaxFeeRate:         rand.Uint64(),
 			},
 			Order: ord,
 		}

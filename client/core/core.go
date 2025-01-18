@@ -818,17 +818,6 @@ func (dc *dexConnection) parseMatches(msgMatches []*msgjson.Match, checkSigs boo
 			continue
 		}
 
-		// Check the fee rate against the maxfeerate recorded at order time.
-		swapRate := msgMatch.FeeRateQuote
-		if tracker.Trade().Sell {
-			swapRate = msgMatch.FeeRateBase
-		}
-		if !isCancel && swapRate > tracker.metaData.MaxFeeRate {
-			errs = append(errs, fmt.Sprintf("rejecting match %s for order %s because assigned rate (%d) is > MaxFeeRate (%d)",
-				msgMatch.MatchID, msgMatch.OrderID, swapRate, tracker.metaData.MaxFeeRate))
-			continue
-		}
-
 		sigMsg := msgMatch.Serialize()
 		if checkSigs {
 			err := dc.acct.checkSig(sigMsg, msgMatch.Sig)
@@ -6054,8 +6043,6 @@ func (c *Core) createTradeRequest(
 	assetConfigs *assetSet,
 	mktConf *msgjson.Market,
 	errCloser *dex.ErrorCloser,
-	swapFeeSuggestion uint64,
-	redeemFeeSuggestion uint64,
 ) (*tradeRequest, error) {
 	coinIDs := make([]order.CoinID, 0, len(coins))
 	for i := range coins {
@@ -6201,8 +6188,6 @@ func (c *Core) createTradeRequest(
 			EpochDur:           mktConf.EpochLen, // epochIndex := result.ServerTime / mktConf.EpochLen
 			FromSwapConf:       assetConfigs.fromAsset.SwapConf,
 			ToSwapConf:         assetConfigs.toAsset.SwapConf,
-			MaxFeeRate:         swapFeeSuggestion,
-			RedeemMaxFeeRate:   redeemFeeSuggestion,
 			FromVersion:        assetConfigs.fromAsset.Version,
 			ToVersion:          assetConfigs.toAsset.Version, // and we're done with the server's asset configs.
 			Options:            form.Options,
@@ -6398,10 +6383,6 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 	if swapFeeSuggestion == 0 {
 		return nil, fmt.Errorf("failed to get swap fee suggestion for %s at %s", wallets.fromWallet.Symbol, form.Host)
 	}
-	redeemFeeSuggestion := c.feeSuggestionAny(wallets.toWallet.AssetID)
-	if redeemFeeSuggestion == 0 {
-		return nil, fmt.Errorf("failed to get redeem fee suggestion for %s at %s", unbip(wallets.toWallet.AssetID), form.Host)
-	}
 
 	coins, redeemScripts, fundingFees, err := fromWallet.FundOrder(&asset.Order{
 		Version:       assetConfigs.fromAsset.Version,
@@ -6451,8 +6432,6 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 		assetConfigs,
 		mktConf,
 		errCloser,
-		swapFeeSuggestion,
-		redeemFeeSuggestion,
 	)
 	if err != nil {
 		return nil, err
@@ -6510,10 +6489,6 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 	swapFeeSuggestion := c.feeSuggestionSwapAny(wallets.fromWallet.AssetID)
 	if swapFeeSuggestion == 0 {
 		return nil, fmt.Errorf("failed to get swap fee suggestion for %s at %s", wallets.fromWallet.Symbol, form.Host)
-	}
-	redeemFeeSuggestion := c.feeSuggestionAny(wallets.toWallet.AssetID)
-	if redeemFeeSuggestion == 0 {
-		return nil, fmt.Errorf("failed to get redeem fee suggestion for %s at %s", unbip(wallets.toWallet.AssetID), form.Host)
 	}
 
 	allCoins, allRedeemScripts, fundingFees, err := fromWallet.FundMultiOrder(&asset.MultiOrder{
@@ -6585,8 +6560,6 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 			assetConfigs,
 			mktConf,
 			errClosers[i],
-			swapFeeSuggestion,
-			redeemFeeSuggestion,
 		)
 		if err != nil {
 			return nil, err

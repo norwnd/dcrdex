@@ -98,8 +98,6 @@ var (
 	severityKey           = []byte("severity")
 	ackKey                = []byte("ack")
 	swapFeesKey           = []byte("swapFees")
-	maxFeeRateKey         = []byte("maxFeeRate")
-	redeemMaxFeeRateKey   = []byte("redeemMaxFeeRate")
 	redemptionFeesKey     = []byte("redeemFees")
 	fundingFeesKey        = []byte("fundingFees")
 	accelerationsKey      = []byte("accelerations")
@@ -893,8 +891,6 @@ func (db *BoltDB) UpdateOrder(m *dexdb.MetaOrder) error {
 			put(toVersionKey, uint32Bytes(md.ToVersion)).
 			put(fromSwapConfKey, uint32Bytes(md.FromSwapConf)).
 			put(toSwapConfKey, uint32Bytes(md.ToSwapConf)).
-			put(redeemMaxFeeRateKey, uint64Bytes(md.RedeemMaxFeeRate)).
-			put(maxFeeRateKey, uint64Bytes(md.MaxFeeRate)).
 			err()
 
 		if err != nil {
@@ -1213,21 +1209,6 @@ func decodeOrderBucket(oid []byte, oBkt *bbolt.Bucket) (*dexdb.MetaOrder, error)
 	var linkedID order.OrderID
 	copy(linkedID[:], oBkt.Get(linkedKey))
 
-	// Old cancel orders may not have a maxFeeRate set since the v2 upgrade
-	// doesn't set it for cancel orders.
-	var maxFeeRate uint64
-	if maxFeeRateB := oBkt.Get(maxFeeRateKey); len(maxFeeRateB) == 8 {
-		maxFeeRate = intCoder.Uint64(maxFeeRateB)
-	} else if ord.Type() != order.CancelOrderType {
-		// Cancel orders should use zero, but trades need a non-zero value.
-		maxFeeRate = ^uint64(0) // should not happen for trade orders after v2 upgrade
-	}
-
-	var redeemMaxFeeRate uint64
-	if redeemMaxFeeRateB := oBkt.Get(redeemMaxFeeRateKey); len(redeemMaxFeeRateB) == 8 {
-		redeemMaxFeeRate = intCoder.Uint64(redeemMaxFeeRateB)
-	}
-
 	var fromVersion, toVersion uint32
 	fromVersionB, toVersionB := oBkt.Get(fromVersionKey), oBkt.Get(toVersionKey)
 	if len(fromVersionB) == 4 {
@@ -1283,8 +1264,6 @@ func decodeOrderBucket(oid []byte, oBkt *bbolt.Bucket) (*dexdb.MetaOrder, error)
 			LinkedOrder:        linkedID,
 			SwapFeesPaid:       intCoder.Uint64(oBkt.Get(swapFeesKey)),
 			EpochDur:           epochDur,
-			MaxFeeRate:         maxFeeRate,
-			RedeemMaxFeeRate:   redeemMaxFeeRate,
 			RedemptionFeesPaid: intCoder.Uint64(oBkt.Get(redemptionFeesKey)),
 			FromSwapConf:       fromSwapConf,
 			ToSwapConf:         toSwapConf,

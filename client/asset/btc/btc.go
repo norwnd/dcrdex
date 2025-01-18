@@ -844,6 +844,10 @@ func (w *baseWallet) fallbackFeeRate() uint64 {
 	return w.cfgV.Load().(*baseWalletConfig).fallbackFeeRate
 }
 
+func (w *baseWallet) feeRateLimitSwap() uint64 {
+	return 2 * w.feeRateLimit()
+}
+
 func (w *baseWallet) feeRateLimit() uint64 {
 	return w.cfgV.Load().(*baseWalletConfig).feeRateLimit
 }
@@ -1000,7 +1004,7 @@ func (btc *baseWallet) FeeRate() (rate uint64, tooLow bool) {
 
 // FeeRateSwap is same as FeeRate but for swaps.
 func (btc *baseWallet) FeeRateSwap() (rate uint64, tooLow bool) {
-	rate, tooLow, err := btc.feeRate(1, 2*btc.feeRateLimit())
+	rate, tooLow, err := btc.feeRate(1, btc.feeRateLimitSwap())
 	if err != nil {
 		btc.log.Tracef("Failed to get fee rate: %v", err)
 		return 0, false
@@ -3300,8 +3304,8 @@ func (btc *baseWallet) signedAccelerationTx(previousTxs []*GetTransactionResult,
 // FeesForRemainingSwaps returns the fees for a certain number of swaps at a given
 // feeRate. This is only accurate if each swap has a single input. Accurate
 // estimates should use PreSwap or FundOrder.
-func (btc *intermediaryWallet) FeesForRemainingSwaps(n, feeRate uint64) uint64 {
-	return btc.initTxSize * n * feeRate
+func (btc *intermediaryWallet) FeesForRemainingSwaps(n uint64) uint64 {
+	return btc.initTxSize * n * btc.feeRateLimitSwap()
 }
 
 // AccelerateOrder uses the Child-Pays-For-Parent technique to accelerate a

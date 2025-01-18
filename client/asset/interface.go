@@ -825,7 +825,7 @@ type Accelerator interface {
 	// only known to the consumer. This is only accurate if each swap has a
 	// single input or chained swaps all pay the same fees. Accurate estimates
 	// for new orders without existing funding should use PreSwap or FundOrder.
-	FeesForRemainingSwaps(n, feeRate uint64) uint64
+	FeesForRemainingSwaps(n uint64) uint64
 	// AccelerateOrder uses the Child-Pays-For-Parent technique to accelerate a
 	// chain of swap transactions and previous accelerations. It broadcasts a new
 	// transaction with a fee high enough so that the average fee of all the

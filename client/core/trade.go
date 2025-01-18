@@ -2396,7 +2396,7 @@ func (c *Core) swapMatchGroup(t *trackedTrade, matches []*matchTracker, errs *er
 		swapFeeRate = t.dc.bestBookFeeSuggestion(fromWallet.AssetID)
 	}
 	// Ensure swap is not initiated if we cannot set fees that are even remotely close
-	// to the current network conditions (otherwise we'll have to refund it eventually).
+	// to the current network conditions (otherwise we might have to refund it eventually).
 	if feeRateTooLow {
 		errs.add("swap cannot proceed with too low fee rate (wallet configured to refuse offering higher fee rates)")
 		return
@@ -2954,9 +2954,6 @@ func (t *trackedTrade) redeemFee() uint64 {
 	var feeSuggestion uint64
 	if feeRater, is := t.wallets.toWallet.Wallet.(asset.FeeRater); is {
 		feeSuggestion, _ = feeRater.FeeRate()
-		if feeSuggestion > t.metaData.RedeemMaxFeeRate { // cap it if necessary
-			feeSuggestion = t.metaData.RedeemMaxFeeRate
-		}
 	} else {
 		feeSuggestion = t.redeemFeeSuggestion.get()
 	}
@@ -3753,7 +3750,7 @@ func (t *trackedTrade) requiredForRemainingSwaps() (uint64, error) {
 	}
 
 	// Add the fees.
-	requiredForRemainingSwaps += accelWallet.FeesForRemainingSwaps(maxSwapsRemaining, t.metaData.MaxFeeRate)
+	requiredForRemainingSwaps += accelWallet.FeesForRemainingSwaps(maxSwapsRemaining)
 
 	return requiredForRemainingSwaps, nil
 }
