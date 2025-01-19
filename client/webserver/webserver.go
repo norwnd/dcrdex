@@ -400,14 +400,15 @@ func New(cfg *Config) (*WebServer, error) {
 	}
 
 	// Middleware
+	mux.Use(middleware.Recoverer)
 	mux.Use(middleware.RequestLogger(&middleware.DefaultLogFormatter{
 		Logger: &chiLogger{ // logs with Trace()
 			Logger: dex.StdOutLogger("MUX", log.Level(), cfg.UTC),
 		},
 		NoColor: runtime.GOOS == "windows",
 	}))
+	mux.Use(middleware.NoCache)
 	mux.Use(s.securityMiddleware)
-	mux.Use(middleware.Recoverer)
 
 	// HTTP profiler
 	if cfg.HttpProf {
