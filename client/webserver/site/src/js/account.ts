@@ -96,7 +96,7 @@ export function likelyTaker (ord: Order, rate: number): boolean {
 const preparcelQuantity = (ord: Order, mkt?: Market, midGapAtom?: number) => {
   const qty = ord.qty - ord.filled
   if (ord.type === OrderTypeLimit) return qty
-  if (ord.sell) return qty * ord.rate / RateEncodingFactor
+  if (ord.sell) return qty * (ord.rate / RateEncodingFactor)
   const rateAtom = midGapAtom || mkt?.spot?.rate || 0
   // Caller should not call this for market orders without a mkt arg.
   if (!mkt) return 0

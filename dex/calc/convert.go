@@ -54,7 +54,7 @@ func ConventionalRate(msgRate uint64, baseInfo, quoteInfo dex.UnitInfo) float64 
 // conventional exchange rate using the base and quote assets' conventional
 // conversion factors.
 func ConventionalRateAlt(msgRate uint64, baseFactor, quoteFactor uint64) float64 {
-	return float64(msgRate) / RateEncodingFactor * float64(baseFactor) / float64(quoteFactor)
+	return (float64(msgRate) / RateEncodingFactor) * (float64(baseFactor) / float64(quoteFactor))
 }
 
 // MessageRate converts an exchange rate in conventional encoding to one

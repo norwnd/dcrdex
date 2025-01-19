@@ -108,7 +108,7 @@ export function statusString (order: Order): string {
 /* filled sums the quantities of non-cancel matches available. */
 export function filled (order: Order): number {
   if (!order.matches) return 0
-  const qty = isMarketBuy(order) ? (m: Match) => m.qty * m.rate / RateEncodingFactor : (m: Match) => m.qty
+  const qty = isMarketBuy(order) ? (m: Match) => m.qty * (m.rate / RateEncodingFactor) : (m: Match) => m.qty
   return order.matches.reduce((filled, match) => {
     if (match.isCancel) return filled
     return filled + qty(match)
@@ -118,7 +118,7 @@ export function filled (order: Order): number {
 /* settled sums the quantities of the matches that have completed. */
 export function settled (order: Order): number {
   if (!order.matches) return 0
-  const qty = isMarketBuy(order) ? (m: Match) => m.qty * m.rate / RateEncodingFactor : (m: Match) => m.qty
+  const qty = isMarketBuy(order) ? (m: Match) => m.qty * (m.rate / RateEncodingFactor) : (m: Match) => m.qty
   return order.matches.reduce((settled, match) => {
     if (match.isCancel) return settled
     const redeemed = (match.side === Maker && match.status >= MakerRedeemed) ||
@@ -151,7 +151,7 @@ export function averageRate (ord: Order): number {
 
 /* baseToQuote returns the quantity of the quote asset. */
 export function baseToQuote (rate: number, base: number) : number {
-  return rate * base / RateEncodingFactor
+  return rate * (base / RateEncodingFactor)
 }
 
 /* orderPortion returns a string stating the percentage of the order a match

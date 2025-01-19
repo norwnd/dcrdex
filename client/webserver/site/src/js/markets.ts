@@ -1432,7 +1432,11 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewBuyRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeBaseCurrency(totalIn, market.baseUnitInfo, market.cfg.lotsize),
+          total: Doc.formatCoinAtomToLotSizeBaseCurrency(
+            totalIn,
+            market.baseUnitInfo,
+            market.cfg.lotsize
+          ),
           asset: market.baseUnitInfo.conventional.unit
         }
       )
@@ -1459,7 +1463,11 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeBaseCurrency(totalIn, market.baseUnitInfo, market.cfg.lotsize),
+          total: Doc.formatCoinAtomToLotSizeBaseCurrency(
+            totalIn,
+            market.baseUnitInfo,
+            market.cfg.lotsize
+          ),
           asset: market.baseUnitInfo.conventional.unit
         }
       )

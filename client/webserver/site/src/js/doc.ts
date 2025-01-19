@@ -355,9 +355,9 @@ export default class Doc {
    * formatCoinAtomToLotSizeBaseCurrency formats atomic coin value to represent it exactly
    * at lot size precision (corresponds to base currency).
    */
-  static formatCoinAtomToLotSizeBaseCurrency (coinAtom: number, baseUnitInfo: UnitInfo, lotSizeAtom: number): string {
-    const [coin] = convertToConventional(coinAtom, baseUnitInfo)
-    const [lotSize] = convertToConventional(lotSizeAtom, baseUnitInfo)
+  static formatCoinAtomToLotSizeBaseCurrency (coinAtom: number, bui: UnitInfo, lotSizeAtom: number): string {
+    const [coin] = convertToConventional(coinAtom, bui)
+    const [lotSize] = convertToConventional(lotSizeAtom, bui) // lot size is in base units
     const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
     if (lotSizeDigits <= 0) {
       // no decimals, display as integer then
@@ -367,12 +367,12 @@ export default class Doc {
   }
 
   /*
- * formatCoinAtomToLotSizeQuoteCurrency formats atomic coin value to represent it exactly
- * at lot size precision that would correspond to quote currency.
- */
+   * formatCoinAtomToLotSizeQuoteCurrency formats atomic coin value to represent it exactly
+   * at lot size precision that would correspond to quote currency.
+   */
   static formatCoinAtomToLotSizeQuoteCurrency (coinAtom: number, bui: UnitInfo, qui: UnitInfo, lotSizeAtom: number, rateStepAtom: number): string {
     const [coin] = convertToConventional(coinAtom, qui)
-    const [lotSize] = convertToConventional(lotSizeAtom, qui)
+    const [lotSize] = convertToConventional(lotSizeAtom, bui) // lot size is in base units
     const lotSizeDigits = -(Math.floor(Math.log10(lotSize)))
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
         Math.floor(Math.log10(bui.conventional.conversionFactor) - Math.log10(qui.conventional.conversionFactor))
@@ -401,13 +401,13 @@ export default class Doc {
    */
   static formatRateAtomToRateStep (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
     const r = bui.conventional.conversionFactor / qui.conventional.conversionFactor
-    const rateConv = rateAtom * r / RateEncodingFactor
+    const rateConv = rateAtom * (r / RateEncodingFactor)
     return Doc.formatRateToRateStep(rateConv, bui, qui, rateStepAtom)
   }
 
   /*
    * formatRateToRateStep formats conventional rate value to represent it exactly at rate step
-   * precision.
+   * precision (rounding down when necessary).
    */
   static formatRateToRateStep (rateConv: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number): string {
     const rateStepDigits = log10RateEncodingFactor - Math.floor(Math.log10(rateStepAtom)) -
@@ -541,7 +541,7 @@ export default class Doc {
 
   static conventionalRateStep (rateStepEnc: number, baseUnitInfo: UnitInfo, quoteUnitInfo: UnitInfo) {
     const [qFactor, bFactor] = [quoteUnitInfo.conventional.conversionFactor, baseUnitInfo.conventional.conversionFactor]
-    return rateStepEnc / RateEncodingFactor * (bFactor / qFactor)
+    return (rateStepEnc / RateEncodingFactor) * (bFactor / qFactor)
   }
 
   /*
