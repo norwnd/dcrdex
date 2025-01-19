@@ -461,7 +461,7 @@ func newMatchNote(topic Topic, subject, details string, severity db.Severity, t 
 // Order is not nil.
 func (on *OrderNote) String() string {
 	base := on.Notification.String()
-	if on.Order == nil {
+	if on.Order == nil || on.Order.ID.String() == "" {
 		return base
 	}
 	return fmt.Sprintf("%s - Order: %s", base, on.Order.ID)
