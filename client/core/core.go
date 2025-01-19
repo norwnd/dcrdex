@@ -2102,8 +2102,7 @@ func (c *Core) connectAndUpdateWalletResumeTrades(w *xcWallet, resumeTrades bool
 	// because some wallets may not reveal balance until unlocked.
 	_, err = c.updateWalletBalance(w)
 	if err != nil {
-		// Warn because the balances will be stale.
-		c.log.Warnf("Could not retrieve balances from %s wallet: %v", unbip(assetID), err)
+		c.log.Warnf("Could not update balances for %s wallet: %v", unbip(assetID), err)
 	}
 
 	c.notify(newWalletStateNote(w.state()))
@@ -2302,7 +2301,7 @@ func (c *Core) lockedAmounts(assetID uint32) (contractLocked, orderLocked, bondL
 	return
 }
 
-// updateBalances updates the balance for every key in the counter map.
+// updateBalances updates the balance for every wallet in assets map.
 // Notifications are sent.
 func (c *Core) updateBalances(assets assetMap) {
 	if len(assets) == 0 {
@@ -2710,6 +2709,7 @@ func (c *Core) createWalletOrToken(crypter encrypt.Crypter, walletPW []byte, for
 		if err = wallet.ReturnCoins(nil); err != nil {
 			c.log.Errorf("Failed to unlock all %s wallet coins: %v", unbip(wallet.AssetID), err)
 		}
+		// wallet balances will be updated below to account for returning of these coins
 	}
 
 	initErr := func(s string, a ...any) (*xcWallet, error) {
@@ -4731,6 +4731,13 @@ func (c *Core) connectWallets(crypter encrypt.Crypter) {
 				if err = wallet.ReturnCoins(nil); err != nil {
 					c.log.Errorf("Failed to unlock all %s wallet coins: %v", unbip(wallet.AssetID), err)
 				}
+				// Gotta update balances here (even if we couldn't return all the coins we might have
+				// returned some but not others, hence updating balances in error-case too) because
+				// otherwise these funds will show as locked (e.g. in UI) until some other event triggers
+				// wallet balance update (e.g. blockchain tip change).
+				if _, err = c.updateWalletBalance(wallet); err != nil {
+					c.log.Warnf("Could not update balances for %s wallet: %v", unbip(wallet.AssetID), err)
+				}
 			}
 		}
 		atomic.AddUint32(&connectCount, 1)
@@ -6043,7 +6050,15 @@ func (c *Core) createTradeRequest(
 	assetConfigs *assetSet,
 	mktConf *msgjson.Market,
 	errCloser *dex.ErrorCloser,
-) (*tradeRequest, error) {
+) (result *tradeRequest, err error) {
+	closer := dex.NewErrorCloser()
+	defer func() {
+		if err != nil {
+			closer.Done(c.log) // clean up
+		}
+		// otherwise closer will be devoured by errCloser
+	}()
+
 	coinIDs := make([]order.CoinID, 0, len(coins))
 	for i := range coins {
 		coinIDs = append(coinIDs, []byte(coins[i].ID()))
@@ -6104,7 +6119,7 @@ func (c *Core) createTradeRequest(
 		}
 	}
 
-	err := order.ValidateOrder(ord, order.OrderStatusEpoch, mktConf.LotSize)
+	err = order.ValidateOrder(ord, order.OrderStatusEpoch, mktConf.LotSize)
 	if err != nil {
 		return nil, fmt.Errorf("ValidateOrder error: %w", err)
 	}
@@ -6121,6 +6136,16 @@ func (c *Core) createTradeRequest(
 	// funds.
 	var redemptionReserves uint64
 	if isAccountRedemption {
+		onRedemptionReservesChange := func() {
+			// redemption reserves change should be reflected in wallet balances
+			if _, err := c.updateWalletBalance(toWallet); err != nil {
+				c.log.Errorf("updateWalletBalance error: %v", err)
+			}
+			if toToken := asset.TokenInfo(assetConfigs.toAsset.ID); toToken != nil {
+				c.updateAssetBalance(toToken.ParentID)
+			}
+		}
+
 		pubKeys, sigs, err := toWallet.SignMessage(nil, msgOrder.Serialize())
 		if err != nil {
 			return nil, codedError(signatureErr, fmt.Errorf("SignMessage error: %w", err))
@@ -6133,20 +6158,14 @@ func (c *Core) createTradeRequest(
 		if err != nil {
 			return nil, codedError(walletErr, fmt.Errorf("ReserveNRedemptions error: %w", err))
 		}
-		defer func() {
-			if _, err := c.updateWalletBalance(toWallet); err != nil {
-				c.log.Errorf("updateWalletBalance error: %v", err)
-			}
-			if toToken := asset.TokenInfo(assetConfigs.toAsset.ID); toToken != nil {
-				c.updateAssetBalance(toToken.ParentID)
-			}
-		}()
+		defer onRedemptionReservesChange()
 
 		msgTrade.RedeemSig = &msgjson.RedeemSig{
 			PubKey: pubKeys[0],
 			Sig:    sigs[0],
 		}
-		errCloser.Add(func() error {
+		closer.Add(func() error {
+			defer onRedemptionReservesChange()
 			accountRedeemer.UnlockRedemptionReserves(redemptionReserves)
 			return nil
 		})
@@ -6155,12 +6174,25 @@ func (c *Core) createTradeRequest(
 	// If the from asset is an AccountLocker, we need to lock up refund funds.
 	var refundReserves uint64
 	if isAccountRefund {
+		onRefundReservesChange := func() {
+			// refund reserves change should be reflected in wallet balances
+			if _, err := c.updateWalletBalance(fromWallet); err != nil {
+				c.log.Errorf("updateWalletBalance error: %v", err)
+			}
+			if fromToken := asset.TokenInfo(assetConfigs.fromAsset.ID); fromToken != nil {
+				c.updateAssetBalance(fromToken.ParentID)
+			}
+		}
+
 		refundReserves, err = accountRefunder.ReserveNRefunds(redemptionRefundLots,
 			assetConfigs.fromAsset.Version, assetConfigs.fromAsset.MaxFeeRate)
 		if err != nil {
 			return nil, codedError(walletErr, fmt.Errorf("ReserveNRefunds error: %w", err))
 		}
-		errCloser.Add(func() error {
+		defer onRefundReservesChange()
+
+		closer.Add(func() error {
+			defer onRefundReservesChange()
 			accountRefunder.UnlockRefundReserves(refundReserves)
 			return nil
 		})
@@ -6199,6 +6231,7 @@ func (c *Core) createTradeRequest(
 		Order: ord,
 	}
 
+	errCloser.Devour(closer)
 	return &tradeRequest{
 		mktID:        marketName(form.Base, form.Quote),
 		route:        route,
@@ -6209,7 +6242,7 @@ func (c *Core) createTradeRequest(
 		recoveryCoin: recoveryCoin,
 		coins:        coins,
 		wallets:      wallets,
-		errCloser:    errCloser.Copy(),
+		errCloser:    errCloser,
 		preImg:       preImg,
 		commitSig:    commitSig,
 	}, nil
@@ -6294,7 +6327,7 @@ func (c *Core) validateTradeRate(sell bool, rate uint64, market string, dc *dexC
 }
 
 // prepareTradeRequest prepares a trade request.
-func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, error) {
+func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (result *tradeRequest, err error) {
 	if !form.IsLimit {
 		return nil, newError(orderParamsErr, "market orders are disabled (for safety reasons)")
 	}
@@ -6411,9 +6444,24 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 	// The coins selected for this order will need to be unlocked
 	// if the order does not get to the server successfully.
 	errCloser := dex.NewErrorCloser()
-	defer errCloser.Done(c.log)
+	defer func() {
+		if err != nil {
+			errCloser.Done(c.log) // clean up
+		}
+		// otherwise the resulting trade request will keep track of & resolve errCloser
+	}()
 	errCloser.Add(func() error {
-		err := fromWallet.ReturnCoins(coins)
+		defer func() {
+			// Gotta update balances here (even if we couldn't return all the coins we might have
+			// returned some but not others, hence updating balances in error-case too) because
+			// otherwise these funds will show as locked (e.g. in UI) until some other event triggers
+			// wallet balance update (e.g. blockchain tip change).
+			_, err = c.updateWalletBalance(fromWallet)
+			if err != nil {
+				c.log.Warnf("Could not update balances for %s wallet: %v", unbip(fromWallet.AssetID), err)
+			}
+		}()
+		err = fromWallet.ReturnCoins(coins)
 		if err != nil {
 			return fmt.Errorf("Unable to return %s funding coins: %v", unbip(fromWallet.AssetID), err)
 		}
@@ -6436,8 +6484,6 @@ func (c *Core) prepareTradeRequest(pw []byte, form *TradeForm) (*tradeRequest, e
 	if err != nil {
 		return nil, err
 	}
-
-	errCloser.Success()
 
 	return tradeRequest, nil
 }
@@ -6520,9 +6566,24 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 	for _, coins := range allCoins {
 		theseCoins := coins
 		errCloser := dex.NewErrorCloser()
-		defer errCloser.Done(c.log)
+		defer func() {
+			if err != nil {
+				errCloser.Done(c.log) // clean up
+			}
+			// otherwise the resulting trade request will keep track of & resolve errCloser
+		}()
 		errCloser.Add(func() error {
-			err := fromWallet.ReturnCoins(theseCoins)
+			defer func() {
+				// Gotta update balances here (even if we couldn't return all the coins we might have
+				// returned some but not others, hence updating balances in error-case too) because
+				// otherwise these funds will show as locked (e.g. in UI) until some other event triggers
+				// wallet balance update (e.g. blockchain tip change).
+				_, err = c.updateWalletBalance(fromWallet)
+				if err != nil {
+					c.log.Warnf("Could not update balances for %s wallet: %v", unbip(fromWallet.AssetID), err)
+				}
+			}()
+			err = fromWallet.ReturnCoins(theseCoins)
 			if err != nil {
 				return fmt.Errorf("unable to return %s funding coins: %v", unbip(fromWallet.AssetID), err)
 			}
@@ -6567,10 +6628,6 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 		tradeRequests = append(tradeRequests, req)
 	}
 
-	for _, errCloser := range errClosers {
-		errCloser.Success()
-	}
-
 	return tradeRequests, nil
 }
 
@@ -6579,7 +6636,9 @@ func (c *Core) prepareMultiTradeRequests(pw []byte, form *MultiTradeForm) ([]*tr
 func (c *Core) sendTradeRequest(tr *tradeRequest) (*Order, error) {
 	dc, dbOrder, wallets, form, route := tr.dc, tr.dbOrder, tr.wallets, tr.form, tr.route
 	mktID, msgOrder, preImg, recoveryCoin, coins := tr.mktID, tr.msgOrder, tr.preImg, tr.recoveryCoin, tr.coins
+
 	defer tr.errCloser.Done(c.log)
+
 	defer close(tr.commitSig) // signals on both success and failure
 
 	// Send and get the result.

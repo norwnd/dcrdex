@@ -59,6 +59,11 @@ func (e *ErrorCloser) Add(closer func() error) {
 	e.closers = append(e.closers, closer)
 }
 
+// Devour will consume another ErrorCloser completely overtaking his responsibilities.
+func (e *ErrorCloser) Devour(another *ErrorCloser) {
+	e.closers = append(e.closers, another.closers...)
+}
+
 // Success cancels the running of any Add'ed functions.
 func (e *ErrorCloser) Success() {
 	e.closers = nil
@@ -71,12 +76,5 @@ func (e *ErrorCloser) Done(log Logger) {
 		if err := e.closers[i](); err != nil {
 			log.Errorf("error running shutdown function %d: %v", i, err)
 		}
-	}
-}
-
-// Copy creates a shallow copy of the ErrorCloser.
-func (e *ErrorCloser) Copy() *ErrorCloser {
-	return &ErrorCloser{
-		closers: e.closers,
 	}
 }
