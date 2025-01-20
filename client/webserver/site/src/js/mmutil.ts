@@ -1033,7 +1033,8 @@ export class RunningMarketMakerDisplay {
 
   updateOrderReport (report: OrderReport, side: 'buys' | 'sells', epochNum: number) {
     const form = this.orderReportForm
-    const sideTxt = side === 'buys' ? intl.prep(intl.ID_BUY) : intl.prep(intl.ID_SELL)
+    const sell = side === 'sells'
+    const sideTxt = sell ? intl.prep(intl.ID_SELL) : intl.prep(intl.ID_BUY)
     form.orderReportTitle.textContent = intl.prep(intl.ID_ORDER_REPORT_TITLE, { side: sideTxt, epochNum: `${epochNum}` })
 
     Doc.setVis(report.error, form.orderReportError)
@@ -1145,7 +1146,7 @@ export class RunningMarketMakerDisplay {
       const baseUI = app().assets[this.mkt.baseID].unitInfo
       const quoteUI = app().assets[this.mkt.quoteID].unitInfo
       rowTmpl.priority.textContent = String(priority)
-      rowTmpl.rate.textContent = Doc.formatRateAtomToRateStep(placement.rate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.rate.textContent = Doc.formatRateAtomToRateStep(placement.rate, baseUI, quoteUI, this.mkt.rateStep, sell)
       rowTmpl.lots.textContent = String(placement.lots)
       rowTmpl.standingLots.textContent = String(placement.standingLots)
       rowTmpl.orderedLots.textContent = String(placement.orderedLots)
@@ -1155,7 +1156,7 @@ export class RunningMarketMakerDisplay {
         rowTmpl.orderedLots.classList.add('text-warning')
       }
       Doc.setVis(placement.counterTradeRate > 0, rowTmpl.counterTradeRate)
-      rowTmpl.counterTradeRate.textContent = Doc.formatRateAtomToRateStep(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep)
+      rowTmpl.counterTradeRate.textContent = Doc.formatRateAtomToRateStep(placement.counterTradeRate, baseUI, quoteUI, this.mkt.rateStep, !sell)
       for (const assetID of assetIDs) {
         const asset = app().assets[assetID]
         const unitInfo = asset.unitInfo

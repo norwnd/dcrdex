@@ -587,7 +587,8 @@ export default class MarketsPage extends BasePage {
       mkt.spot.rate,
       selectedMkt.baseUnitInfo,
       selectedMkt.quoteUnitInfo,
-      selectedMkt.cfg.ratestep
+      selectedMkt.cfg.ratestep,
+      !mostRecentMatchIsBuy
     )
 
     const baseFiatRate = app().fiatRatesMap[selectedMkt.base.id]
@@ -841,8 +842,14 @@ export default class MarketsPage extends BasePage {
     page.qtyFieldBuy.value = String(adjQtyBuy)
     page.qtySliderBuyInput.value = '0'
     if (defaultBuyRateAtom !== 0) {
-      this.chosenRateBuyAtom = defaultBuyRateAtom
-      page.rateFieldBuy.value = String(defaultBuyRateAtom / mkt.rateConversionFactor)
+      this.chosenRateBuyAtom = Doc.adjRateAtomsBuy(defaultBuyRateAtom, mkt.cfg.ratestep)
+      page.rateFieldBuy.value = Doc.formatRateAtomToRateStep(
+        this.chosenRateBuyAtom,
+        mkt.baseUnitInfo,
+        mkt.quoteUnitInfo,
+        mkt.cfg.ratestep,
+        false
+      )
       this.setPageElementEnabled(this.page.priceBoxBuy, true)
       this.setPageElementEnabled(this.page.qtyBoxBuy, true)
       // we'll eventually need to fetch max estimate for slider to work, plus to
@@ -863,8 +870,14 @@ export default class MarketsPage extends BasePage {
     page.qtyFieldSell.value = String(adjQtySell)
     page.qtySliderSellInput.value = '0'
     if (defaultSellRateAtom !== 0) {
-      this.chosenRateSellAtom = defaultSellRateAtom
-      page.rateFieldSell.value = String(defaultSellRateAtom / mkt.rateConversionFactor)
+      this.chosenRateSellAtom = Doc.adjRateAtomsSell(defaultSellRateAtom, mkt.cfg.ratestep)
+      page.rateFieldSell.value = Doc.formatRateAtomToRateStep(
+        this.chosenRateSellAtom,
+        mkt.baseUnitInfo,
+        mkt.quoteUnitInfo,
+        mkt.cfg.ratestep,
+        true
+      )
       this.setPageElementEnabled(this.page.priceBoxSell, true)
       this.setPageElementEnabled(this.page.qtyBoxSell, true)
       // we'll eventually need to fetch max estimate for slider to work, plus to
@@ -1887,8 +1900,8 @@ export default class MarketsPage extends BasePage {
       )
       mord.header.qty.textContent = `${unfilledFormatted}`
       details.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
-      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
-      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
+      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep, ord.sell)
+      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep, ord.sell)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
         detailsRateStr = this.marketOrderDetailsRateString(ord, market)
@@ -2048,8 +2061,8 @@ export default class MarketsPage extends BasePage {
       const settledFormatted = Doc.formatCoinAtomToLotSizeBaseCurrency(OrderUtil.settled(ord), market.baseUnitInfo, market.cfg.lotsize)
       header.qty.textContent = `${settledFormatted}`
       details.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(ord.qty, market.baseUnitInfo, market.cfg.lotsize)
-      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
-      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep)
+      let headerRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep, ord.sell)
+      let detailsRateStr = Doc.formatRateAtomToRateStep(ord.rate, market.baseUnitInfo, market.quoteUnitInfo, market.cfg.ratestep, ord.sell)
       if (ord.type === OrderUtil.Market) {
         headerRateStr = this.marketOrderHeaderRateString(ord, market)
         detailsRateStr = this.marketOrderDetailsRateString(ord, market)
@@ -2156,26 +2169,6 @@ export default class MarketsPage extends BasePage {
     else document.title = `${Doc.formatCoinAtom(midGapValue)} | ${bUnit}${qUnit} | ${this.ogTitle}` // more than 6 numbers it gets too big for the title.
   }
 
-  // adjRateAtomsBuy helps us make sure every order we've got is adjusted to rate-step,
-  // this is redundant but helps with the hack we do to keep rates manageable in UI
-  // (see comment that mentions "insanely large rate-step"); note, we have to round
-  // buy-order rate DOWN and sell-order rate UP so that user can actually book it in UI
-  // by inputting the rate he sees (otherwise he'll be just short of the rate he needs to set)
-  adjRateAtomsBuy (rateAtom: number): number {
-    const { cfg: { ratestep } } = this.market
-    return rateAtom - (rateAtom % ratestep) // adjusted down
-  }
-
-  // adjRateAtomsSell is similar to adjRateAtomsBuy (but helps with sell-orders)
-  adjRateAtomsSell (rateAtom: number): number {
-    const { cfg: { ratestep } } = this.market
-    const adjustedRateAtom = rateAtom - (rateAtom % ratestep)
-    if (rateAtom === adjustedRateAtom) {
-      return rateAtom // nothing to adjust up
-    }
-    return adjustedRateAtom + ratestep // adjusted up
-  }
-
   /* handleBookRoute is the handler for the 'book' notification, which is sent
    * in response to a new market subscription. The data received will contain
    * the entire order book.
@@ -2187,19 +2180,6 @@ export default class MarketsPage extends BasePage {
     if (mktBook.base !== baseCfg.id || mktBook.quote !== quoteCfg.id || note.host !== host) {
       return // user already changed markets
     }
-
-    mktBook.book.buys = mktBook.book.buys || [] // take care of null
-    mktBook.book.buys.forEach(order => {
-      order.msgRate = this.adjRateAtomsBuy(order.msgRate)
-    })
-    mktBook.book.sells = mktBook.book.sells || [] // take care of null
-    mktBook.book.sells.forEach(order => {
-      order.msgRate = this.adjRateAtomsSell(order.msgRate)
-    })
-    mktBook.book.epoch = mktBook.book.epoch || [] // take care of null
-    mktBook.book.epoch.forEach(order => {
-      order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
-    })
 
     this.book = new OrderBook(mktBook, baseCfg.symbol, quoteCfg.symbol)
     this.loadTable()
@@ -2221,7 +2201,6 @@ export default class MarketsPage extends BasePage {
     app().log('book', 'handleBookOrderRoute:', data)
     if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const order = data.payload as MiniOrder
-    order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.rate > 0) this.book.add(order)
     this.addTableOrder(order)
     this.updateTitle()
@@ -2254,7 +2233,6 @@ export default class MarketsPage extends BasePage {
     app().log('book', 'handleEpochOrderRoute:', data)
     if (data.host !== this.market.dex.host || data.marketID !== this.market.name) return
     const order = data.payload
-    order.msgRate = order.sell ? this.adjRateAtomsSell(order.msgRate) : this.adjRateAtomsBuy(order.msgRate)
     if (order.msgRate > 0) this.book.add(order) // No cancels or market orders
     if (order.qtyAtomic > 0) this.addTableOrder(order) // No cancel orders
   }
@@ -2351,7 +2329,8 @@ export default class MarketsPage extends BasePage {
       order.rate,
       mkt.baseUnitInfo,
       mkt.quoteUnitInfo,
-      mkt.cfg.ratestep
+      mkt.cfg.ratestep,
+      isSell
     )
 
     let youSpendAsset = quoteAsset
@@ -2694,7 +2673,7 @@ export default class MarketsPage extends BasePage {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
-      tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep)
+      tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep, match.sell)
       tmpl.price.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
       tmpl.qty.classList.add(match.sell ? 'sellcolor' : 'buycolor')
@@ -3622,7 +3601,7 @@ class OrderTableRowManager {
     } else {
       let colorSellOrBuy = this.isSell() ? 'sellcolor' : 'buycolor'
 
-      page.rate.innerText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom)
+      page.rate.innerText = Doc.formatRateAtomToRateStep(this.msgRate, baseUnitInfo, quoteUnitInfo, rateStepAtom, this.sell)
       page.rate.classList.add(colorSellOrBuy)
 
       const updatePriceDelta = () => {

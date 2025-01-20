@@ -332,7 +332,7 @@ export default class Application {
     // I guess this allows for tweaking prices very precisely but at a detriment to how all rates
     // are displayed in UI (markets page is especially affected by this) - hence to remedy this
     // we introduce "magnifying factors" (these are different for every market) that let us cut
-    // down high rate-step precision so that rate/price numbers look better in UI
+    // down that high rate-step precision to make rate/price numbers look better in UI
     const rateStepMagnifyingFactors: {
       [key: string]: number
     } = {
