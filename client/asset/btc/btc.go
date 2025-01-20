@@ -5501,6 +5501,13 @@ func (btc *baseWallet) BondsFeeBuffer(feeRate uint64) uint64 {
 func (btc *baseWallet) FundMultiOrder(mo *asset.MultiOrder, maxLock uint64) ([]asset.Coins, [][]dex.Bytes, uint64, error) {
 	btc.log.Debugf("Attempting to fund a multi-order for %s, maxFeeRate = %d", btc.symbol, mo.MaxFeeRate)
 
+	// TODO
+	//fmt.Println(fmt.Sprintf("asset.MultiOrder: %s", spew.Sdump(mo)))
+	// TODO
+	//fmt.Println(fmt.Sprintf("TODO: %s", spew.Sdump(maxLock)))
+	// TODO - temporary work-around for https://github.com/decred/dcrdex/issues/3130#issuecomment-2599739029
+	maxLock = 0
+
 	var totalRequiredForOrders uint64
 	var swapInputSize uint64
 	if btc.segwit {
