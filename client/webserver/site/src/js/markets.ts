@@ -263,24 +263,24 @@ export default class MarketsPage extends BasePage {
         return
       }
 
-      // Assume max buy has already been fetched and rate has already been validated
-      // and adjusted (don't let user touch lot/qty/slider fields otherwise), but
-      // still handle the absence of maxBuy just in case.
+      let maxBuyLots = 0
       const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
-      if (!maxBuy) return
+      if (maxBuy) {
+        maxBuyLots = maxBuy.swap.lots
+      }
       // Update lot/qty values accordingly, derive lot value (integer) from the value
       // of slider and our wallet balance.
-      // Note, slider value of 0 represents 1 lot (while slider value of 1 represents
+      // Note, slider value of 0 represents 0 lots (while slider value of 1 represents
       // max lots we can buy).
       // No need to check for errors because only user can "produce" an invalid input.
-      const lots = Math.max(1, Math.floor(maxBuy.swap.lots * sliderValue))
+      const lots = Math.floor(maxBuyLots * sliderValue)
       const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldBuy.value = String(adjQty)
       this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.finalizeTotalBuy()
+      this.renderBuyForm()
     })
     bind(page.qtySliderSellInput, 'input', () => {
       const page = this.page
@@ -291,23 +291,23 @@ export default class MarketsPage extends BasePage {
         return
       }
 
-      // Assume max sell has already been fetched (don't let user touch lot/qty/slider
-      // fields otherwise), but still handle the absence of maxBuy just in case.
-      if (!this.market.maxSell) return
-      const maxSellLots = this.market.maxSell.swap.lots
+      let maxSellLots = 0
+      if (this.market.maxSell) {
+        maxSellLots = this.market.maxSell.swap.lots
+      }
       // Update lot/qty values accordingly, derive lot value (integer) from the value
       // of slider and our wallet balance.
-      // Note, slider value of 0 represents 1 lot (while slider value of 1 represents
+      // Note, slider value of 0 represents 0 lots (while slider value of 1 represents
       // max lots we can sell).
       // No need to check for errors because only user can "produce" an invalid input.
-      const lots = Math.max(1, Math.floor(maxSellLots * sliderValue))
+      const lots = Math.floor(maxSellLots * sliderValue)
       const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
       page.qtyFieldSell.value = String(adjQty)
       this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
 
-      this.finalizeTotalSell()
+      this.renderSellForm()
     })
 
     // Handle the full orderbook sent on the 'book' route.
@@ -782,29 +782,23 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    // show & re-initialize limit order forms everything is disabled by default unless
-    // explicitly changed to be otherwise (by events that follow)
+    // show & re-initialize limit order forms, buy/sell buttons are disabled by default unless
+    // we explicitly enabled them (having checked that trades can be placed)
     this.chosenRateBuyAtom = 0
     page.rateFieldBuy.value = ''
+    this.chosenQtyBuyAtom = 0
     page.qtyFieldBuy.value = ''
     page.qtySliderBuyInput.value = '0'
     page.orderTotalPreviewBuyLeft.textContent = ''
     page.orderTotalPreviewBuyRight.textContent = ''
     this.chosenRateSellAtom = 0
     page.rateFieldSell.value = ''
+    this.chosenQtySellAtom = 0
     page.qtyFieldSell.value = ''
     page.qtySliderSellInput.value = '0'
     page.orderTotalPreviewSellLeft.textContent = ''
     page.orderTotalPreviewSellRight.textContent = ''
-    this.setPageElementEnabled(this.page.priceBoxBuy, false)
-    this.setPageElementEnabled(this.page.qtyBoxBuy, false)
-    this.setPageElementEnabled(this.page.qtySliderBuy, false)
-    this.setPageElementEnabled(this.page.previewTotalBuy, false)
     this.setOrderBttnBuyEnabled(false)
-    this.setPageElementEnabled(this.page.priceBoxSell, false)
-    this.setPageElementEnabled(this.page.qtyBoxSell, false)
-    this.setPageElementEnabled(this.page.qtySliderSell, false)
-    this.setPageElementEnabled(this.page.previewTotalSell, false)
     this.setOrderBttnSellEnabled(false)
     this.reInitOrderForms(0)
     Doc.show(page.orderFormBuy, page.orderFormSell)
@@ -833,14 +827,8 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
-
-    // reset limit-order buy form inputs to defaults
+    // reinitialize buy limit-order form
     const defaultBuyRateAtom = this.book?.bestBuyRateAtom() || 0
-    const adjQtyBuy = this.lotToQty(1)
-    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
-    page.qtyFieldBuy.value = String(adjQtyBuy)
-    page.qtySliderBuyInput.value = '0'
     if (defaultBuyRateAtom !== 0) {
       this.chosenRateBuyAtom = Doc.adjRateAtomsBuy(defaultBuyRateAtom, mkt.cfg.ratestep)
       page.rateFieldBuy.value = Doc.formatRateAtomToRateStep(
@@ -850,25 +838,16 @@ export default class MarketsPage extends BasePage {
         mkt.cfg.ratestep,
         false
       )
-      this.setPageElementEnabled(this.page.priceBoxBuy, true)
-      this.setPageElementEnabled(this.page.qtyBoxBuy, true)
       // we'll eventually need to fetch max estimate for slider to work, plus to
       // do validation on user inputs, might as well do it now
-      this.finalizeTotalBuy()
+      this.renderBuyForm()
     } else {
-      this.setPageElementEnabled(this.page.priceBoxBuy, true)
-      this.setPageElementEnabled(this.page.qtyBoxBuy, false)
-      this.setPageElementEnabled(this.page.qtySliderBuy, false)
       this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your price')
     }
 
-    // reset limit-order sell form inputs to defaults
+    // reinitialize sell limit-order form
     const defaultSellRateAtom = this.book?.bestSellRateAtom() || 0
-    const adjQtySell = this.lotToQty(1)
-    this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
-    page.qtyFieldSell.value = String(adjQtySell)
-    page.qtySliderSellInput.value = '0'
     if (defaultSellRateAtom !== 0) {
       this.chosenRateSellAtom = Doc.adjRateAtomsSell(defaultSellRateAtom, mkt.cfg.ratestep)
       page.rateFieldSell.value = Doc.formatRateAtomToRateStep(
@@ -878,19 +857,10 @@ export default class MarketsPage extends BasePage {
         mkt.cfg.ratestep,
         true
       )
-      this.setPageElementEnabled(this.page.priceBoxSell, true)
-      this.setPageElementEnabled(this.page.qtyBoxSell, true)
       // we'll eventually need to fetch max estimate for slider to work, plus to
       // do validation on user inputs, might as well do it now
-      this.finalizeTotalSell()
+      this.renderSellForm()
     } else {
-      this.chosenRateSellAtom = 0
-      page.rateFieldSell.value = ''
-      page.orderTotalPreviewSellLeft.textContent = ''
-      page.orderTotalPreviewSellRight.textContent = ''
-      this.setPageElementEnabled(this.page.priceBoxSell, true)
-      this.setPageElementEnabled(this.page.qtyBoxSell, false)
-      this.setPageElementEnabled(this.page.qtySliderSell, false)
       this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
       this.setOrderBttnSellEnabled(false, 'choose your price')
     }
@@ -1079,14 +1049,6 @@ export default class MarketsPage extends BasePage {
     this.page.submitBttnBuy.textContent = intl.prep(intl.ID_SET_BUTTON_BUY, { asset: Doc.shortSymbol(this.market.baseCfg.unitInfo.conventional.unit) })
   }
 
-  setPageElementEnabled (form: PageElement, isEnabled: boolean) {
-    if (isEnabled) {
-      form.classList.remove('disabled')
-    } else {
-      form.classList.add('disabled')
-    }
-  }
-
   setOrderBttnBuyEnabled (isEnabled: boolean, disabledTooltipMsg?: string) {
     const btn = this.page.submitBttnBuy
     if (isEnabled) {
@@ -1255,11 +1217,6 @@ export default class MarketsPage extends BasePage {
       bookLoaded: false
     }
     this.market = mkt
-
-    page.lotSizeBuy.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
-    page.lotSizeSell.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(mkt.cfg.lotsize, mkt.baseUnitInfo, mkt.cfg.lotsize)
-    page.rateStepBuy.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
-    page.rateStepSell.textContent = Doc.formatCoinAtom(mkt.cfg.ratestep / rateConversionFactor)
 
     this.displayMessageIfMissingWallet()
     this.setMarketDetails()
@@ -1453,11 +1410,9 @@ export default class MarketsPage extends BasePage {
           asset: market.baseUnitInfo.conventional.unit
         }
       )
-      this.setPageElementEnabled(this.page.previewTotalBuy, true)
     } else {
       page.orderTotalPreviewBuyLeft.textContent = ''
       page.orderTotalPreviewBuyRight.textContent = ''
-      this.setPageElementEnabled(this.page.previewTotalBuy, false)
     }
   }
 
@@ -1497,11 +1452,9 @@ export default class MarketsPage extends BasePage {
           asset: market.quoteUnitInfo.conventional.unit
         }
       )
-      this.setPageElementEnabled(this.page.previewTotalSell, true)
     } else {
       page.orderTotalPreviewSellLeft.textContent = ''
       page.orderTotalPreviewSellRight.textContent = ''
-      this.setPageElementEnabled(this.page.previewTotalSell, false)
     }
   }
 
@@ -1525,20 +1478,34 @@ export default class MarketsPage extends BasePage {
   }
 
   /**
-   * finalizeTotalBuy recalculates new max buy estimate (that depends on chosen rate value),
-   * as well as validates whether currently chosen quantity (on buy order form) can be
-   * purchased - and if not, it displays error on buy order form.
+   * renderBuyForm performs necessary final steps to display the latest state of buy order form.
    */
-  async finalizeTotalBuy () {
-    const mkt = this.market
-
+  async renderBuyForm () {
     // preview total regardless of whether we can afford it
     this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
+    await this.previewMaxBuy()
+  }
+
+  /**
+   * renderSellForm performs necessary final steps to display the latest state of sell order form.
+   */
+  async renderSellForm () {
+    // preview total regardless of whether we can afford it
+    this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
+    await this.previewMaxSell()
+  }
+
+  /**
+   * previewMaxBuy recalculates new max buy estimate (that depends on chosen rate value),
+   * as well as validates whether currently chosen quantity (on buy order form) can be
+   * purchased - and adjusts buy button accordingly.
+   */
+  async previewMaxBuy () {
+    const mkt = this.market
 
     const quoteWallet = app().assets[mkt.quote.id].wallet
     const aLotAtom = mkt.cfg.lotsize * (this.chosenRateBuyAtom / OrderUtil.RateEncodingFactor)
     if (quoteWallet.balance.available < aLotAtom) {
-      this.setPageElementEnabled(this.page.qtySliderBuy, false) // can't use slider
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
@@ -1554,30 +1521,23 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxBuy || this.chosenQtyBuyAtom > maxBuy.swap.lots * mkt.cfg.lotsize) {
-      this.setPageElementEnabled(this.page.qtySliderBuy, true) // can use slider
       this.setOrderBttnBuyEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_BUY_BALANCE_ERROR))
       return
     }
 
-    this.setPageElementEnabled(this.page.qtySliderBuy, true) // can use slider
     this.setOrderBttnBuyEnabled(true)
   }
 
   /**
-   * finalizeTotalSell recalculates new max sell estimate (that depends on chosen rate value),
+   * previewMaxSell recalculates new max sell estimate (that depends on chosen rate value),
    * as well as validates whether currently chosen quantity (on sell order form) can be
-   * purchased - and if not, it displays error on sell order form.
+   * purchased - and adjusts sell button accordingly.
    */
-  async finalizeTotalSell () {
+  async previewMaxSell () {
     const mkt = this.market
-
-    // preview total regardless of whether we can afford it
-    this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
-    this.setPageElementEnabled(this.page.previewTotalSell, true)
 
     const baseWallet = app().assets[this.market.base.id].wallet
     if (baseWallet.balance.available < mkt.cfg.lotsize) {
-      this.setPageElementEnabled(this.page.qtySliderSell, false) // can't use slider
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
@@ -1593,12 +1553,10 @@ export default class MarketsPage extends BasePage {
       return
     }
     if (!maxSell || this.chosenQtySellAtom > maxSell.swap.value) {
-      this.setPageElementEnabled(this.page.qtySliderSell, true) // can use slider
       this.setOrderBttnSellEnabled(false, intl.prep(intl.ID_ORDER_BUTTON_SELL_BALANCE_ERROR))
       return
     }
 
-    this.setPageElementEnabled(this.page.qtySliderSell, true) // can use slider
     this.setOrderBttnSellEnabled(true)
   }
 
@@ -2318,6 +2276,11 @@ export default class MarketsPage extends BasePage {
     const baseAsset = app().assets[order.base]
     const quoteAsset = app().assets[order.quote]
 
+    // if there was an error shown previously on order-limit forms - it's no longer relevant,
+    // we should hide it (doing it here is the least distracting way to do it)
+    Doc.hide(page.orderErrBuy)
+    Doc.hide(page.orderErrSell)
+
     page.vBuySell.textContent = isSell ? intl.prep(intl.ID_SELLING) : intl.prep(intl.ID_BUYING)
     const buySellStr = isSell ? intl.prep(intl.ID_SELL) : intl.prep(intl.ID_BUY)
     page.vSideSubmit.textContent = buySellStr
@@ -2417,15 +2380,13 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
-    Doc.hide(page.orderErrBuy)
-
     const showError = function (err: string, args?: Record<string, string>) {
       page.orderErrBuy.textContent = intl.prep(err, args)
       Doc.show(page.orderErrBuy)
     }
 
     const order = this.buildOrderBuy()
-    if (!this.validateOrderBuy(order)) {
+    if (!await this.validateOrderBuy(order)) {
       return
     }
 
@@ -2454,15 +2415,13 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
-    Doc.hide(page.orderErrSell)
-
     const showError = function (err: string, args?: Record<string, string>) {
       page.orderErrSell.textContent = intl.prep(err, args)
       Doc.show(page.orderErrSell)
     }
 
     const order = this.buildOrderSell()
-    if (!this.validateOrderSell(order)) {
+    if (!await this.validateOrderSell(order)) {
       return
     }
 
@@ -2704,7 +2663,7 @@ export default class MarketsPage extends BasePage {
         mkt.maxBuys = {}
       }
       if (this.chosenRateBuyAtom) { // can only fetch max buy estimate if we have some chosen rate
-        this.finalizeTotalBuy()
+        this.previewMaxBuy()
       }
     }
     if (note.assetID === mkt.baseCfg.id) {
@@ -2713,7 +2672,7 @@ export default class MarketsPage extends BasePage {
         // it is WRONG, we should flush cache with old value here
         mkt.maxSell = null
       }
-      this.finalizeTotalSell()
+      this.previewMaxSell()
     }
   }
 
@@ -2739,6 +2698,21 @@ export default class MarketsPage extends BasePage {
       Doc.show(page.vErr)
       return
     }
+
+    if (this.verifiedOrder.sell) {
+      this.chosenQtySellAtom = 0
+      page.qtyFieldSell.value = ''
+      page.qtySliderSellInput.value = '0'
+      page.orderTotalPreviewSellLeft.textContent = ''
+      page.orderTotalPreviewSellRight.textContent = ''
+    } else {
+      this.chosenQtyBuyAtom = 0
+      page.qtyFieldBuy.value = ''
+      page.qtySliderBuyInput.value = '0'
+      page.orderTotalPreviewBuyLeft.textContent = ''
+      page.orderTotalPreviewBuyRight.textContent = ''
+    }
+
     // Hide confirmation modal only on success.
     Doc.hide(page.forms)
     // refreshing UI orders with delay as a work-around for the fact that application
@@ -2791,12 +2765,8 @@ export default class MarketsPage extends BasePage {
 
     this.chosenRateBuyAtom = adjRateAtom
 
-    // disable slider since it relies on max buy estimate that we'll be updating below,
-    // letting user play with slider doesn't make sense until this new estimate is in place
-    this.setPageElementEnabled(this.page.qtySliderBuy, false)
-
     // recalculate maxbuy value because it does change with every rate change
-    this.finalizeTotalBuy()
+    this.renderBuyForm()
   }
 
   rateFieldBuyChangeHandler () {
@@ -2807,12 +2777,10 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered is invalid or was rounded down.
-      this.animateErrors(highlightOutlineRed(page.rateFieldBuy), highlightBackgroundRed(page.rateStepBoxBuy))
+      this.animateErrors(highlightOutlineRed(page.rateFieldBuy))
     }
     if (!inputValid || (adjusted && adjRateAtom === 0)) {
       this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
-      this.setPageElementEnabled(this.page.qtyBoxBuy, false)
-      this.setPageElementEnabled(this.page.qtySliderBuy, false)
       this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your price')
       return
@@ -2828,12 +2796,8 @@ export default class MarketsPage extends BasePage {
     page.rateFieldBuy.value = String(adjRate)
     this.chosenRateBuyAtom = adjRateAtom
 
-    // disable slider since it relies on max buy estimate that we'll be updating below,
-    // letting user play with slider doesn't make sense until this new estimate is in place
-    this.setPageElementEnabled(this.page.qtySliderBuy, false)
-
     // recalculate maxbuy value because it does change with every rate change
-    this.finalizeTotalBuy()
+    this.renderBuyForm()
   }
 
   rateFieldSellInputHandler () {
@@ -2861,12 +2825,9 @@ export default class MarketsPage extends BasePage {
 
     this.chosenRateSellAtom = adjRateAtom
 
-    this.setPageElementEnabled(this.page.qtyBoxSell, true)
-    this.setPageElementEnabled(this.page.qtySliderSell, true)
-
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.finalizeTotalSell()
+    this.renderSellForm()
   }
 
   rateFieldSellChangeHandler () {
@@ -2877,12 +2838,10 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered is invalid or was rounded down.
-      this.animateErrors(highlightOutlineRed(page.rateFieldSell), highlightBackgroundRed(page.rateStepBoxSell))
+      this.animateErrors(highlightOutlineRed(page.rateFieldSell))
     }
     if (!inputValid || (adjusted && adjRateAtom === 0)) {
       this.chosenRateSellAtom = 0 // reset chosen value, but don't interfere with user input field
-      this.setPageElementEnabled(this.page.qtyBoxSell, false)
-      this.setPageElementEnabled(this.page.qtySliderSell, false)
       this.previewTotalSell(this.chosenRateSellAtom, this.chosenQtySellAtom)
       this.setOrderBttnSellEnabled(false, 'choose your price')
       return
@@ -2900,7 +2859,7 @@ export default class MarketsPage extends BasePage {
 
     // unlike with buy orders there is no need to recalculate maxsell value
     // because it doesn't change with the rate/price change.
-    this.finalizeTotalSell()
+    this.renderSellForm()
   }
 
   qtyFieldBuyInputHandler () {
@@ -2940,7 +2899,7 @@ export default class MarketsPage extends BasePage {
       page.qtySliderBuyInput.value = String(sliderValue)
     }
 
-    this.finalizeTotalBuy()
+    this.renderBuyForm()
   }
 
   qtyFieldBuyChangeHandler () {
@@ -2952,7 +2911,7 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy), highlightBackgroundRed(page.lotSizeBoxBuy))
+      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy))
     }
     if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
@@ -2979,7 +2938,7 @@ export default class MarketsPage extends BasePage {
       page.qtySliderBuyInput.value = String(sliderValue)
     }
 
-    this.finalizeTotalBuy()
+    this.renderBuyForm()
   }
 
   qtyFieldSellInputHandler () {
@@ -3019,7 +2978,7 @@ export default class MarketsPage extends BasePage {
       page.qtySliderSellInput.value = String(sliderValue)
     }
 
-    this.finalizeTotalSell()
+    this.renderSellForm()
   }
 
   qtyFieldSellChangeHandler () {
@@ -3031,11 +2990,10 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldSell), highlightBackgroundRed(page.lotSizeBoxSell))
+      this.animateErrors(highlightOutlineRed(page.qtyFieldSell))
     }
     if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtySellAtom = 0 // reset chosen value, but don't interfere with user input field
-      this.setPageElementEnabled(this.page.previewTotalSell, false)
       this.setOrderBttnSellEnabled(false, 'choose your quantity')
       return
     }
@@ -3058,7 +3016,7 @@ export default class MarketsPage extends BasePage {
       page.qtySliderSellInput.value = String(sliderValue)
     }
 
-    this.finalizeTotalSell()
+    this.renderSellForm()
   }
 
   /**
@@ -3073,10 +3031,7 @@ export default class MarketsPage extends BasePage {
    * values are returned: [false, false, 0, 0].
    */
   parseQtyInput (value: string | undefined): [boolean, boolean, number, number] {
-    const { page, market: { baseUnitInfo: bui } } = this
-
-    Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
-    Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
+    const { market: { baseUnitInfo: bui } } = this
 
     const qtyRaw = this.parseNumber(value)
     if (qtyRaw === null || isNaN(qtyRaw) || qtyRaw <= 0) {
@@ -3098,11 +3053,6 @@ export default class MarketsPage extends BasePage {
    * 3) adjusted rate(price) value in atoms
    */
   parseRateInput (value: string | undefined): [boolean, boolean, number] {
-    const page = this.page
-
-    Doc.hide(page.orderErrBuy) // not the best place to do it, but what is?
-    Doc.hide(page.orderErrSell) // not the best place to do it, but what is?
-
     const rateRaw = this.parseNumber(value)
     if (rateRaw === null || isNaN(rateRaw) || rateRaw <= 0) {
       return [false, false, 0]
@@ -3833,28 +3783,6 @@ function sortedMarkets (): ExchangeMarket[] {
     return bLots - aLots // whoever has more volume by lot count
   })
   return mkts
-}
-
-/**
- * highlightBackgroundRed returns Animation-factory that will construct Animation that will
- * change element background color to red and back in a smooth transition.
- * Note: Animation will start when constructed by "new" ^ right away - that's why
- * we return constructor-func here (aka factory), instead of constructing Animation
- * right away.
- */
-function highlightBackgroundRed (element: PageElement): () => Animation {
-  const [r, g, b, a] = State.isDark() ? [203, 94, 94, 0.8] : [153, 48, 43, 0.6]
-  return (): Animation => {
-    return new Animation(animationLength, (progress: number) => {
-      element.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a - a * progress})`
-    },
-    'easeIn',
-    () => {
-      // Setting background color to 'none' SOMETIMES results in a no-op for some reason, wat.
-      // Hence, setting to 'transparent' instead.
-      element.style.backgroundColor = 'transparent'
-    })
-  }
 }
 
 /**

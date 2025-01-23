@@ -19,11 +19,6 @@ div[data-handler=markets] {
 
   #orderFormBuy,
   #orderFormSell {
-    .disabled {
-      pointer-events: none;
-      opacity: 0.4;
-    }
-
     .order-form-input{
       height: 36px;
       font-size: 16px;
