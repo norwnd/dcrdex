@@ -102,19 +102,15 @@
               <section id="orderFormBuy" class="px-1 d-hide">
                 <form id="limitOrderBoxBuy" class="d-flex flex-stretch-column py-1" autocomplete="off">
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex justify-content-between m-1 fs18" id="priceBoxBuy">
-                    <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
-                    <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select order-form-input" id="rateFieldBuy">
-                      <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
-                    </div>
+                  <div class="d-flex align-items-center order-form-input select m-1" id="priceBoxBuy">
+                    <label for="rateField" class="form-label grey fs18 px-2">Price</label>
+                    <input type="text" class="text-end demi fs18 p-0" id="rateFieldBuy">
+                    <span class="grey demi fs18 px-2" data-quote-ticker></span>
                   </div>
-                  <div class="d-flex justify-content-between m-1 fs18" id="qtyBoxBuy">
-                    <label for="qtyFieldBuy" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
-                    <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select order-form-input" id="qtyFieldBuy">
-                      <span class="unit unitbox" data-base-ticker></span>
-                    </div>
+                  <div class="d-flex align-items-center order-form-input select m-1" id="qtyBoxBuy">
+                    <label for="qtyFieldBuy" class="form-label grey fs18 px-2">Quantity</label>
+                    <input type="text" class="text-end demi fs18 p-0" id="qtyFieldBuy">
+                    <span class="grey demi fs18 px-2" data-base-ticker></span>
                   </div>
                   <div id="qtySliderBuy" class="d-flex flex-stretch-column mt-3 mb-2 mx-2">
                     <input id="qtySliderBuyInput" type="range" min="0" max="1" step="0.01" list="markers" class="qty-slider">
@@ -127,9 +123,9 @@
                     </datalist>
                   </div>
                   <div class="d-flex flex-stretch-row m-1" id="previewTotalBuy">
-                    <div id="orderTotalPreviewBuyLeft" class="d-flex align-items-center justify-content-end me-1 fs18"></div>
+                    <div id="orderTotalPreviewBuyLeft" class="d-flex align-items-center justify-content-end me-1 demi fs20"></div>
                     <span id="orderTotalPreviewBuyDelimiter" class="d-flex align-items-center mx-1 pt-0-5 fs22">⇄</span>
-                    <div id="orderTotalPreviewBuyRight" class="d-flex align-items-center justify-content-start ms-1 fs18"></div>
+                    <div id="orderTotalPreviewBuyRight" class="d-flex align-items-center justify-content-start ms-1 demi fs20"></div>
                   </div>
                   <button id="submitBttnBuy" type="button" class="flex-center border pointer hoverbg border-rounded3 m-1 submit fs18 text-center buygreen-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs17 text-center d-hide text-danger text-break" id="orderErrBuy"></div>
@@ -139,19 +135,15 @@
               <section id="orderFormSell" class="px-1 d-hide">
                 <form id="limitOrderBoxSell" class="d-flex flex-stretch-column py-1" autocomplete="off">
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex justify-content-between m-1 fs18" id="priceBoxSell">
-                    <label for="rateField" class="form-label col-6 d-flex align-items-center p-0">Price:</label>
-                    <div class="col-18 p-0 position-relative">
-                      <input type="text" class="form-control select order-form-input" id="rateFieldSell">
-                      <span class="unitbox"><span class="unit" data-unit="quote"></span>/<span class="unit" data-base-ticker></span></span>
-                    </div>
+                  <div class="d-flex align-items-center order-form-input select m-1" id="priceBoxSell">
+                    <label for="rateField" class="form-label grey fs18 px-2">Price</label>
+                    <input type="text" class="text-end demi fs18 p-0" id="rateFieldSell">
+                    <span class="grey demi fs18 px-2" data-quote-ticker></span>
                   </div>
-                  <div class="d-flex justify-content-between m-1 fs18" id="qtyBoxSell">
-                    <label for="qtyFieldSell" class="form-label col-6 d-flex align-items-center p-0">Quantity:</label>
-                    <div class="col-11 p-0 position-relative">
-                      <input type="text" class="form-control select order-form-input" id="qtyFieldSell">
-                      <span class="unit unitbox" data-base-ticker></span>
-                    </div>
+                  <div class="d-flex align-items-center order-form-input select m-1" id="qtyBoxSell">
+                    <label for="qtyFieldSell" class="form-label grey fs18 px-2">Quantity</label>
+                    <input type="text" class="text-end demi fs18 p-0" id="qtyFieldSell">
+                    <span class="grey demi fs18 px-2" data-base-ticker></span>
                   </div>
                   <div id="qtySliderSell" class="d-flex flex-stretch-column mt-3 mb-2 mx-2">
                     <input id="qtySliderSellInput" type="range" min="0" max="1" step="0.01" list="markers" class="qty-slider">
@@ -164,9 +156,9 @@
                     </datalist>
                   </div>
                   <div class="d-flex flex-stretch-row m-1" id="previewTotalSell">
-                    <div id="orderTotalPreviewSellLeft" class="d-flex align-items-center justify-content-end me-1 fs18"></div>
+                    <div id="orderTotalPreviewSellLeft" class="d-flex align-items-center justify-content-end me-1 demi fs20"></div>
                     <span id="orderTotalPreviewSellDelimiter" class="d-flex align-items-center mx-1 pt-0-5 fs22">⇄</span>
-                    <div id="orderTotalPreviewSellRight" class="d-flex align-items-center justify-content-start ms-1 fs18"></div>
+                    <div id="orderTotalPreviewSellRight" class="d-flex align-items-center justify-content-start ms-1 demi fs20"></div>
                   </div>
                   <button id="submitBttnSell" type="button" class="flex-center border pointer hoverbg border-rounded3 m-1 submit fs18 text-center sellred-bg"></button> {{/* textContent set by script */}}
                   <div class="m-1 fs17 text-center d-hide text-danger text-break" id="orderErrSell"></div>
@@ -359,7 +351,7 @@
 
               {{- /* OPEN ORDERS */ -}}
               <div class="my-1 border-top">
-                <div class="text-center bold fs20 p-1">[[[Open Orders]]]</div>
+                <div class="text-center demi fs20 p-1">[[[Open Orders]]]</div>
                 <div id="unreadyOrdersMsg" class="d-hide px-3 flex-center fs15 p-1 border-bottom text-danger">[[[unready_wallets_msg]]]</div>
                 <div id="recentlyActiveNoUserOrders" class="flex-center fs15 pb-1 border-bottom grey">no recent activity</div>
                 <div id="recentlyActiveUserOrders" class="mb-1"></div>
@@ -367,7 +359,7 @@
               {{- /* END OPEN ORDERS */ -}}
               {{- /* COMPLETED ORDERS */ -}}
               <div class="my-1 border-top">
-                <div class="text-center bold fs20 p-1">[[[Completed Orders]]]</div>
+                <div class="text-center demi fs20 p-1">[[[Completed Orders]]]</div>
                 <div id="completedOrderHistoryDurBttnBox" class="d-flex flex-stretch-row justify-content-between px-2 pb-2">
                   <button id="completedOrderDurBttnTemplate" class="completed-order-dur-bttn fs15 px-1 grey"></button>
                 </div>
@@ -377,7 +369,7 @@
               {{- /* END COMPLETED ORDERS */ -}}
               {{- /* RECENT MATCHES */ -}}
               <div id=recentMatchesBox class="flex-stretch-column my-1 border-top">
-                <div class="text-center bold fs20 p-1">[[[Recent Matches]]]</div>
+                <div class="text-center demi fs20 p-1">[[[Recent Matches]]]</div>
                 <table id="recentMatchesTable" class="row-border row-hover lh1 border-bottom">
                   <thead>
                     <tr class="pointer">

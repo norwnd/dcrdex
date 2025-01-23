@@ -1654,13 +1654,13 @@ export default class MarketsPage extends BasePage {
     }
     if (!order.qty) {
       // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
       showError(intl.ID_NO_ZERO_QUANTITY)
       return false
     }
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
       // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
       showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
@@ -1690,13 +1690,13 @@ export default class MarketsPage extends BasePage {
     }
     if (!order.qty) {
       // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldSell))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
       showError(intl.ID_NO_ZERO_QUANTITY)
       return false
     }
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
       // Hints to the user what inputs don't pass validation.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
       showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
       return false
     }
@@ -2777,7 +2777,7 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered is invalid or was rounded down.
-      this.animateErrors(highlightOutlineRed(page.rateFieldBuy))
+      this.animateErrors(highlightOutlineRed(page.priceBoxBuy))
     }
     if (!inputValid || (adjusted && adjRateAtom === 0)) {
       this.chosenRateBuyAtom = 0 // reset chosen value, but don't interfere with user input field
@@ -2838,7 +2838,7 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjRateAtom] = this.parseRateInput(rateFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that rate he's entered is invalid or was rounded down.
-      this.animateErrors(highlightOutlineRed(page.rateFieldSell))
+      this.animateErrors(highlightOutlineRed(page.priceBoxSell))
     }
     if (!inputValid || (adjusted && adjRateAtom === 0)) {
       this.chosenRateSellAtom = 0 // reset chosen value, but don't interfere with user input field
@@ -2911,7 +2911,7 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldBuy))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
     }
     if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
@@ -2990,7 +2990,7 @@ export default class MarketsPage extends BasePage {
     const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
-      this.animateErrors(highlightOutlineRed(page.qtyFieldSell))
+      this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
     }
     if (!inputValid || (adjusted && adjQty === 0)) {
       this.chosenQtySellAtom = 0 // reset chosen value, but don't interfere with user input field

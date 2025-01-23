@@ -20,15 +20,22 @@ div[data-handler=markets] {
   #orderFormBuy,
   #orderFormSell {
     .order-form-input{
-      height: 36px;
-      font-size: 16px;
+      height: 44px;
       font-weight: bold;
       background-color: var(--body-bg-lower-opacity);
       border: 2px solid var(--border-color);
+      border-radius: 5px;
 
       &:hover,
       &:focus {
         border: 2px solid var(--text-warning);
+      }
+
+      // override the global defaults for input form
+      input[type=text]{
+        border: none;
+        background-color: transparent;
+        border-radius: 0;
       }
     }
 
@@ -39,16 +46,6 @@ div[data-handler=markets] {
       &:focus {
         cursor: pointer;
       }
-    }
-
-    span.unitbox {
-      position: absolute;
-      font-size: 14px;
-      font-weight: bold;
-      right: 5px;
-      top: 48%; // Looks better than 50 for some reason.
-      transform: translateY(-50%);
-      white-space: nowrap;
     }
 
     #previewTotalBuy {
