@@ -1271,12 +1271,16 @@ func (dcr *ExchangeWallet) FeeRate() (rate uint64, tooLow bool) {
 	if err != nil && dcr.network != dex.Simnet { // log and return 0
 		dcr.log.Errorf("feeRate error: %v", err)
 	}
-	return rate, false // DCR fees are never too low in practice
+	return rate, false // DCR fees are never too low in practice (since network activity is always low)
 }
 
 // FeeRateSwap is same as FeeRate but for swaps.
 func (dcr *ExchangeWallet) FeeRateSwap() (rate uint64, tooLow bool) {
-	return dcr.FeeRate()
+	rate, tooLow = dcr.FeeRate()
+	// server typically expects "higher than normal" fee rates for swaps, to make sure we pick high
+	// enough fee rate (so that server doesn't reject our place-trade requests) we 10x the normal
+	// fee rate here (lower values don't seem to be sufficient)
+	return 10 * rate, tooLow
 }
 
 // feeRate returns the current optimal fee rate in atoms / byte.

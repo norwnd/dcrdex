@@ -10470,7 +10470,7 @@ func (c *Core) PreAccelerateOrder(oidB dex.Bytes) (*PreAccelerate, error) {
 		return nil, fmt.Errorf("the %s wallet is not an accelerator", tracker.wallets.fromWallet.Symbol)
 	}
 
-	feeSuggestion := c.feeSuggestionAny(tracker.fromAssetID)
+	feeSuggestion := c.feeSuggestionSwapAny(tracker.fromAssetID)
 
 	tracker.mtx.RLock()
 	defer tracker.mtx.RUnlock()
