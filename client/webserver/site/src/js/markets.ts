@@ -270,10 +270,10 @@ export default class MarketsPage extends BasePage {
       }
       // Update lot/qty values accordingly, derive lot value (integer) from the value
       // of slider and our wallet balance.
-      // Note, slider value of 0 represents 0 lots (while slider value of 1 represents
+      // Note, slider value of 0 represents 1 lot (while slider value of 1 represents
       // max lots we can buy).
       // No need to check for errors because only user can "produce" an invalid input.
-      const lots = Math.floor(maxBuyLots * sliderValue)
+      const lots = Math.max(1, Math.floor(maxBuyLots * sliderValue))
       const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
@@ -297,10 +297,10 @@ export default class MarketsPage extends BasePage {
       }
       // Update lot/qty values accordingly, derive lot value (integer) from the value
       // of slider and our wallet balance.
-      // Note, slider value of 0 represents 0 lots (while slider value of 1 represents
+      // Note, slider value of 0 represents 1 lot (while slider value of 1 represents
       // max lots we can sell).
       // No need to check for errors because only user can "produce" an invalid input.
-      const lots = Math.floor(maxSellLots * sliderValue)
+      const lots = Math.max(1, Math.floor(maxSellLots * sliderValue))
       const adjQty = this.lotToQty(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
@@ -828,6 +828,7 @@ export default class MarketsPage extends BasePage {
     }
 
     // reinitialize buy limit-order form
+    this.setBuyQtyDefault()
     const defaultBuyRateAtom = this.book?.bestBuyRateAtom() || 0
     if (defaultBuyRateAtom !== 0) {
       this.chosenRateBuyAtom = Doc.adjRateAtomsBuy(defaultBuyRateAtom, mkt.cfg.ratestep)
@@ -847,6 +848,7 @@ export default class MarketsPage extends BasePage {
     }
 
     // reinitialize sell limit-order form
+    this.setSellQtyDefault()
     const defaultSellRateAtom = this.book?.bestSellRateAtom() || 0
     if (defaultSellRateAtom !== 0) {
       this.chosenRateSellAtom = Doc.adjRateAtomsSell(defaultSellRateAtom, mkt.cfg.ratestep)
@@ -2699,18 +2701,14 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    if (this.verifiedOrder.sell) {
-      this.chosenQtySellAtom = 0
-      page.qtyFieldSell.value = ''
-      page.qtySliderSellInput.value = '0'
-      page.orderTotalPreviewSellLeft.textContent = ''
-      page.orderTotalPreviewSellRight.textContent = ''
+    // reset qty & slider to default values and re-render corresponding order-form (doing this only
+    // for the affected form since max buy/sell changed for it, but not for the other order-form)
+    if (!this.verifiedOrder.sell) {
+      this.setBuyQtyDefault()
+      await this.renderBuyForm()
     } else {
-      this.chosenQtyBuyAtom = 0
-      page.qtyFieldBuy.value = ''
-      page.qtySliderBuyInput.value = '0'
-      page.orderTotalPreviewBuyLeft.textContent = ''
-      page.orderTotalPreviewBuyRight.textContent = ''
+      this.setSellQtyDefault()
+      await this.renderSellForm()
     }
 
     // Hide confirmation modal only on success.
@@ -2721,6 +2719,28 @@ export default class MarketsPage extends BasePage {
     setTimeout(() => {
       this.refreshRecentlyActiveOrders()
     }, 1000) // 1000ms delay
+  }
+
+  setBuyQtyDefault () {
+    const page = this.page
+    const mkt = this.market
+    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
+
+    const adjQtyBuy = this.lotToQty(1)
+    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
+    page.qtyFieldBuy.value = String(adjQtyBuy)
+    page.qtySliderBuyInput.value = '0'
+  }
+
+  setSellQtyDefault () {
+    const page = this.page
+    const mkt = this.market
+    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
+
+    const adjQtySell = this.lotToQty(1)
+    this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
+    page.qtyFieldSell.value = String(adjQtySell)
+    page.qtySliderSellInput.value = '0'
   }
 
   /*
