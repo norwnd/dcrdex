@@ -23,8 +23,10 @@ import (
 )
 
 const (
-	oraclePriceExpiration = time.Minute * 5
-	oracleRecheckInterval = time.Minute * 1
+	oraclePriceExpiration = time.Minute * 10
+	// oracleRecheckInterval defines how often we fetch oracle prices, this value cannot be too
+	// low - otherwise we'll hit rate-limit (for coinpaprika in particular)
+	oracleRecheckInterval = time.Minute * 3
 
 	// If the total USD volume of all oracles is less than
 	// minimumUSDVolumeForOraclesAvg, the oracles will be ignored for
