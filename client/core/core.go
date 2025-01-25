@@ -1733,13 +1733,13 @@ func (c *Core) Run(ctx context.Context) {
 
 	// Construct enabled fiat rate sources.
 fetchers:
-	for token, rateFetcher := range fiatRateFetchers {
-		for _, v := range disabledSources {
-			if token == v {
+	for sourceName, rateFetcher := range fiatRateFetchers {
+		for _, disabledSourceName := range disabledSources {
+			if sourceName == disabledSourceName {
 				continue fetchers
 			}
 		}
-		c.fiatRateSources[token] = newCommonRateSource(rateFetcher)
+		c.fiatRateSources[sourceName] = newCommonRateSource(rateFetcher)
 	}
 	c.fetchFiatExchangeRates(ctx)
 
@@ -10559,7 +10559,7 @@ func (c *Core) findActiveOrder(oid order.OrderID) (*trackedTrade, error) {
 }
 
 // fetchFiatExchangeRates starts the fiat rate fetcher goroutine and schedules
-// refresh cycles. Use under ratesMtx lock.
+// refresh cycles.
 func (c *Core) fetchFiatExchangeRates(ctx context.Context) {
 	c.log.Debug("starting fiat rate fetching")
 

@@ -20,7 +20,7 @@ import (
 const (
 	// DefaultFiatCurrency is the currency for displaying assets fiat value.
 	DefaultFiatCurrency = "USD"
-	// fiatRateRequestInterval is the amount of time between calls to the exchange API.
+	// fiatRateRequestInterval is the amount of time between calls to the external APIs.
 	fiatRateRequestInterval = 60 * time.Second
 	// fiatRateDataExpiry : Any data older than fiatRateDataExpiry will be discarded.
 	fiatRateDataExpiry = 150 * time.Second
@@ -184,10 +184,6 @@ func FetchMessariRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 	fiatRates := make(map[uint32]float64)
 	fetchRate := func(sa *SupportedAsset) {
 		assetID := sa.ID
-		if sa.Wallet == nil {
-			// we don't want to fetch rate for assets with no wallet.
-			return
-		}
 
 		res := new(struct {
 			Data struct {
@@ -230,13 +226,9 @@ func getRates(ctx context.Context, uri string, thing any) error {
 // See https://developers.binance.com/docs/binance-spot-api-docs/rest-api/public-api-endpoints
 // for sample request and response information.
 func FetchBinanceRates(ctx context.Context, log dex.Logger, assets map[uint32]*SupportedAsset) map[uint32]float64 {
-	fiatRates := make(map[uint32]float64)
-	fetchRate := func(sa *SupportedAsset) {
-		if sa.Wallet == nil {
-			// we don't want to fetch rate for assets with no wallet.
-			return
-		}
+	result := make(map[uint32]float64)
 
+	fetchRate := func(sa *SupportedAsset) (float64, error) {
 		ctx, cancel := context.WithTimeout(ctx, fiatRequestTimeout)
 		defer cancel()
 
@@ -247,36 +239,52 @@ func FetchBinanceRates(ctx context.Context, log dex.Logger, assets map[uint32]*S
 		})
 
 		slug := strings.ToUpper(dex.TokenSymbol(sa.Symbol)) // API expects upper-case
+		if slug == "WETH" {
+			// Binance doesn't support this asset
+			return 0.0, nil
+		}
 		if slug == "USDT" {
 			// for Binance, we use USDT instead of USD, and hence we take this shortcut here
-			fiatRates[sa.ID] = 1.0
-			return
+			return 1.0, nil
 		}
 		if slug == "POLYGON" {
 			slug = "POL" // Binance uses POL, not POLYGON
 		}
+
 		reqStr := fmt.Sprintf(binanceURL, slug)
 		if err := getRates(ctx, reqStr, res); err != nil {
-			log.Errorf("Error getting fiat exchange rates from Binance for asset %s: %v", sa.Symbol, err)
-			return
+			return 0.0, fmt.Errorf("get fiat exchange rates from Binance for asset %s: %v", sa.Symbol, err)
 		}
 
 		price, err := strconv.ParseFloat(res.Price, 64)
 		if err != nil {
-			log.Errorf("Couldn't parse price returned from Binance for asset %s, err: %v", sa.Symbol, err)
-			return
+			return 0.0, fmt.Errorf("parse price returned from Binance for asset %s, err: %v", sa.Symbol, err)
 		}
 		if math.IsNaN(price) || price <= 0 {
-			log.Errorf("Invalid price returned from Binance for asset %s, price %v", sa.Symbol, price)
-			return
+			return 0.0, fmt.Errorf("invalid price returned from Binance for asset %s, price %v", sa.Symbol, price)
 		}
-
-		fiatRates[sa.ID] = price
+		return price, nil
 	}
 
 	for _, sa := range assets {
-		fetchRate(sa)
+		var (
+			fiatRate float64
+			err      error
+		)
+		const maxRetries = 3
+		for i := 0; i < maxRetries; i++ {
+			fiatRate, err = fetchRate(sa)
+			if err != nil {
+				continue // retry (or maybe it was the final attempt)
+			}
+			break // successfully fetched fiat rate
+		}
+		if err != nil {
+			log.Errorf("Couldn't fetch fiat rate: %v", err)
+			continue
+		}
+		result[sa.ID] = fiatRate
 	}
 
-	return fiatRates
+	return result
 }

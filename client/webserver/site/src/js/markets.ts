@@ -510,7 +510,7 @@ export default class MarketsPage extends BasePage {
       // nothing to do if this market is already set/chosen
       const { quoteid: quoteID, baseid: baseID, xc: { host } } = mkt
       if (this.market?.base?.id === baseID && this.market?.quote?.id === quoteID) return
-      await this.switchToMarket(host, baseID, quoteID)
+      await this.switchToMarket(host, baseID, quoteID, 0)
     }
     // Prepare the list of markets.
     this.marketList = new MarketList(page.marketListV1)
@@ -575,9 +575,13 @@ export default class MarketsPage extends BasePage {
     }
     if (!selected || !this.marketList.exists(selected.host, selected.base, selected.quote)) {
       const first = this.marketList.first()
-      if (first) selected = { host: first.mkt.xc.host, base: first.mkt.baseid, quote: first.mkt.quoteid }
+      if (first) {
+        selected = { host: first.mkt.xc.host, base: first.mkt.baseid, quote: first.mkt.quoteid }
+      }
     }
-    if (selected) this.switchToMarket(selected.host, selected.base, selected.quote)
+    if (selected) {
+      this.switchToMarket(selected.host, selected.base, selected.quote, 0)
+    }
 
     this.setRegistrationStatusVisibility() // set the initial state for the registration status
   }
@@ -858,7 +862,7 @@ export default class MarketsPage extends BasePage {
   /* resolveOrderVsMMForm displays either order form or MM form based on
    * a set of conditions to be met.
    */
-  resolveOrderVsMMForm (forseReset?: boolean): void {
+  resolveOrderVsMMForm (forceReset?: boolean): void {
     const page = this.page
     const mkt = this.market
     const { base, quote } = mkt
@@ -887,7 +891,7 @@ export default class MarketsPage extends BasePage {
     // we have been asked to forcefully reset it (which is needed for example when
     // user switches to another market - because we are sharing same order form
     // between different markets)
-    if ((Doc.isDisplayed(page.orderFormBuy) || Doc.isDisplayed(page.orderFormSell)) && !forseReset) {
+    if ((Doc.isDisplayed(page.orderFormBuy) || Doc.isDisplayed(page.orderFormSell)) && !forceReset) {
       return
     }
 
@@ -922,7 +926,7 @@ export default class MarketsPage extends BasePage {
     const mkt = this.market
 
     const retryDelay = 250 // 250ms delay
-    const maxRetries = 60 // 60 equals to 15s total retries (with 250ms delay)
+    const maxRetries = 60 // 60 equals to 15s of total retries (with 250ms delay)
 
     if (!mkt.bookLoaded && retryNum < maxRetries) {
       // we don't have order-book to fetch default buy/sell rates yet, try again later
@@ -1262,15 +1266,11 @@ export default class MarketsPage extends BasePage {
   }
 
   /* switchToMarket sets the currently displayed market. */
-  async switchToMarket (host: string, baseID: number, quoteID: number) {
+  async switchToMarket (host: string, baseID: number, quoteID: number, retryNum: number) {
     const dex = app().user.exchanges[host]
     const page = this.page
 
-    window.cexBook = async () => {
-      const res = await postJSON('/api/cexbook', { host, baseID, quoteID })
-      console.log(res.book)
-    }
-
+    Doc.hide(page.chartErrMsg)
     // clear orderbook (it contains old data now)
     Doc.empty(this.page.buyRows, this.page.sellRows)
     // hide order form (it contains old data now)
@@ -1281,6 +1281,7 @@ export default class MarketsPage extends BasePage {
     Doc.empty(page.recentMatchesLiveList)
     // hide other notice-type forms
     Doc.hide(page.notRegistered, page.bondRequired, page.noWallet)
+    Doc.show(this.stats.htmlElem)
 
     // If we have not yet connected, there is no dex.assets or any other
     // exchange data, so just put up a message and wait for the connection to be
@@ -1293,19 +1294,13 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    Doc.show(this.stats.htmlElem)
-
     const baseCfg = dex.assets[baseID]
     const quoteCfg = dex.assets[quoteID]
-
     const [bui, qui] = [app().unitInfo(baseID, dex), app().unitInfo(quoteID, dex)]
-
     const rateConversionFactor = OrderUtil.RateEncodingFactor / bui.conventional.conversionFactor * qui.conventional.conversionFactor
-    Doc.hide(page.chartErrMsg)
     const mktId = marketID(baseCfg.symbol, quoteCfg.symbol)
     const baseAsset = app().assets[baseID]
     const quoteAsset = app().assets[quoteID]
-
     const mkt = {
       dex: dex,
       name: mktId, // A string market identifier used by the DEX.
@@ -1328,6 +1323,19 @@ export default class MarketsPage extends BasePage {
       bookLoaded: false
     }
     this.market = mkt
+
+    const retryDelay = 250 // 250ms delay
+    const maxRetries = 120 // 120 equals to 30s of total retries (with 250ms delay)
+
+    const [fiatRateAtom] = this.fiatRate()
+    if (fiatRateAtom === 0 && retryNum < maxRetries) {
+      // we don't have fiat rate just yet, many views on markets page rely on fiat rate to be
+      // there to display various - so it's better to wait and try again
+      setTimeout(() => {
+        this.switchToMarket(host, baseID, quoteID, retryNum + 1)
+      }, retryDelay)
+      return
+    }
 
     this.displayMessageIfMissingWallet()
     this.setMarketDetails()
@@ -2615,24 +2623,46 @@ export default class MarketsPage extends BasePage {
   /*
    * anyRate finds the best rate from any of, in order of priority, the order
    * book, the server's reported spot rate, or the fiat exchange rates. A
-   * 3-tuple of message-rate encoding, a conversion rate, and a conventional
+   * 3-tuple of message-rate encoding (atoms), an inverted rate, and a conventional
    * rate is generated.
+   * Returns [0, 0, 0] if none of the rate sources are able to provide rate.
    */
   anyRate (): [number, number, number] {
-    const { cfg: { spot }, baseCfg: { id: baseID }, quoteCfg: { id: quoteID }, rateConversionFactor, bookLoaded } = this.market
+    const { cfg: { spot }, rateConversionFactor, bookLoaded } = this.market
+
     if (bookLoaded) {
       const midGapAtom = this.midGapRateAtom()
-      if (midGapAtom) return [midGapAtom, midGapAtom / OrderUtil.RateEncodingFactor, midGapAtom / rateConversionFactor || 0]
+      if (midGapAtom) {
+        return [midGapAtom, midGapAtom / OrderUtil.RateEncodingFactor, midGapAtom / rateConversionFactor || 0]
+      }
     }
-    if (spot && spot.rate) return [spot.rate, spot.rate / OrderUtil.RateEncodingFactor, spot.rate / rateConversionFactor]
+
+    if (spot && spot.rate) {
+      return [spot.rate, spot.rate / OrderUtil.RateEncodingFactor, spot.rate / rateConversionFactor]
+    }
+
+    const [msgRate, conventionalRate] = this.fiatRate()
+    if (msgRate > 0) {
+      const invertedRate = msgRate / OrderUtil.RateEncodingFactor
+      return [msgRate, invertedRate, conventionalRate]
+    }
+
+    return [0, 0, 0]
+  }
+
+  /*
+   * fiatRate returns fiat rate as 2-tuple of message-rate encoding (atoms) and a conventional.
+   * Returns [0, 0] if fiat rate isn't available.
+   */
+  fiatRate (): [number, number] {
+    const { baseCfg: { id: baseID }, quoteCfg: { id: quoteID }, rateConversionFactor } = this.market
     const [baseUSD, quoteUSD] = [app().fiatRatesMap[baseID], app().fiatRatesMap[quoteID]]
     if (baseUSD && quoteUSD) {
       const conventionalRate = baseUSD / quoteUSD
       const msgRate = conventionalRate * rateConversionFactor
-      const conversionRate = msgRate / OrderUtil.RateEncodingFactor
-      return [msgRate, conversionRate, conventionalRate]
+      return [msgRate, conventionalRate]
     }
-    return [0, 0, 0]
+    return [0, 0]
   }
 
   handleMatchNote (note: MatchNote) {
