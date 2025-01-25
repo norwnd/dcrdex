@@ -2743,7 +2743,8 @@ export default class MarketsPage extends BasePage {
       const row = page.recentMatchesTemplate.cloneNode(true) as HTMLElement
       const tmpl = Doc.parseTemplate(row)
       app().bindTooltips(row)
-      tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep, match.sell)
+      const isSell = !match.sell // for match (when rate-formatting) the meaning of sell is reversed
+      tmpl.price.textContent = Doc.formatRateAtomToRateStep(match.rate, mkt.baseUnitInfo, mkt.quoteUnitInfo, mkt.cfg.ratestep, isSell)
       tmpl.price.classList.add(match.sell ? 'sellcolor' : 'buycolor')
       tmpl.qty.textContent = Doc.formatCoinAtomToLotSizeBaseCurrency(match.qty, mkt.baseUnitInfo, mkt.cfg.lotsize)
       tmpl.qty.classList.add(match.sell ? 'sellcolor' : 'buycolor')
