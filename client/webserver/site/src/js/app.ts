@@ -462,7 +462,7 @@ export default class Application {
       rows.appendChild(row)
       row.classList.add('p-2', 'hoverbg', 'pointer')
       Doc.bind(row, 'click', () => {
-        Doc.setText(el, '[data-value]', Doc.formatFourSigFigs(atoms / cFactor, Math.round(Math.log10(cFactor))))
+        Doc.setText(el, '[data-value]', Doc.formatBestWeCan(atoms / cFactor, Math.round(Math.log10(cFactor))))
         Doc.setText(el, '[data-unit]', unit)
       })
     }

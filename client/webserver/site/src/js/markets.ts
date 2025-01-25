@@ -721,10 +721,10 @@ export default class MarketsPage extends BasePage {
 
     const { unitInfo: { conventional: { conversionFactor: cFactor, unit } } } = xc.assets[mkt.baseid]
     if (baseFiatRate) {
-      this.stats.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor * baseFiatRate)
+      this.stats.tmpl.volume24.textContent = Doc.formatBestWeCan(mkt.spot.vol24 / cFactor * baseFiatRate)
       this.stats.tmpl.volume24Unit.textContent = 'USD'
     } else {
-      this.stats.tmpl.volume24.textContent = Doc.formatFourSigFigs(mkt.spot.vol24 / cFactor)
+      this.stats.tmpl.volume24.textContent = Doc.formatBestWeCan(mkt.spot.vol24 / cFactor)
       this.stats.tmpl.volume24Unit.textContent = unit
     }
 
@@ -1493,6 +1493,8 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
+    const maxDigits = 9 // how large a formatted number can be (for total preview)
+
     if (orderQtyAtom > 0 && orderRateAtom > 0) {
       const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
       const totalIn = orderQtyAtom
@@ -1500,24 +1502,24 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewBuyLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeQuoteCurrency(
+          total: Doc.capNumberStr(Doc.formatCoinAtomToLotSizeQuoteCurrency(
             totalOut,
             market.baseUnitInfo,
             market.quoteUnitInfo,
             market.cfg.lotsize,
             market.cfg.ratestep
-          ),
+          ), maxDigits),
           asset: market.quoteUnitInfo.conventional.unit
         }
       )
       page.orderTotalPreviewBuyRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeBaseCurrency(
+          total: Doc.capNumberStr(Doc.formatCoinAtomToLotSizeBaseCurrency(
             totalIn,
             market.baseUnitInfo,
             market.cfg.lotsize
-          ),
+          ), maxDigits),
           asset: market.baseUnitInfo.conventional.unit
         }
       )
@@ -1535,6 +1537,8 @@ export default class MarketsPage extends BasePage {
     const page = this.page
     const market = this.market
 
+    const maxDigits = 9 // how large a formatted number can be (for total preview)
+
     if (orderQtyAtom > 0 && orderRateAtom > 0) {
       const totalOut = orderQtyAtom * orderRateAtom / OrderUtil.RateEncodingFactor
       const totalIn = orderQtyAtom
@@ -1542,24 +1546,24 @@ export default class MarketsPage extends BasePage {
       page.orderTotalPreviewSellLeft.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_OUT_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeBaseCurrency(
+          total: Doc.capNumberStr(Doc.formatCoinAtomToLotSizeBaseCurrency(
             totalIn,
             market.baseUnitInfo,
             market.cfg.lotsize
-          ),
+          ), maxDigits),
           asset: market.baseUnitInfo.conventional.unit
         }
       )
       page.orderTotalPreviewSellRight.textContent = intl.prep(
         intl.ID_LIMIT_ORDER_BUY_SELL_IN_TOTAL_PREVIEW,
         {
-          total: Doc.formatCoinAtomToLotSizeQuoteCurrency(
+          total: Doc.capNumberStr(Doc.formatCoinAtomToLotSizeQuoteCurrency(
             totalOut,
             market.baseUnitInfo,
             market.quoteUnitInfo,
             market.cfg.lotsize,
             market.cfg.ratestep
-          ),
+          ), maxDigits),
           asset: market.quoteUnitInfo.conventional.unit
         }
       )
@@ -2590,13 +2594,13 @@ export default class MarketsPage extends BasePage {
     const { auth } = app().exchanges[host]
 
     page.parcelSizeLots.textContent = String(mkt.parcelsize)
-    page.marketLimitBase.textContent = Doc.formatFourSigFigs(mkt.parcelsize * mkt.lotsize / bui.conventional.conversionFactor)
+    page.marketLimitBase.textContent = Doc.formatBestWeCan(mkt.parcelsize * mkt.lotsize / bui.conventional.conversionFactor)
     page.marketLimitBaseUnit.textContent = bui.conventional.unit
     page.marketLimitQuoteUnit.textContent = qui.conventional.unit
     const conversionRate = this.anyRate()[1]
     if (conversionRate) {
       const qty = mkt.lotsize * conversionRate
-      page.marketLimitQuote.textContent = Doc.formatFourSigFigs(mkt.parcelsize * qty / qui.conventional.conversionFactor)
+      page.marketLimitQuote.textContent = Doc.formatBestWeCan(mkt.parcelsize * qty / qui.conventional.conversionFactor)
     } else page.marketLimitQuote.textContent = '-'
 
     const tier = strongTier(auth)

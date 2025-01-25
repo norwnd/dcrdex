@@ -406,14 +406,14 @@ export default class MarketMakerPage extends BasePage {
       const fiatRate = app().fiatRatesMap[assetID]
       if (fiatRate) usdBal += fiatRate * (bal.available + bal.locked) / unitInfo.conventional.conversionFactor
     }
-    tmpl.usdBalance.textContent = Doc.formatFourSigFigs(usdBal)
+    tmpl.usdBalance.textContent = Doc.formatBestWeCan(usdBal)
   }
 
   percentageBalanceStr (assetID: number, balance: number, percentage: number): string {
     const asset = app().assets[assetID]
     const unitInfo = asset.unitInfo
     const assetValue = Doc.formatCoinAtom((balance * percentage) / 100, unitInfo)
-    return `${Doc.formatFourSigFigs(percentage)}% - ${assetValue} ${asset.symbol.toUpperCase()}`
+    return `${Doc.formatBestWeCan(percentage)}% - ${assetValue} ${asset.symbol.toUpperCase()}`
   }
 
   /*
@@ -539,8 +539,8 @@ class Bot extends BotMarket {
         Doc.setVis(mkt?.day, page.cexDataBox)
         if (mkt?.day) {
           const day = mkt.day
-          page.cexPrice.textContent = Doc.formatFourSigFigs(day.lastPrice)
-          page.cexVol.textContent = Doc.formatFourSigFigs(baseFiatRate * day.vol)
+          page.cexPrice.textContent = Doc.formatBestWeCan(day.lastPrice)
+          page.cexVol.textContent = Doc.formatBestWeCan(baseFiatRate * day.vol)
         }
       }
     }
@@ -550,8 +550,8 @@ class Bot extends BotMarket {
     if (spot) {
       Doc.show(page.dexDataBox)
       const c = OrderUtil.RateEncodingFactor / baseFactor * quoteFactor
-      page.dexPrice.textContent = Doc.formatFourSigFigs(spot.rate / c)
-      page.dexVol.textContent = Doc.formatFourSigFigs(spot.vol24 / baseFactor * baseFiatRate)
+      page.dexPrice.textContent = Doc.formatBestWeCan(spot.rate / c)
+      page.dexVol.textContent = Doc.formatBestWeCan(spot.vol24 / baseFactor * baseFiatRate)
     }
 
     this.updateDisplay()
@@ -565,7 +565,7 @@ class Bot extends BotMarket {
     Doc.setVis(running, tmpl.profitLossBox)
     Doc.setVis(!running, tmpl.allocateBttnBox)
     if (runStats) {
-      tmpl.profitLoss.textContent = Doc.formatFourSigFigs(runStats.profitLoss.profit, 2)
+      tmpl.profitLoss.textContent = Doc.formatBestWeCan(runStats.profitLoss.profit, 2)
     }
   }
 
@@ -597,7 +597,7 @@ class Bot extends BotMarket {
     page.baseAlloc.textContent = Doc.formatFullPrecision(alloc[baseID], bui)
     const baseUSD = alloc[baseID] / baseFactor * baseFiatRate
     let totalUSD = baseUSD
-    page.baseAllocUSD.textContent = Doc.formatFourSigFigs(baseUSD)
+    page.baseAllocUSD.textContent = Doc.formatBestWeCan(baseUSD)
     page.baseBookAlloc.textContent = Doc.formatFullPrecision(bProj.book * baseFactor, bui)
     page.baseOrderReservesAlloc.textContent = Doc.formatFullPrecision(bProj.orderReserves * baseFactor, bui)
     page.baseOrderReservesPct.textContent = String(Math.round(baseConfig.orderReservesFactor * 100))
@@ -613,7 +613,7 @@ class Bot extends BotMarket {
       page.baseTokenFeeAlloc.textContent = Doc.formatFullPrecision(feeAlloc, baseFeeUI)
       const baseFeeUSD = feeAlloc / baseFeeFactor * app().fiatRatesMap[baseFeeID]
       totalUSD += baseFeeUSD
-      page.baseTokenAllocUSD.textContent = Doc.formatFourSigFigs(baseFeeUSD)
+      page.baseTokenAllocUSD.textContent = Doc.formatBestWeCan(baseFeeUSD)
       const withQuote = baseFeeID === quoteFeeID
       const bookingFees = bProj.bookingFees + (withQuote ? qProj.bookingFees : 0)
       page.baseTokenBookingFees.textContent = Doc.formatFullPrecision(bookingFees * baseFeeFactor, baseFeeUI)
@@ -625,7 +625,7 @@ class Bot extends BotMarket {
     page.quoteAlloc.textContent = Doc.formatFullPrecision(alloc[quoteID], qui)
     const quoteUSD = alloc[quoteID] / quoteFactor * quoteFiatRate
     totalUSD += quoteUSD
-    page.quoteAllocUSD.textContent = Doc.formatFourSigFigs(quoteUSD)
+    page.quoteAllocUSD.textContent = Doc.formatBestWeCan(quoteUSD)
     page.quoteBookAlloc.textContent = Doc.formatFullPrecision(qProj.book * quoteFactor, qui)
     page.quoteOrderReservesAlloc.textContent = Doc.formatFullPrecision(qProj.orderReserves * quoteFactor, qui)
     page.quoteOrderReservesPct.textContent = String(Math.round(quoteConfig.orderReservesFactor * 100))
@@ -642,12 +642,12 @@ class Bot extends BotMarket {
       page.quoteTokenFeeAlloc.textContent = Doc.formatFullPrecision(alloc[quoteFeeID], quoteFeeUI)
       const quoteFeeUSD = alloc[quoteFeeID] / quoteFeeFactor * app().fiatRatesMap[quoteFeeID]
       totalUSD += quoteFeeUSD
-      page.quoteTokenAllocUSD.textContent = Doc.formatFourSigFigs(quoteFeeUSD)
+      page.quoteTokenAllocUSD.textContent = Doc.formatBestWeCan(quoteFeeUSD)
       page.quoteTokenBookingFees.textContent = Doc.formatFullPrecision(qProj.bookingFees * quoteFeeFactor, quoteFeeUI)
       page.quoteTokenSwapFeeN.textContent = String(quoteConfig.swapFeeN)
       page.quoteTokenSwapFees.textContent = Doc.formatFullPrecision(qProj.swapFeeReserves * quoteFeeFactor, quoteFeeUI)
     }
-    page.totalAllocUSD.textContent = Doc.formatFourSigFigs(totalUSD)
+    page.totalAllocUSD.textContent = Doc.formatBestWeCan(totalUSD)
   }
 
   /*
@@ -693,7 +693,7 @@ class Bot extends BotMarket {
     totalUSD += (alloc.cex[baseID] / baseFactor * baseFiatRate) + (alloc.cex[quoteID] / quoteFactor * quoteFiatRate)
     if (baseFeeID !== baseID) totalUSD += alloc.dex[baseFeeID] / baseFeeFactor * baseFeeFiatRate
     if (quoteFeeID !== quoteID && quoteFeeID !== baseFeeID) totalUSD += alloc.dex[quoteFeeID] / quoteFeeFactor * quoteFeeFiatRate
-    page.allocUSD.textContent = Doc.formatFourSigFigs(totalUSD)
+    page.allocUSD.textContent = Doc.formatBestWeCan(totalUSD)
 
     Doc.setVis(cexName, ...Doc.applySelector(page.allocationDialog, '[data-cex-only]'))
     Doc.setVis(f.fundedAndBalanced, page.fundedAndBalancedBox)
@@ -706,10 +706,10 @@ class Bot extends BotMarket {
     page.proposedDexQuoteAlloc.classList.toggle('text-warning', !(f.quote.fundedAndBalanced || f.quote.fundedAndNotBalanced))
 
     const setBaseProposal = (dex: number, cex: number) => {
-      page.proposedDexBaseAlloc.textContent = Doc.formatFourSigFigs(dex)
-      page.proposedDexBaseAllocUSD.textContent = Doc.formatFourSigFigs(dex * baseFiatRate)
-      page.proposedCexBaseAlloc.textContent = Doc.formatFourSigFigs(cex)
-      page.proposedCexBaseAllocUSD.textContent = Doc.formatFourSigFigs(cex * baseFiatRate)
+      page.proposedDexBaseAlloc.textContent = Doc.formatBestWeCan(dex)
+      page.proposedDexBaseAllocUSD.textContent = Doc.formatBestWeCan(dex * baseFiatRate)
+      page.proposedCexBaseAlloc.textContent = Doc.formatBestWeCan(cex)
+      page.proposedCexBaseAllocUSD.textContent = Doc.formatBestWeCan(cex * baseFiatRate)
     }
     setBaseProposal(proposedDexBase, proposedCexBase)
 
@@ -728,10 +728,10 @@ class Bot extends BotMarket {
     }
 
     const setQuoteProposal = (dex: number, cex: number) => {
-      page.proposedDexQuoteAlloc.textContent = Doc.formatFourSigFigs(dex)
-      page.proposedDexQuoteAllocUSD.textContent = Doc.formatFourSigFigs(dex * quoteFiatRate)
-      page.proposedCexQuoteAlloc.textContent = Doc.formatFourSigFigs(cex)
-      page.proposedCexQuoteAllocUSD.textContent = Doc.formatFourSigFigs(cex * quoteFiatRate)
+      page.proposedDexQuoteAlloc.textContent = Doc.formatBestWeCan(dex)
+      page.proposedDexQuoteAllocUSD.textContent = Doc.formatBestWeCan(dex * quoteFiatRate)
+      page.proposedCexQuoteAlloc.textContent = Doc.formatBestWeCan(cex)
+      page.proposedCexQuoteAllocUSD.textContent = Doc.formatBestWeCan(cex * quoteFiatRate)
     }
     setQuoteProposal(proposedDexQuote, proposedCexQuote)
 
@@ -753,8 +753,8 @@ class Bot extends BotMarket {
     if (baseFeeID !== baseID) {
       const reqFees = f.base.fees.req + (baseFeeID === quoteFeeID ? f.quote.fees.req : 0)
       const proposedFees = Math.min(reqFees, f.base.fees.avail)
-      page.proposedDexBaseFeeAlloc.textContent = Doc.formatFourSigFigs(proposedFees)
-      page.proposedDexBaseFeeAllocUSD.textContent = Doc.formatFourSigFigs(proposedFees * baseFeeFiatRate)
+      page.proposedDexBaseFeeAlloc.textContent = Doc.formatBestWeCan(proposedFees)
+      page.proposedDexBaseFeeAllocUSD.textContent = Doc.formatBestWeCan(proposedFees * baseFeeFiatRate)
       page.proposedDexBaseFeeAlloc.classList.toggle('text-warning', !f.base.fees.funded)
     }
 
@@ -762,8 +762,8 @@ class Bot extends BotMarket {
     Doc.setVis(needQuoteTokenFees, ...Doc.applySelector(page.allocationDialog, '[data-quote-token-fees]'))
     if (needQuoteTokenFees) {
       const proposedFees = Math.min(f.quote.fees.req, f.quote.fees.avail)
-      page.proposedDexQuoteFeeAlloc.textContent = Doc.formatFourSigFigs(proposedFees)
-      page.proposedDexQuoteFeeAllocUSD.textContent = Doc.formatFourSigFigs(proposedFees * quoteFeeFiatRate)
+      page.proposedDexQuoteFeeAlloc.textContent = Doc.formatBestWeCan(proposedFees)
+      page.proposedDexQuoteFeeAllocUSD.textContent = Doc.formatBestWeCan(proposedFees * quoteFeeFiatRate)
       page.proposedDexQuoteFeeAlloc.classList.toggle('text-warning', !f.quote.fees.funded)
     }
 

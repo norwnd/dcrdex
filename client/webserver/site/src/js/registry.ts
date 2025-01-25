@@ -5,7 +5,6 @@ declare global {
     recordLogger: (loggerID: string, enable: boolean) => void
     dumpLogger: (loggerID: string) => void
     mmstatus: () => Promise<MarketMakingStatus>
-    testFormatFourSigFigs: () => void
     testFormatRateAtomToRateStep: () => void
     user: () => User
     cexBook: () => Promise<void>

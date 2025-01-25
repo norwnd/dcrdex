@@ -1828,21 +1828,21 @@ export default class MarketMakerSettingsPage extends BasePage {
         const tmpl = Doc.parseTemplate(tr)
         tmpl.logo.src = 'img/' + o.host + '.png'
         tmpl.host.textContent = ExchangeNames[o.host]
-        tmpl.volume.textContent = Doc.formatFourSigFigs(o.usdVol)
-        tmpl.price.textContent = Doc.formatFourSigFigs((o.bestBuy + o.bestSell) / 2)
+        tmpl.volume.textContent = Doc.formatBestWeCan(o.usdVol)
+        tmpl.price.textContent = Doc.formatBestWeCan((o.bestBuy + o.bestSell) / 2)
       }
-      page.avgPrice.textContent = r.price ? Doc.formatFourSigFigs(r.price) : '0'
+      page.avgPrice.textContent = r.price ? Doc.formatBestWeCan(r.price) : '0'
       Doc.show(page.oraclesTable)
     }
 
     if (r.baseFiatRate > 0) {
-      page.baseFiatRate.textContent = Doc.formatFourSigFigs(r.baseFiatRate)
+      page.baseFiatRate.textContent = Doc.formatBestWeCan(r.baseFiatRate)
     } else {
       page.baseFiatRate.textContent = 'N/A'
     }
 
     if (r.quoteFiatRate > 0) {
-      page.quoteFiatRate.textContent = Doc.formatFourSigFigs(r.quoteFiatRate)
+      page.quoteFiatRate.textContent = Doc.formatBestWeCan(r.quoteFiatRate)
     } else {
       page.quoteFiatRate.textContent = 'N/A'
     }
@@ -2163,31 +2163,31 @@ class AssetPane {
     this.setLotSize(lotSize)
     const { page, cfg, lotSizeConv, inv, ui, feeUI, isToken, isQuote, pg: { specs: { cexName, botType } } } = this
     page.bookLots.textContent = String(lots)
-    page.bookLotSize.textContent = Doc.formatFourSigFigs(lotSizeConv)
+    page.bookLotSize.textContent = Doc.formatBestWeCan(lotSizeConv)
     inv.book = lots * lotSizeConv
-    page.bookCommitment.textContent = Doc.formatFourSigFigs(inv.book)
+    page.bookCommitment.textContent = Doc.formatBestWeCan(inv.book)
     const feesPerLotConv = fees.bookingFeesPerLot / feeUI.conventional.conversionFactor
-    page.bookingFeesPerLot.textContent = Doc.formatFourSigFigs(feesPerLotConv)
+    page.bookingFeesPerLot.textContent = Doc.formatBestWeCan(feesPerLotConv)
     page.swapReservesFactor.textContent = fees.swapReservesFactor.toFixed(2)
     page.bookingFeesLots.textContent = String(lots)
     inv.bookingFees = fees.bookingFees / feeUI.conventional.conversionFactor
-    page.bookingFees.textContent = Doc.formatFourSigFigs(inv.bookingFees)
+    page.bookingFees.textContent = Doc.formatBestWeCan(inv.bookingFees)
     if (cexName) {
       inv.cex = cexCommit / ui.conventional.conversionFactor
-      page.cexMinInv.textContent = Doc.formatFourSigFigs(inv.cex)
+      page.cexMinInv.textContent = Doc.formatBestWeCan(inv.cex)
     }
     if (botType !== botTypeBasicArb) {
       const totalInventory = Math.max(cexCommit, dexCommit) / ui.conventional.conversionFactor
-      page.orderReservesBasis.textContent = Doc.formatFourSigFigs(totalInventory)
+      page.orderReservesBasis.textContent = Doc.formatBestWeCan(totalInventory)
       const orderReserves = totalInventory * cfg.orderReservesFactor
       inv.orderReserves = orderReserves
-      page.orderReserves.textContent = Doc.formatFourSigFigs(orderReserves)
+      page.orderReserves.textContent = Doc.formatBestWeCan(orderReserves)
     }
     if (isToken) {
       const feesPerSwapConv = fees.tokenFeesPerSwap / feeUI.conventional.conversionFactor
-      page.feeReservesPerSwap.textContent = Doc.formatFourSigFigs(feesPerSwapConv)
+      page.feeReservesPerSwap.textContent = Doc.formatBestWeCan(feesPerSwapConv)
       inv.swapFeeReserves = feesPerSwapConv * cfg.swapFeeN
-      page.feeReserves.textContent = Doc.formatFourSigFigs(inv.swapFeeReserves)
+      page.feeReserves.textContent = Doc.formatBestWeCan(inv.swapFeeReserves)
     }
     if (isQuote) {
       const basis = inv.book + inv.cex + inv.orderReserves
@@ -2198,7 +2198,7 @@ class AssetPane {
     Doc.setVis(fees.bookingFeesPerCounterLot > 0, page.redemptionFeesBox)
     if (fees.bookingFeesPerCounterLot > 0) {
       const feesPerLotConv = fees.bookingFeesPerCounterLot / feeUI.conventional.conversionFactor
-      page.redemptionFeesPerLot.textContent = Doc.formatFourSigFigs(feesPerLotConv)
+      page.redemptionFeesPerLot.textContent = Doc.formatBestWeCan(feesPerLotConv)
       page.redemptionFeesLots.textContent = String(counterLots)
       page.redeemReservesFactor.textContent = fees.redeemReservesFactor.toFixed(2)
     }
@@ -2211,7 +2211,7 @@ class AssetPane {
     const { page, assetID, ui } = this
     const commit = this.commit()
     page.commitTotal.textContent = Doc.formatCoinAtom(Math.round(commit * ui.conventional.conversionFactor), ui)
-    page.commitTotalFiat.textContent = Doc.formatFourSigFigs(commit * app().fiatRatesMap[assetID])
+    page.commitTotalFiat.textContent = Doc.formatBestWeCan(commit * app().fiatRatesMap[assetID])
   }
 
   updateTokenFees () {
@@ -2219,7 +2219,7 @@ class AssetPane {
     if (!isToken) return
     const feeReserves = inv.bookingFees + inv.swapFeeReserves
     page.feeTotal.textContent = Doc.formatCoinAtom(feeReserves * feeUI.conventional.conversionFactor, feeUI)
-    page.feeTotalFiat.textContent = Doc.formatFourSigFigs(feeReserves * app().fiatRatesMap[feeAssetID])
+    page.feeTotalFiat.textContent = Doc.formatBestWeCan(feeReserves * app().fiatRatesMap[feeAssetID])
   }
 
   updateRebalance () {
@@ -2320,14 +2320,14 @@ class AssetPane {
     let cexAvail = 0
     Doc.setVis(cexName, page.balanceBreakdown)
     if (cexName) {
-      page.dexAvail.textContent = Doc.formatFourSigFigs(dexAvail / ui.conventional.conversionFactor)
+      page.dexAvail.textContent = Doc.formatBestWeCan(dexAvail / ui.conventional.conversionFactor)
       const { available: cexRawAvail } = assetID === baseID ? cexBaseBalance : cexQuoteBalance
       cexAvail = cexRawAvail - botInv.cex.total
-      page.cexAvail.textContent = Doc.formatFourSigFigs(cexAvail / ui.conventional.conversionFactor)
+      page.cexAvail.textContent = Doc.formatBestWeCan(cexAvail / ui.conventional.conversionFactor)
     }
-    page.avail.textContent = Doc.formatFourSigFigs((dexAvail + cexAvail) / ui.conventional.conversionFactor)
+    page.avail.textContent = Doc.formatBestWeCan((dexAvail + cexAvail) / ui.conventional.conversionFactor)
     if (assetID === feeAssetID) return
     const { balance: { available: feeAvail } } = app().walletMap[feeAssetID]
-    page.feeAvail.textContent = Doc.formatFourSigFigs(feeAvail / feeUI.conventional.conversionFactor)
+    page.feeAvail.textContent = Doc.formatBestWeCan(feeAvail / feeUI.conventional.conversionFactor)
   }
 }

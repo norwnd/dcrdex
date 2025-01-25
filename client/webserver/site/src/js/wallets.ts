@@ -961,7 +961,7 @@ export default class WalletsPage extends BasePage {
       const fiatRate = app().fiatRatesMap[a.id]
       if (fiatRate) {
         Doc.show(tmpl.fiatBox)
-        tmpl.fiat.textContent = Doc.formatFourSigFigs(totalBalance / ui.conventional.conversionFactor * fiatRate)
+        tmpl.fiat.textContent = Doc.formatBestWeCan(totalBalance / ui.conventional.conversionFactor * fiatRate)
       }
     } else Doc.show(tmpl.noWallet)
   }
@@ -1052,13 +1052,13 @@ export default class WalletsPage extends BasePage {
     Doc.formatBestValueElement(page.feeStateSendFees, feeAssetID, feeState.send, feeUI)
     Doc.formatBestValueElement(page.feeStateSwapFees, feeAssetID, feeState.swap, feeUI)
     Doc.formatBestValueElement(page.feeStateRedeemFees, feeAssetID, feeState.redeem, feeUI)
-    page.feeStateXcRate.textContent = Doc.formatFourSigFigs(fiatRate)
+    page.feeStateXcRate.textContent = Doc.formatBestWeCan(fiatRate)
     const sendFiat = feeState.send / feeUI.conventional.conversionFactor * feeFiatRate
-    page.feeStateSendFiat.textContent = Doc.formatFourSigFigs(sendFiat)
+    page.feeStateSendFiat.textContent = Doc.formatBestWeCan(sendFiat)
     const swapFiat = feeState.swap / feeUI.conventional.conversionFactor * feeFiatRate
-    page.feeStateSwapFiat.textContent = Doc.formatFourSigFigs(swapFiat)
+    page.feeStateSwapFiat.textContent = Doc.formatBestWeCan(swapFiat)
     const redeemFiat = feeState.redeem / feeUI.conventional.conversionFactor * feeFiatRate
-    page.feeStateRedeemFiat.textContent = Doc.formatFourSigFigs(redeemFiat)
+    page.feeStateRedeemFiat.textContent = Doc.formatBestWeCan(redeemFiat)
     Doc.show(page.feeStateBox)
   }
 
@@ -1103,7 +1103,7 @@ export default class WalletsPage extends BasePage {
     this.stakeStatus = stakeStatus
     page.stakingAgendaCount.textContent = String(stakeStatus.stances.agendas.length)
     page.stakingTspendCount.textContent = String(stakeStatus.stances.tspends.length)
-    page.purchaserCurrentPrice.textContent = Doc.formatFourSigFigs(stakeStatus.ticketPrice / ui.conventional.conversionFactor)
+    page.purchaserCurrentPrice.textContent = Doc.formatBestWeCan(stakeStatus.ticketPrice / ui.conventional.conversionFactor)
     page.purchaserBal.textContent = Doc.formatCoinAtom(wallet.balance.available, ui)
     this.updateTicketStats(stakeStatus.stats, ui, stakeStatus.ticketPrice, stakeStatus.votingSubsidy)
     // If this is an extension wallet, we'll might to disable all controls.
@@ -1144,10 +1144,10 @@ export default class WalletsPage extends BasePage {
     page.formQueuedTix.textContent = String(stats.queued)
     Doc.setVis(stats.queued > 0, page.formQueueTixBox, page.queuedTicketCountBox)
     page.totalTicketCount.textContent = String(stats.ticketCount)
-    page.totalTicketRewards.textContent = Doc.formatFourSigFigs(stats.totalRewards / ui.conventional.conversionFactor)
+    page.totalTicketRewards.textContent = Doc.formatBestWeCan(stats.totalRewards / ui.conventional.conversionFactor)
     page.totalTicketVotes.textContent = String(stats.votes)
-    if (ticketPrice) page.ticketPrice.textContent = Doc.formatFourSigFigs(ticketPrice / ui.conventional.conversionFactor)
-    if (votingSubsidy) page.votingSubsidy.textContent = Doc.formatFourSigFigs(votingSubsidy / ui.conventional.conversionFactor)
+    if (ticketPrice) page.ticketPrice.textContent = Doc.formatBestWeCan(ticketPrice / ui.conventional.conversionFactor)
+    if (votingSubsidy) page.votingSubsidy.textContent = Doc.formatBestWeCan(votingSubsidy / ui.conventional.conversionFactor)
   }
 
   async showVSPPicker () {
@@ -1411,7 +1411,7 @@ export default class WalletsPage extends BasePage {
           setTspendVote(tspend.hash, opt.value ?? '')
         })
       }
-      if (tspend.value > 0) tmpl.value.textContent = Doc.formatFourSigFigs(tspend.value / ui.conventional.conversionFactor)
+      if (tspend.value > 0) tmpl.value.textContent = Doc.formatBestWeCan(tspend.value / ui.conventional.conversionFactor)
       else Doc.hide(tmpl.value)
       tmpl.hash.textContent = tspend.hash
       tmpl.explorerLink.setAttribute('href', coinLink(tspend.hash))
@@ -1549,7 +1549,7 @@ export default class WalletsPage extends BasePage {
     // TODO: handle reserves deficit with a notification.
     // if (bal.reservesDeficit > 0) addPrimaryBalance(intl.prep(intl.ID_RESERVES_DEFICIT), bal.reservesDeficit, intl.prep(intl.ID_RESERVES_DEFICIT_MSG))
 
-    page.purchaserBal.textContent = Doc.formatFourSigFigs(bal.available / ui.conventional.conversionFactor)
+    page.purchaserBal.textContent = Doc.formatBestWeCan(bal.available / ui.conventional.conversionFactor)
     app().bindTooltips(page.balanceDetailBox)
   }
 
@@ -1594,11 +1594,11 @@ export default class WalletsPage extends BasePage {
 
       if (spot) {
         const convRate = app().conventionalRate(baseid, quoteid, spot.rate, exchanges[host])
-        tmpl.price.textContent = Doc.formatFourSigFigs(convRate)
+        tmpl.price.textContent = Doc.formatBestWeCan(convRate)
         const fmtSymbol = (s: string) => s.split('.')[0].toUpperCase()
         tmpl.priceQuoteUnit.textContent = fmtSymbol(quotesymbol)
         tmpl.priceBaseUnit.textContent = fmtSymbol(basesymbol)
-        tmpl.volume.textContent = Doc.formatFourSigFigs(spotVolume(assetID, mkt))
+        tmpl.volume.textContent = Doc.formatBestWeCan(spotVolume(assetID, mkt))
         tmpl.volumeUnit.textContent = assetID === baseid ? fmtSymbol(basesymbol) : fmtSymbol(quotesymbol)
       } else Doc.hide(tmpl.priceBox, tmpl.volumeBox)
       Doc.bind(row, 'click', () => app().loadPage('markets', { host, baseID: baseid, quoteID: quoteid }))

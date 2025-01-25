@@ -825,20 +825,20 @@ export class ConfirmRegistrationForm {
     const bondLockConventional = bondLock / conversionFactor
     page.tradingTier.textContent = String(tier)
     page.logo.src = Doc.logoPath(asset.symbol)
-    page.bondLock.textContent = Doc.formatFourSigFigs(bondLockConventional)
+    page.bondLock.textContent = Doc.formatBestWeCan(bondLockConventional)
     page.bondUnit.textContent = unit
     const r = app().fiatRatesMap[assetID]
     Doc.show(page.bondLockUSDBox)
-    if (r) page.bondLockUSD.textContent = Doc.formatFourSigFigs(bondLockConventional * r)
+    if (r) page.bondLockUSD.textContent = Doc.formatBestWeCan(bondLockConventional * r)
     else Doc.hide(page.bondLockUSDBox)
-    if (fees) page.feeReserves.textContent = Doc.formatFourSigFigs(fees / conversionFactor)
+    if (fees) page.feeReserves.textContent = Doc.formatBestWeCan(fees / conversionFactor)
     page.reservesUnit.textContent = unit
   }
 
   setFees (assetID: number, fees: number) {
     this.fees = fees
     const conversionFactor = app().assets[assetID].unitInfo.conventional.conversionFactor
-    this.page.feeReserves.textContent = Doc.formatFourSigFigs(fees / conversionFactor)
+    this.page.feeReserves.textContent = Doc.formatBestWeCan(fees / conversionFactor)
   }
 
   /* Form expands into its space quickly from the lower-right as it fades in. */
@@ -1002,10 +1002,10 @@ export class FeeAssetSelectionForm {
       Doc.bind(tr, 'click', () => { this.assetSelected(assetID) })
       tmpl.feeSymbol.textContent = unit
       const bondSizeConventional = bondAsset.amount / conversionFactor
-      tmpl.feeAmt.textContent = Doc.formatFourSigFigs(bondSizeConventional)
+      tmpl.feeAmt.textContent = Doc.formatBestWeCan(bondSizeConventional)
       const fiatRate = app().fiatRatesMap[assetID]
       Doc.setVis(fiatRate, tmpl.fiatBox)
-      if (fiatRate) tmpl.fiatBondAmount.textContent = Doc.formatFourSigFigs(bondSizeConventional * fiatRate)
+      if (fiatRate) tmpl.fiatBondAmount.textContent = Doc.formatBestWeCan(bondSizeConventional * fiatRate)
       this.assetRows[assetID] = { ready: tmpl.ready }
     }
 
@@ -1029,12 +1029,12 @@ export class FeeAssetSelectionForm {
         const conventionalLotSize = lotSize / bui.conventional.conversionFactor
         const startingLimit = conventionalLotSize * parcelSize * perTierBaseParcelLimit * tier
         const privilegedLimit = conventionalLotSize * parcelSize * perTierBaseParcelLimit * parcelLimitScoreMultiplier * tier
-        tmpl.tradeLimitLow.textContent = Doc.formatFourSigFigs(startingLimit)
-        tmpl.tradeLimitHigh.textContent = Doc.formatFourSigFigs(privilegedLimit)
+        tmpl.tradeLimitLow.textContent = Doc.formatBestWeCan(startingLimit)
+        tmpl.tradeLimitHigh.textContent = Doc.formatBestWeCan(privilegedLimit)
         const baseFiatRate = app().fiatRatesMap[baseID]
         if (baseFiatRate) {
-          tmpl.fiatTradeLimitLow.textContent = Doc.formatFourSigFigs(startingLimit * baseFiatRate)
-          tmpl.fiatTradeLimitHigh.textContent = Doc.formatFourSigFigs(privilegedLimit * baseFiatRate)
+          tmpl.fiatTradeLimitLow.textContent = Doc.formatBestWeCan(startingLimit * baseFiatRate)
+          tmpl.fiatTradeLimitHigh.textContent = Doc.formatBestWeCan(privilegedLimit * baseFiatRate)
         }
         Doc.setVis(baseFiatRate, page.fiatTradeLowBox, page.fiatTradeHighBox)
       }
@@ -1109,7 +1109,7 @@ export class FeeAssetSelectionForm {
     const bondLock = bondAsset.amount * tier * bondReserveMultiplier
     page.bondLockDisplay.textContent = Doc.formatCoinAtom(bondLock, ui)
     const fiatRate = app().fiatRatesMap[assetID]
-    if (fiatRate) page.fiatLockDisplay.textContent = Doc.formatFourSigFigs(bondLock / conversionFactor * fiatRate)
+    if (fiatRate) page.fiatLockDisplay.textContent = Doc.formatBestWeCan(bondLock / conversionFactor * fiatRate)
     for (const m of Object.values(this.marketRows)) m.setTier(tier)
     const currentBondAmts: Record<number, number> = {}
     for (const [assetIDStr, { wallet }] of Object.entries(app().assets)) {
@@ -1136,7 +1136,7 @@ export class FeeAssetSelectionForm {
         tmpl.name.textContent = name
         const fiatRate = app().fiatRatesMap[assetID]
         Doc.setVis(tmpl.fiatBox)
-        if (fiatRate) tmpl.fiatAmt.textContent = Doc.formatFourSigFigs(bondLocked / conversionFactor * fiatRate)
+        if (fiatRate) tmpl.fiatAmt.textContent = Doc.formatBestWeCan(bondLocked / conversionFactor * fiatRate)
       }
     }
     Doc.setVis(fiatRate, page.fiatLockBox)

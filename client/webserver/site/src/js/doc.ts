@@ -335,6 +335,16 @@ export default class Doc {
   }
 
   /*
+   * capNumberStr caps number string at maxDigits by trimming least-significant digits.
+   */
+  static capNumberStr (numberStr: string, maxDigits: number): string {
+    if (numberStr.length <= maxDigits) {
+      return numberStr
+    }
+    return numberStr.substring(0, maxDigits)
+  }
+
+  /*
    * formatCoinAtom formats the value in atomic units into a string
    * representation in conventional units. If the value happens to be an
    * integer, no decimals are displayed. Trailing zeros may be truncated.
@@ -381,18 +391,6 @@ export default class Doc {
       return intFormatter.format(coin)
     }
     return fullPrecisionFormatterWithPreservingZeroes(lotSizeDigits + rateStepDigits).format(coin)
-  }
-
-  /*
-   * formatCoinAtomFourSigFigs should actually be called formatCoinAtomBestWeCan, but
-   * this name is left for compatibility purposes (simpler to rebase onto upstream).
-   *
-   * formatCoinAtomFourSigFigs is similar to formatCoinAtom but is more flexible
-   * in the way it treats decimals (can omit them if necessary).
-   */
-  static formatCoinAtomFourSigFigs (coinAtom: number, unitInfo?: UnitInfo): string {
-    const [v, precisionFull] = convertToConventional(coinAtom, unitInfo)
-    return Doc.formatFourSigFigs(v, precisionFull)
   }
 
   // adjRateAtomsBuy helps us make sure every order-rate we've got is adjusted to rate-step,
@@ -450,21 +448,17 @@ export default class Doc {
   }
 
   /*
-   * formatFourSigFigs should actually be called formatBestWeCan, but this name is
-   * left for compatibility purposes (simpler to rebase onto upstream).
-   *
-   * formatFourSigFigs formats number n using 4 decimals at most, sacrificing
-   * them as needed. Parameter maxDecimals helps it figure our if it even needs all 4
-   * digits or not (e.g. if maxDecimals is 2 there is no point in displaying 4 digits).
+   * formatBestWeCan formats number n to the best of its ability to keep it short
+   * sacrificing as little precision as possible.
    */
-  static formatFourSigFigs (n: number, maxDecimals?: number): string {
+  static formatBestWeCan (n: number, maxDecimals?: number): string {
     if (n >= 1000) {
-      // can't show decimals, might as well format as integer
+      // for large numbers don't want to show decimals, might as well format as integer
       return intFormatter.format(n)
     }
     if (!maxDecimals) {
-      // since maxDecimals is not specified formatting with fourSigFigs is
-      // the best we can do here
+      // since maxDecimals is not specified formatting with fourSigFigs is the best
+      // guess we'll go with
       return fourSigFigs.format(n)
     }
     // otherwise it's best to format with full precision up to maxDecimals
@@ -542,7 +536,7 @@ export default class Doc {
    */
   static formatBestUnitsFourSigFigs (atoms: number, ui: UnitInfo, prefs?: Record<string, boolean>): [string, string] {
     const [v, prec, unit] = this.bestConversion(atoms, ui, prefs)
-    return [Doc.formatFourSigFigs(v, prec), unit]
+    return [Doc.formatBestWeCan(v, prec), unit]
   }
 
   /*

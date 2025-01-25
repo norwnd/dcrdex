@@ -874,7 +874,7 @@ export class RunningMarketMakerDisplay {
         page.gapFactor.textContent = (gapFactor * 100).toFixed(2)
         break
       default:
-        page.gapFactor.textContent = Doc.formatFourSigFigs(gapFactor / OrderUtil.RateEncodingFactor * baseFactor / quoteFactor)
+        page.gapFactor.textContent = Doc.formatBestWeCan(gapFactor / OrderUtil.RateEncodingFactor * baseFactor / quoteFactor)
     }
 
     this.update()
@@ -951,48 +951,48 @@ export class RunningMarketMakerDisplay {
     }
 
     const dexBaseInv = summedBalance(runStats.dexBalances[baseID]) / baseFactor
-    page.walletBaseInventory.textContent = Doc.formatFourSigFigs(dexBaseInv)
-    page.walletBaseInvFiat.textContent = Doc.formatFourSigFigs(dexBaseInv * baseFiatRate, 2)
+    page.walletBaseInventory.textContent = Doc.formatBestWeCan(dexBaseInv)
+    page.walletBaseInvFiat.textContent = Doc.formatBestWeCan(dexBaseInv * baseFiatRate, 2)
     const dexQuoteInv = summedBalance(runStats.dexBalances[quoteID]) / quoteFactor
-    page.walletQuoteInventory.textContent = Doc.formatFourSigFigs(dexQuoteInv)
-    page.walletQuoteInvFiat.textContent = Doc.formatFourSigFigs(dexQuoteInv * quoteFiatRate, 2)
+    page.walletQuoteInventory.textContent = Doc.formatBestWeCan(dexQuoteInv)
+    page.walletQuoteInvFiat.textContent = Doc.formatBestWeCan(dexQuoteInv * quoteFiatRate, 2)
 
     Doc.setVis(cexName, page.cexRow)
     if (cexName) {
       Doc.show(page.pendingDepositBox, page.pendingWithdrawalBox)
       setCexElements(div, cexName)
       const cexBaseInv = summedBalance(runStats.cexBalances[baseID]) / baseFactor
-      page.cexBaseInventory.textContent = Doc.formatFourSigFigs(cexBaseInv)
-      page.cexBaseInventoryFiat.textContent = Doc.formatFourSigFigs(cexBaseInv * baseFiatRate, 2)
+      page.cexBaseInventory.textContent = Doc.formatBestWeCan(cexBaseInv)
+      page.cexBaseInventoryFiat.textContent = Doc.formatBestWeCan(cexBaseInv * baseFiatRate, 2)
       const cexQuoteInv = summedBalance(runStats.cexBalances[quoteID]) / quoteFactor
-      page.cexQuoteInventory.textContent = Doc.formatFourSigFigs(cexQuoteInv)
-      page.cexQuoteInventoryFiat.textContent = Doc.formatFourSigFigs(cexQuoteInv * quoteFiatRate, 2)
+      page.cexQuoteInventory.textContent = Doc.formatBestWeCan(cexQuoteInv)
+      page.cexQuoteInventoryFiat.textContent = Doc.formatBestWeCan(cexQuoteInv * quoteFiatRate, 2)
     }
 
     if (baseFeeID !== baseID) {
       const feeBalance = summedBalance(runStats.dexBalances[baseFeeID]) / baseFeeFactor
-      page.baseFeeReserves.textContent = Doc.formatFourSigFigs(feeBalance)
+      page.baseFeeReserves.textContent = Doc.formatBestWeCan(feeBalance)
     }
     if (quoteFeeID !== quoteID) {
       const feeBalance = summedBalance(runStats.dexBalances[quoteFeeID]) / quoteFeeFactor
-      page.quoteFeeReserves.textContent = Doc.formatFourSigFigs(feeBalance)
+      page.quoteFeeReserves.textContent = Doc.formatBestWeCan(feeBalance)
     }
 
     page.pendingDeposits.textContent = String(Math.round(runStats.pendingDeposits))
     page.pendingWithdrawals.textContent = String(Math.round(runStats.pendingWithdrawals))
     page.completedMatches.textContent = String(Math.round(runStats.completedMatches))
     Doc.setVis(runStats.tradedUSD, page.tradedUSDBox)
-    if (runStats.tradedUSD > 0) page.tradedUSD.textContent = Doc.formatFourSigFigs(runStats.tradedUSD)
+    if (runStats.tradedUSD > 0) page.tradedUSD.textContent = Doc.formatBestWeCan(runStats.tradedUSD)
     Doc.setVis(baseFiatRate, page.roundTripFeesBox)
-    if (baseFiatRate) page.roundTripFeesUSD.textContent = Doc.formatFourSigFigs((runStats.feeGap?.roundTripFees / baseFactor * baseFiatRate) || 0)
+    if (baseFiatRate) page.roundTripFeesUSD.textContent = Doc.formatBestWeCan((runStats.feeGap?.roundTripFees / baseFactor * baseFiatRate) || 0)
     const basisPrice = app().conventionalRate(baseID, quoteID, runStats.feeGap?.basisPrice || 0)
-    page.basisPrice.textContent = Doc.formatFourSigFigs(basisPrice)
+    page.basisPrice.textContent = Doc.formatBestWeCan(basisPrice)
 
     const displayFeeGap = !bmmCfg || bmmCfg.gapStrategy === GapStrategyAbsolutePlus || bmmCfg.gapStrategy === GapStrategyPercentPlus
     Doc.setVis(displayFeeGap, page.feeGapBox)
     if (displayFeeGap) {
       const feeGap = app().conventionalRate(baseID, quoteID, runStats.feeGap?.feeGap || 0)
-      page.feeGap.textContent = Doc.formatFourSigFigs(feeGap)
+      page.feeGap.textContent = Doc.formatBestWeCan(feeGap)
       page.feeGapPct.textContent = (feeGap / basisPrice * 100 || 0).toFixed(2)
     }
     Doc.setVis(bmmCfg, page.gapStrategyBox)
@@ -1001,7 +1001,7 @@ export class RunningMarketMakerDisplay {
     const remoteGap = app().conventionalRate(baseID, quoteID, runStats.feeGap?.remoteGap || 0)
     Doc.setVis(remoteGap, page.remoteGapBox)
     if (remoteGap) {
-      page.remoteGap.textContent = Doc.formatFourSigFigs(remoteGap)
+      page.remoteGap.textContent = Doc.formatBestWeCan(remoteGap)
       page.remoteGapPct.textContent = (remoteGap / basisPrice * 100 || 0).toFixed(2)
     }
 
@@ -1222,7 +1222,7 @@ function allOrdersPlaced (report: OrderReport) {
 }
 
 function setSignedValue (v: number, vEl: PageElement, signEl: PageElement, maxDecimals?: number) {
-  vEl.textContent = Doc.formatFourSigFigs(v, maxDecimals)
+  vEl.textContent = Doc.formatBestWeCan(v, maxDecimals)
   signEl.classList.toggle('ico-plus', v > 0)
   signEl.classList.toggle('text-good', v > 0)
   // signEl.classList.toggle('ico-minus', v < 0)
