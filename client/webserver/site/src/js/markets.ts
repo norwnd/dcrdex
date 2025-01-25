@@ -1754,12 +1754,12 @@ export default class MarketsPage extends BasePage {
     const { page, market: { cfg: { minimumRate }, rateConversionFactor } } = this
 
     const showError = function (err: string) {
-      page.orderErrBuy.textContent = intl.prep(err)
+      page.orderErrBuy.textContent = err
       Doc.show(page.orderErrBuy)
     }
 
     if (!order.rate) {
-      showError(intl.ID_NO_ZERO_RATE)
+      showError(intl.prep(intl.ID_NO_ZERO_RATE))
       return false
     }
     if (order.rate < minimumRate) {
@@ -1770,13 +1770,13 @@ export default class MarketsPage extends BasePage {
     if (!order.qty) {
       // Hints to the user what inputs don't pass validation.
       this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
-      showError(intl.ID_NO_ZERO_QUANTITY)
+      showError(intl.prep(intl.ID_NO_ZERO_QUANTITY))
       return false
     }
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
       // Hints to the user what inputs don't pass validation.
       this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
-      showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
+      showError(intl.prep(intl.ID_NO_QUANTITY_EXCEEDS_MAX))
       return false
     }
     return true
@@ -1790,12 +1790,12 @@ export default class MarketsPage extends BasePage {
     const { page, market: { cfg: { minimumRate }, rateConversionFactor } } = this
 
     const showError = function (err: string) {
-      page.orderErrSell.textContent = intl.prep(err)
+      page.orderErrSell.textContent = err
       Doc.show(page.orderErrSell)
     }
 
     if (!order.rate) {
-      showError(intl.ID_NO_ZERO_RATE)
+      showError(intl.prep(intl.ID_NO_ZERO_RATE))
       return false
     }
     if (order.rate < minimumRate) {
@@ -1806,13 +1806,13 @@ export default class MarketsPage extends BasePage {
     if (!order.qty) {
       // Hints to the user what inputs don't pass validation.
       this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
-      showError(intl.ID_NO_ZERO_QUANTITY)
+      showError(intl.prep(intl.ID_NO_ZERO_QUANTITY))
       return false
     }
     if (order.qty > await this.calcMaxOrderQtyAtoms(order.sell)) {
       // Hints to the user what inputs don't pass validation.
       this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
-      showError(intl.ID_NO_QUANTITY_EXCEEDS_MAX)
+      showError(intl.prep(intl.ID_NO_QUANTITY_EXCEEDS_MAX))
       return false
     }
     return true
