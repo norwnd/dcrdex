@@ -23,12 +23,16 @@ div[data-handler=markets] {
       height: 44px;
       font-weight: bold;
       background-color: var(--body-bg-lower-opacity);
-      border: 2px solid var(--border-color);
-      border-radius: 5px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 8px;
+      transition-property: border;
+      transition-duration: 300ms;
+      transition-timing-function: ease-in-out;
 
       &:hover,
-      &:focus {
-        border: 2px solid var(--text-warning);
+      &:focus,
+      &.selected {
+        border: 1.5px solid var(--text-warning);
       }
 
       // override the global defaults for input form
@@ -36,6 +40,23 @@ div[data-handler=markets] {
         border: none;
         background-color: transparent;
         border-radius: 0;
+      }
+    }
+
+    #rateFieldBuyArrowUp,
+    #rateFieldBuyArrowDown,
+    #qtyFieldBuyArrowUp,
+    #qtyFieldBuyArrowDown,
+    #rateFieldSellArrowUp,
+    #rateFieldSellArrowDown,
+    #qtyFieldSellArrowUp,
+    #qtyFieldSellArrowDown {
+      color: var(--text-grey);
+
+      &:hover,
+      &:focus {
+        cursor: pointer;
+        color: var(--text-color);
       }
     }
 

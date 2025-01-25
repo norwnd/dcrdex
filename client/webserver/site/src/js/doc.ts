@@ -417,14 +417,15 @@ export default class Doc {
 
   /*
    * formatRateAtomToRateStep formats atomic rate value to represent it exactly at rate step
-   * precision.
+   * precision (rounding up or down depending on the value of sell parameter, down by default).
    */
   static formatRateAtomToRateStep (rateAtom: number, bui: UnitInfo, qui: UnitInfo, rateStepAtom: number, sell?: boolean): string {
     // adjust rate based on whether it belongs to buy or sell order in Bison order book, make
     // this adjustment not only when displaying rates in order-book but also at every other
     // place where Bison rate might be displayed (open/completed orders, matches history, ...)
-    // so that the numbers are consistent everywhere for the same order - hence we are doing;
-    // note 2, sell parameter is optional since there are a bunch of places that don't care about
+    // so that the numbers are consistent everywhere for the same order - hence we are doing it
+    // here in formatRateAtomToRateStep;
+    // note, sell parameter is optional since there are a bunch of places that don't care about
     // it but still rely on this function to format rate (for one reason or another) - in case
     // it is omitted it's fine to treat it as buy-order
     const rateAtomAdj = sell ? Doc.adjRateAtomsSell(rateAtom, rateStepAtom) : Doc.adjRateAtomsBuy(rateAtom, rateStepAtom)

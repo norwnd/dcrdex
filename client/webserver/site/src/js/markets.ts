@@ -256,7 +256,7 @@ export default class MarketsPage extends BasePage {
 
     bind(page.qtySliderBuyInput, 'input', () => {
       const page = this.page
-      const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+      const mkt = this.market
 
       const sliderValue = this.parseNumber(page.qtySliderBuyInput.value)
       if (sliderValue === null || isNaN(sliderValue) || sliderValue < 0) {
@@ -264,7 +264,7 @@ export default class MarketsPage extends BasePage {
       }
 
       let maxBuyLots = 0
-      const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
+      const maxBuy = mkt.maxBuys[this.chosenRateBuyAtom]
       if (maxBuy) {
         maxBuyLots = maxBuy.swap.lots
       }
@@ -274,17 +274,21 @@ export default class MarketsPage extends BasePage {
       // max lots we can buy).
       // No need to check for errors because only user can "produce" an invalid input.
       const lots = Math.max(1, Math.floor(maxBuyLots * sliderValue))
-      const adjQty = this.lotToQty(lots)
+      const adjQtyAtom = this.lotToQtyAtom(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
-      page.qtyFieldBuy.value = String(adjQty)
-      this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
+      page.qtyFieldBuy.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+        adjQtyAtom,
+        mkt.baseUnitInfo,
+        mkt.cfg.lotsize
+      )
+      this.chosenQtyBuyAtom = adjQtyAtom
 
       this.renderBuyForm()
     })
     bind(page.qtySliderSellInput, 'input', () => {
       const page = this.page
-      const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+      const mkt = this.market
 
       const sliderValue = this.parseNumber(page.qtySliderSellInput.value)
       if (sliderValue === null || isNaN(sliderValue) || sliderValue < 0) {
@@ -292,8 +296,8 @@ export default class MarketsPage extends BasePage {
       }
 
       let maxSellLots = 0
-      if (this.market.maxSell) {
-        maxSellLots = this.market.maxSell.swap.lots
+      if (mkt.maxSell) {
+        maxSellLots = mkt.maxSell.swap.lots
       }
       // Update lot/qty values accordingly, derive lot value (integer) from the value
       // of slider and our wallet balance.
@@ -301,11 +305,15 @@ export default class MarketsPage extends BasePage {
       // max lots we can sell).
       // No need to check for errors because only user can "produce" an invalid input.
       const lots = Math.max(1, Math.floor(maxSellLots * sliderValue))
-      const adjQty = this.lotToQty(lots)
+      const adjQtyAtom = this.lotToQtyAtom(lots)
       // Lots and quantity fields are tightly coupled to each other, when one is
       // changed, we need to update the other one as well.
-      page.qtyFieldSell.value = String(adjQty)
-      this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
+      page.qtyFieldSell.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+        adjQtyAtom,
+        mkt.baseUnitInfo,
+        mkt.cfg.lotsize
+      )
+      this.chosenQtySellAtom = adjQtyAtom
 
       this.renderSellForm()
     })
@@ -348,16 +356,117 @@ export default class MarketsPage extends BasePage {
       bind(el, 'click', () => { closePopups() })
     })
 
+    // =================================================================
     // Limit order buy: event listeners for handling user interactions.
+    // =================================================================
+    bind(page.priceBoxBuy, ['click', 'focusin'], () => {
+      page.priceBoxBuy.classList.add('selected')
+      page.rateFieldBuy.focus()
+    })
+    bind(page.rateFieldBuy, 'focusout', () => {
+      // we are done with this field, no need to keep it selected
+      page.priceBoxBuy.classList.remove('selected')
+    })
     bind(page.rateFieldBuy, 'input', () => { this.rateFieldBuyInputHandler() })
     bind(page.rateFieldBuy, 'change', () => { this.rateFieldBuyChangeHandler() })
+    bind(page.rateFieldBuy, 'keydown', (event: KeyboardEvent) => {
+      // using keydown instead of keyup since with keyup there is an issue with event propagating
+      // further (moving cursor around from end to start position) even with preventDefault call,
+      // with keydown all is working fine
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        this.rateFieldBuyUpHandler()
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        this.rateFieldBuyDownHandler()
+      }
+      // for every other button let the input come through (don't call event.preventDefault())
+    })
+    bind(page.rateFieldBuyArrowUp, 'click', () => { this.rateFieldBuyUpHandler() })
+    bind(page.rateFieldBuyArrowDown, 'click', () => { this.rateFieldBuyDownHandler() })
+    bind(page.qtyBoxBuy, ['click', 'focusin'], () => {
+      page.qtyBoxBuy.classList.add('selected')
+      page.qtyFieldBuy.focus()
+    })
+    bind(page.qtyFieldBuy, 'focusout', () => {
+      // we are done with this field, no need to keep it selected
+      page.qtyBoxBuy.classList.remove('selected')
+    })
     bind(page.qtyFieldBuy, 'input', () => { this.qtyFieldBuyInputHandler() })
     bind(page.qtyFieldBuy, 'change', () => { this.qtyFieldBuyChangeHandler() })
+    bind(page.qtyFieldBuy, 'keydown', (event: KeyboardEvent) => {
+      // using keydown instead of keyup since with keyup there is an issue with event propagating
+      // further (moving cursor around from end to start position) even with preventDefault call,
+      // with keydown all is working fine
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        this.qtyFieldBuyUpHandler()
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        this.qtyFieldBuyDownHandler()
+      }
+      // for every other button let the input come through (don't call event.preventDefault())
+    })
+    bind(page.qtyFieldBuyArrowUp, 'click', () => { this.qtyFieldBuyUpHandler() })
+    bind(page.qtyFieldBuyArrowDown, 'click', () => { this.qtyFieldBuyDownHandler() })
+
+    // =================================================================
     // Limit order sell: event listeners for handling user interactions.
+    // =================================================================
+    bind(page.priceBoxSell, ['click', 'focusin'], () => {
+      page.priceBoxSell.classList.add('selected')
+      page.rateFieldSell.focus()
+    })
+    bind(page.rateFieldSell, 'focusout', () => {
+      // we are done with this field, no need to keep it selected
+      page.priceBoxSell.classList.remove('selected')
+    })
     bind(page.rateFieldSell, 'input', () => { this.rateFieldSellInputHandler() })
     bind(page.rateFieldSell, 'change', () => { this.rateFieldSellChangeHandler() })
+    bind(page.rateFieldSell, 'keydown', (event: KeyboardEvent) => {
+      // using keydown instead of keyup since with keyup there is an issue with event propagating
+      // further (moving cursor around from end to start position) even with preventDefault call,
+      // with keydown all is working fine
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        this.rateFieldSellUpHandler()
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        this.rateFieldSellDownHandler()
+      }
+      // for every other button let the input come through (don't call event.preventDefault())
+    })
+    bind(page.rateFieldSellArrowUp, 'click', () => { this.rateFieldSellUpHandler() })
+    bind(page.rateFieldSellArrowDown, 'click', () => { this.rateFieldSellDownHandler() })
+    bind(page.qtyBoxSell, ['click', 'focusin'], () => {
+      page.qtyBoxSell.classList.add('selected')
+      page.qtyFieldSell.focus()
+    })
+    bind(page.qtyFieldSell, 'focusout', () => {
+      // we are done with this field, no need to keep it selected
+      page.qtyBoxSell.classList.remove('selected')
+    })
     bind(page.qtyFieldSell, 'input', () => { this.qtyFieldSellInputHandler() })
     bind(page.qtyFieldSell, 'change', () => { this.qtyFieldSellChangeHandler() })
+    bind(page.qtyFieldSell, 'keydown', (event: KeyboardEvent) => {
+      // using keydown instead of keyup since with keyup there is an issue with event propagating
+      // further (moving cursor around from end to start position) even with preventDefault call,
+      // with keydown all is working fine
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        this.qtyFieldSellUpHandler()
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        this.qtyFieldSellDownHandler()
+      }
+      // for every other button let the input come through (don't call event.preventDefault())
+    })
+    bind(page.qtyFieldSellArrowUp, 'click', () => { this.qtyFieldSellUpHandler() })
+    bind(page.qtyFieldSellArrowDown, 'click', () => { this.qtyFieldSellDownHandler() })
 
     // Market search input bindings.
     bind(page.marketSearchV1, ['change', 'keyup'], () => { this.filterMarkets() })
@@ -2724,22 +2833,26 @@ export default class MarketsPage extends BasePage {
   setBuyQtyDefault () {
     const page = this.page
     const mkt = this.market
-    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
 
-    const adjQtyBuy = this.lotToQty(1)
-    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQtyBuy, qtyConv)
-    page.qtyFieldBuy.value = String(adjQtyBuy)
+    this.chosenQtyBuyAtom = this.lotToQtyAtom(1)
+    page.qtyFieldBuy.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtyBuyAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
     page.qtySliderBuyInput.value = '0'
   }
 
   setSellQtyDefault () {
     const page = this.page
     const mkt = this.market
-    const qtyConv = mkt.baseUnitInfo.conventional.conversionFactor
 
-    const adjQtySell = this.lotToQty(1)
-    this.chosenQtySellAtom = convertNumberToAtoms(adjQtySell, qtyConv)
-    page.qtyFieldSell.value = String(adjQtySell)
+    this.chosenQtySellAtom = this.lotToQtyAtom(1)
+    page.qtyFieldSell.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtySellAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
     page.qtySliderSellInput.value = '0'
   }
 
@@ -2785,12 +2898,12 @@ export default class MarketsPage extends BasePage {
 
     this.chosenRateBuyAtom = adjRateAtom
 
-    // recalculate maxbuy value because it does change with every rate change
     this.renderBuyForm()
   }
 
   rateFieldBuyChangeHandler () {
     const page = this.page
+    const mkt = this.market
 
     const rateFieldValue = this.page.rateFieldBuy.value?.trim()
 
@@ -2812,11 +2925,46 @@ export default class MarketsPage extends BasePage {
 
     // process "imperfect" (adjusted) user input
 
-    const adjRate = adjRateAtom / this.market.rateConversionFactor
-    page.rateFieldBuy.value = String(adjRate)
+    page.rateFieldBuy.value = Doc.formatRateAtomToRateStep(
+      adjRateAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
     this.chosenRateBuyAtom = adjRateAtom
 
-    // recalculate maxbuy value because it does change with every rate change
+    this.renderBuyForm()
+  }
+
+  rateFieldBuyUpHandler () {
+    const page = this.page
+    const mkt = this.market
+    const rateStepAtom = this.market.cfg.ratestep
+
+    this.chosenRateBuyAtom = this.chosenRateBuyAtom + rateStepAtom
+    page.rateFieldBuy.value = Doc.formatRateAtomToRateStep(
+      this.chosenRateBuyAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+
+    this.renderBuyForm()
+  }
+
+  rateFieldBuyDownHandler () {
+    const page = this.page
+    const mkt = this.market
+    const rateStepAtom = this.market.cfg.ratestep
+
+    this.chosenRateBuyAtom = Math.max(0, this.chosenRateBuyAtom - rateStepAtom) // don't allow negative values
+    page.rateFieldBuy.value = Doc.formatRateAtomToRateStep(
+      this.chosenRateBuyAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+
     this.renderBuyForm()
   }
 
@@ -2852,6 +3000,7 @@ export default class MarketsPage extends BasePage {
 
   rateFieldSellChangeHandler () {
     const page = this.page
+    const mkt = this.market
 
     const rateFieldValue = this.page.rateFieldSell.value?.trim()
 
@@ -2873,8 +3022,12 @@ export default class MarketsPage extends BasePage {
 
     // process "imperfect" (adjusted) user input
 
-    const adjRate = adjRateAtom / this.market.rateConversionFactor
-    page.rateFieldSell.value = String(adjRate)
+    page.rateFieldSell.value = Doc.formatRateAtomToRateStep(
+      adjRateAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
     this.chosenRateSellAtom = adjRateAtom
 
     // unlike with buy orders there is no need to recalculate maxsell value
@@ -2882,9 +3035,42 @@ export default class MarketsPage extends BasePage {
     this.renderSellForm()
   }
 
+  rateFieldSellUpHandler () {
+    const page = this.page
+    const mkt = this.market
+    const rateStepAtom = this.market.cfg.ratestep
+
+    this.chosenRateSellAtom = this.chosenRateSellAtom + rateStepAtom
+    page.rateFieldSell.value = Doc.formatRateAtomToRateStep(
+      this.chosenRateSellAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+
+    // recalculate maxsell value because it does change with every rate change
+    this.renderSellForm()
+  }
+
+  rateFieldSellDownHandler () {
+    const page = this.page
+    const mkt = this.market
+    const rateStepAtom = this.market.cfg.ratestep
+
+    this.chosenRateSellAtom = Math.max(0, this.chosenRateSellAtom - rateStepAtom) // don't allow negative values
+    page.rateFieldSell.value = Doc.formatRateAtomToRateStep(
+      this.chosenRateSellAtom,
+      mkt.baseUnitInfo,
+      mkt.quoteUnitInfo,
+      mkt.cfg.ratestep
+    )
+
+    // recalculate maxsell value because it does change with every rate change
+    this.renderSellForm()
+  }
+
   qtyFieldBuyInputHandler () {
     const page = this.page
-    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
     const qtyFieldValue = page.qtyFieldBuy.value?.trim()
 
@@ -2899,7 +3085,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    const [inputValid, adjusted, adjLots, adjQtyAtom] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // we don't want to do any further processing here since the input might not be "final",
       // let the 'change' handler to take care of it in case it is "final"
@@ -2908,32 +3094,25 @@ export default class MarketsPage extends BasePage {
 
     // process "perfect" user input
 
-    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
+    this.chosenQtyBuyAtom = adjQtyAtom
 
-    // Update slider accordingly, assume max buy has already been fetched and rate has
-    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise),
-    // still handle absent maxBuy case gracefully.
-    const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
-    if (maxBuy) {
-      const sliderValue = Math.min(1, adjLots / maxBuy.swap.lots)
-      page.qtySliderBuyInput.value = String(sliderValue)
-    }
+    this.setSliderBuyInput(adjLots) // update slider accordingly
 
     this.renderBuyForm()
   }
 
   qtyFieldBuyChangeHandler () {
     const page = this.page
-    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+    const mkt = this.market
 
     const qtyFieldValue = page.qtyFieldBuy.value?.trim()
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    const [inputValid, adjusted, adjLots, adjQtyAtom] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
       this.animateErrors(highlightOutlineRed(page.qtyBoxBuy))
     }
-    if (!inputValid || (adjusted && adjQty === 0)) {
+    if (!inputValid || (adjusted && adjQtyAtom === 0)) {
       this.chosenQtyBuyAtom = 0 // reset chosen value, but don't interfere with user input field
       this.previewTotalBuy(this.chosenRateBuyAtom, this.chosenQtyBuyAtom)
       this.setOrderBttnBuyEnabled(false, 'choose your quantity')
@@ -2946,24 +3125,56 @@ export default class MarketsPage extends BasePage {
 
     // process "imperfect" (adjusted) user input
 
-    page.qtyFieldBuy.value = String(adjQty)
-    this.chosenQtyBuyAtom = convertNumberToAtoms(adjQty, qtyConv)
+    page.qtyFieldBuy.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      adjQtyAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+    this.chosenQtyBuyAtom = adjQtyAtom
 
-    // Update slider accordingly, assume max buy has already been fetched and rate has
-    // already been validated and adjusted (don't let user touch lot/qty/slider fields otherwise),
-    // still handle absent maxBuy case gracefully.
-    const maxBuy = this.market.maxBuys[this.chosenRateBuyAtom]
-    if (maxBuy) {
-      const sliderValue = Math.min(1, adjLots / maxBuy.swap.lots)
-      page.qtySliderBuyInput.value = String(sliderValue)
-    }
+    this.setSliderBuyInput(adjLots) // update slider accordingly
+
+    this.renderBuyForm()
+  }
+
+  qtyFieldBuyUpHandler () {
+    const page = this.page
+    const mkt = this.market
+
+    const qtyIncrement = this.lotToQtyAtom(1)
+    this.chosenQtyBuyAtom = this.chosenQtyBuyAtom + qtyIncrement
+    page.qtyFieldBuy.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtyBuyAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+
+    const [, chosenLots] = this.adjustQtyAtoms(this.chosenQtyBuyAtom)
+    this.setSliderBuyInput(chosenLots) // update slider accordingly
+
+    this.renderBuyForm()
+  }
+
+  qtyFieldBuyDownHandler () {
+    const page = this.page
+    const mkt = this.market
+
+    const qtyDecrement = this.lotToQtyAtom(1)
+    this.chosenQtyBuyAtom = Math.max(0, this.chosenQtyBuyAtom - qtyDecrement) // don't allow negative values
+    page.qtyFieldBuy.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtyBuyAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+
+    const [, chosenLots] = this.adjustQtyAtoms(this.chosenQtyBuyAtom)
+    this.setSliderBuyInput(chosenLots) // update slider accordingly
 
     this.renderBuyForm()
   }
 
   qtyFieldSellInputHandler () {
     const page = this.page
-    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
 
     const qtyFieldValue = page.qtyFieldSell.value?.trim()
 
@@ -2978,7 +3189,7 @@ export default class MarketsPage extends BasePage {
       return
     }
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    const [inputValid, adjusted, adjLots, adjQtyAtom] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // we don't want to do any further processing here since the input might not be "final",
       // let the 'change' handler to take care of it in case it is "final"
@@ -2987,32 +3198,25 @@ export default class MarketsPage extends BasePage {
 
     // process "perfect" user input
 
-    this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
+    this.chosenQtySellAtom = adjQtyAtom
 
-    // Update slider accordingly, assume max sell has already been fetched (don't
-    // let user touch lot/qty/slider fields otherwise), still handle absent maxSell
-    // case gracefully.
-    const maxSell = this.market.maxSell
-    if (maxSell) {
-      const sliderValue = Math.min(1, adjLots / maxSell.swap.lots)
-      page.qtySliderSellInput.value = String(sliderValue)
-    }
+    this.setSliderSellInput(adjLots) // update slider accordingly
 
     this.renderSellForm()
   }
 
   qtyFieldSellChangeHandler () {
     const page = this.page
-    const qtyConv = this.market.baseUnitInfo.conventional.conversionFactor
+    const mkt = this.market
 
     const qtyFieldValue = page.qtyFieldSell.value?.trim()
 
-    const [inputValid, adjusted, adjLots, adjQty] = this.parseQtyInput(qtyFieldValue)
+    const [inputValid, adjusted, adjLots, adjQtyAtom] = this.parseQtyInput(qtyFieldValue)
     if (!inputValid || adjusted) {
       // Let the user know that quantity he's entered was rounded down.
       this.animateErrors(highlightOutlineRed(page.qtyBoxSell))
     }
-    if (!inputValid || (adjusted && adjQty === 0)) {
+    if (!inputValid || (adjusted && adjQtyAtom === 0)) {
       this.chosenQtySellAtom = 0 // reset chosen value, but don't interfere with user input field
       this.setOrderBttnSellEnabled(false, 'choose your quantity')
       return
@@ -3024,19 +3228,78 @@ export default class MarketsPage extends BasePage {
 
     // process "imperfect" (adjusted) user input
 
-    page.qtyFieldSell.value = String(adjQty)
-    this.chosenQtySellAtom = convertNumberToAtoms(adjQty, qtyConv)
+    page.qtyFieldSell.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      adjQtyAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+    this.chosenQtySellAtom = adjQtyAtom
 
-    // Update slider accordingly, assume max sell has already been fetched (don't
-    // let user touch lot/qty/slider fields otherwise), still handle absent maxSell
-    // case gracefully.
-    const maxSell = this.market.maxSell
-    if (maxSell) {
-      const sliderValue = Math.min(1, adjLots / maxSell.swap.lots)
-      page.qtySliderSellInput.value = String(sliderValue)
-    }
+    this.setSliderSellInput(adjLots) // update slider accordingly
 
     this.renderSellForm()
+  }
+
+  qtyFieldSellUpHandler () {
+    const page = this.page
+    const mkt = this.market
+
+    const qtyIncrement = this.lotToQtyAtom(1)
+    this.chosenQtySellAtom = this.chosenQtySellAtom + qtyIncrement
+    page.qtyFieldSell.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtySellAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+
+    const [, chosenLots] = this.adjustQtyAtoms(this.chosenQtySellAtom)
+    this.setSliderSellInput(chosenLots) // update slider accordingly
+
+    this.renderSellForm()
+  }
+
+  qtyFieldSellDownHandler () {
+    const page = this.page
+    const mkt = this.market
+
+    const qtyDecrement = this.lotToQtyAtom(1)
+    this.chosenQtySellAtom = Math.max(0, this.chosenQtySellAtom - qtyDecrement) // don't allow negative values
+    page.qtyFieldSell.value = Doc.formatCoinAtomToLotSizeBaseCurrency(
+      this.chosenQtySellAtom,
+      mkt.baseUnitInfo,
+      mkt.cfg.lotsize
+    )
+
+    const [, chosenLots] = this.adjustQtyAtoms(this.chosenQtySellAtom)
+    this.setSliderSellInput(chosenLots) // update slider accordingly
+
+    this.renderSellForm()
+  }
+
+  // setSliderBuyInput sets slider input to correspond to lots specified
+  setSliderBuyInput (lots: number) {
+    const page = this.page
+    const mkt = this.market
+
+    // we can only update slider input if max buy has already been fetched
+    const maxBuy = mkt.maxBuys[this.chosenRateBuyAtom]
+    if (maxBuy) {
+      const sliderValue = Math.min(1, lots / maxBuy.swap.lots)
+      page.qtySliderBuyInput.value = String(sliderValue)
+    }
+  }
+
+  // setSliderSellInput sets slider input to correspond to lots specified
+  setSliderSellInput (lots: number) {
+    const page = this.page
+    const mkt = this.market
+
+    // we can only update slider input if max sell has already been fetched
+    const maxSell = mkt.maxSell
+    if (maxSell) {
+      const sliderValue = Math.min(1, lots / maxSell.swap.lots)
+      page.qtySliderSellInput.value = String(sliderValue)
+    }
   }
 
   /**
@@ -3045,7 +3308,7 @@ export default class MarketsPage extends BasePage {
    *    parsing fails)
    * 2) whether rounding(adjustment) had happened (true when did)
    * 3) adjusted lot value
-   * 4) adjusted quantity value
+   * 4) adjusted quantity value in atoms
    *
    * If quantity value couldn't be parsed (parsing issues), the following
    * values are returned: [false, false, 0, 0].
@@ -3059,10 +3322,9 @@ export default class MarketsPage extends BasePage {
     }
     const qtyRawAtom = convertNumberToAtoms(qtyRaw, bui.conventional.conversionFactor)
     const [adjQtyAtom, adjLots] = this.adjustQtyAtoms(qtyRawAtom)
-    const adjQty = adjQtyAtom / bui.conventional.conversionFactor
     const rounded = adjQtyAtom !== qtyRawAtom
 
-    return [true, rounded, adjLots, adjQty]
+    return [true, rounded, adjLots, adjQtyAtom]
   }
 
   /**
@@ -3120,8 +3382,8 @@ export default class MarketsPage extends BasePage {
     return rateAtom - (rateAtom % rateStepAtom)
   }
 
-  lotToQty (lots: number): number {
-    return lots * this.market.cfg.lotsize / this.market.baseUnitInfo.conventional.conversionFactor
+  lotToQtyAtom (lots: number): number {
+    return lots * this.market.cfg.lotsize
   }
 
   /* loadTable reloads the table from the current order book information. */
