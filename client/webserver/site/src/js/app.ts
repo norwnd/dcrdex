@@ -948,11 +948,11 @@ export default class Application {
     }
     if (!authed) {
       page.profileBox.classList.remove('authed')
-      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry, page.mmLink)
+      Doc.hide(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.mmLink)
       return
     }
     page.profileBox.classList.add('authed')
-    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry, page.ordersMenuEntry)
+    Doc.show(page.noteBell, page.walletsMenuEntry, page.marketsMenuEntry)
     Doc.setVis(mmStatus, page.mmLink)
   }
 

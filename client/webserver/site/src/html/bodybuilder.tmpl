@@ -64,7 +64,6 @@
   <div class="mainlinks fs18 pe-2 text-nowrap">
     <a href="/wallets" class="demi hoverbg{{if not $authed}} d-hide{{end}}" id="walletsMenuEntry">[[[Wallet]]]</a>
     <a href="/markets" class="demi hoverbg d-hide" id="marketsMenuEntry">[[[Trade]]]</a>
-    <a href="/orders" class="demi hoverbg d-hide" id="ordersMenuEntry">[[[Order History]]]</a>
     <a href="/mm" class="ico-robot lh1 fs32 hoverbg d-hide" id="mmLink"></a>
 
     <div class="d-inline-block position-relative pointer hoverbg{{if not $authed}} d-hide{{end}}" id="noteBell">
@@ -115,26 +114,30 @@
 
   <div id="profileBox" class="d-hide p-3 fs15">
     <div class="icon fs20 ico-hamburger p-1" id="innerBurgerIcon"></div>
-    <span class="text-danger" id="logoutErr"></span>
-    <a href="/settings" class="demi hoverbright plainlink d-flex align-items-center py-1">
-      <span class="ico-settings fs16 me-2"></span>
+    <span class="text-danger fs16" id="logoutErr"></span>
+    <a href="/orders" class="demi hoverbright plainlink d-flex align-items-center fs18 py-1 authed-only">
+      <span class="ico-settings me-2"></span>
+      [[[Order History]]]
+    </a>
+    <a href="/settings" class="demi hoverbright plainlink d-flex align-items-center fs18 py-1">
+      <span class="ico-settings me-2"></span>
       [[[Settings]]]
     </a>
-    <div class="d-flex flex-column align-items-start">
+    <div class="d-flex flex-column align-items-start fs18">
       <div class="flex-center">
-        <span id="langFlag" class="fs20"></span>
-        <span id="langName" class="demi fs16 ms-1"></span>
+        <span id="langFlag" class="fs18"></span>
+        <span id="langName" class="demi ms-1"></span>
       </div>
       <div id="langBttns" class="d-flex align-items-center flex-wrap">
-        <div id="langBttnTmpl" class="pointer fs18 me-2"></div>
+        <div id="langBttnTmpl" class="pointer me-2"></div>
       </div>
     </div>
-    <a href="https://github.com/decred/dcrdex" class="demi hoverbright plainlink d-flex align-items-center py-1"  target="_blank">
-      <span class="ico-open fs16 me-2"></span>
+    <a href="https://github.com/decred/dcrdex" class="demi hoverbright plainlink d-flex align-items-center fs18 py-1"  target="_blank">
+      <span class="ico-open me-2"></span>
       Homepage / Docs
     </a>
-    <div class="demi hoverbright pointer d-flex align-items-center py-1 authed-only" id="profileSignout">
-      <span class="ico-profile fs16 me-2"></span>
+    <div class="demi hoverbright pointer d-flex align-items-center fs18 py-1 authed-only" id="profileSignout">
+      <span class="ico-profile me-2"></span>
       [[[Sign Out]]]
     </div>
   </div>

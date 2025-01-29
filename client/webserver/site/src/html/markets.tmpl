@@ -102,22 +102,30 @@
               <section id="orderFormBuy" class="px-1 d-hide">
                 <form id="limitOrderBoxBuy" class="d-flex flex-stretch-column py-1" autocomplete="off">
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex align-items-center order-form-input select m-1" id="priceBoxBuy">
+                  <div class="d-flex flex-stretch-row align-items-center order-form-input select m-1" id="priceBoxBuy">
                     <label for="rateField" class="form-label grey fs18 px-2">Price</label>
                     <input type="text" class="text-end demi fs18 p-0" id="rateFieldBuy">
                     <span class="grey demi fs18 px-1" data-quote-ticker></span>
-                    <div class="d-flex flex-stretch-column align-items-center ps-0-5 pe-1 border-left">
-                      <div id="rateFieldBuyArrowUp" class="ico-arrowup fs12 px-0-5 pb-0-5 pt-1"></div>
-                      <div id="rateFieldBuyArrowDown" class="ico-arrowdown fs12 px-0-5 pt-1 pb-0-5 border-top"></div>
+                    <div class="d-flex flex-stretch-column align-items-center justify-content-between arrows-up-down ps-0-5 pe-1 border-left">
+                      <div id="rateFieldBuyArrowUp" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5 border-bottom">
+                        <div class="arrow-up"></div>
+                      </div>
+                      <div id="rateFieldBuyArrowDown" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5">
+                        <div class="arrow-down"></div>
+                      </div>
                     </div>
                   </div>
-                  <div class="d-flex align-items-center order-form-input select m-1" id="qtyBoxBuy">
+                  <div class="d-flex flex-stretch-row align-items-center order-form-input select m-1" id="qtyBoxBuy">
                     <label for="qtyFieldBuy" class="form-label grey fs18 px-2">Quantity</label>
                     <input type="text" class="text-end demi fs18 p-0" id="qtyFieldBuy">
                     <span class="grey demi fs18 px-1" data-base-ticker></span>
-                    <div class="d-flex flex-stretch-column align-items-center ps-0-5 pe-1 border-left">
-                      <div id="qtyFieldBuyArrowUp" class="ico-arrowup fs12 px-0-5 pb-0-5 pt-1"></div>
-                      <div id="qtyFieldBuyArrowDown" class="ico-arrowdown fs12 px-0-5 pt-1 pb-0-5 border-top"></div>
+                    <div class="d-flex flex-stretch-column align-items-center justify-content-between arrows-up-down ps-0-5 pe-1 border-left">
+                      <div id="qtyFieldBuyArrowUp" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5 border-bottom">
+                        <div class="arrow-up"></div>
+                      </div>
+                      <div id="qtyFieldBuyArrowDown" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5">
+                        <div class="arrow-down"></div>
+                      </div>
                     </div>
                   </div>
                   <div id="qtySliderBuy" class="d-flex flex-stretch-column mt-3 mb-2 mx-2">
@@ -143,22 +151,30 @@
               <section id="orderFormSell" class="px-1 d-hide">
                 <form id="limitOrderBoxSell" class="d-flex flex-stretch-column py-1" autocomplete="off">
                   {{- /* RATE AND QUANTITY INPUTS */ -}}
-                  <div class="d-flex align-items-center order-form-input select m-1" id="priceBoxSell">
+                  <div class="d-flex flex-stretch-row align-items-center order-form-input select m-1" id="priceBoxSell">
                     <label for="rateField" class="form-label grey fs18 px-2">Price</label>
                     <input type="text" class="text-end demi fs18 p-0" id="rateFieldSell">
                     <span class="grey demi fs18 px-1" data-quote-ticker></span>
-                    <div class="d-flex flex-stretch-column align-items-center ps-0-5 pe-1 border-left">
-                      <div id="rateFieldSellArrowUp" class="ico-arrowup fs12 px-0-5 pb-0-5 pt-1"></div>
-                      <div id="rateFieldSellArrowDown" class="ico-arrowdown fs12 px-0-5 pt-1 pb-0-5 border-top"></div>
+                    <div class="d-flex flex-stretch-column align-items-center justify-content-between arrows-up-down ps-0-5 pe-1 border-left">
+                      <div id="rateFieldSellArrowUp" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5 border-bottom">
+                        <div class="arrow-up"></div>
+                      </div>
+                      <div id="rateFieldSellArrowDown" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5">
+                        <div class="arrow-down"></div>
+                      </div>
                     </div>
                   </div>
-                  <div class="d-flex align-items-center order-form-input select m-1" id="qtyBoxSell">
+                  <div class="d-flex flex-stretch-row align-items-center order-form-input select m-1" id="qtyBoxSell">
                     <label for="qtyFieldSell" class="form-label grey fs18 px-2">Quantity</label>
                     <input type="text" class="text-end demi fs18 p-0" id="qtyFieldSell">
                     <span class="grey demi fs18 px-1" data-base-ticker></span>
-                    <div class="d-flex flex-stretch-column align-items-center ps-0-5 pe-1 border-left">
-                      <div id="qtyFieldSellArrowUp" class="ico-arrowup fs12 px-0-5 pb-0-5 pt-1"></div>
-                      <div id="qtyFieldSellArrowDown" class="ico-arrowdown fs12 px-0-5 pt-1 pb-0-5 border-top"></div>
+                    <div class="d-flex flex-stretch-column align-items-center justify-content-between arrows-up-down ps-0-5 pe-1 border-left">
+                      <div id="qtyFieldSellArrowUp" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5 border-bottom">
+                        <div class="arrow-up"></div>
+                      </div>
+                      <div id="qtyFieldSellArrowDown" class="d-flex flex-grow-1 flex-stretch-column justify-content-center px-0-5">
+                        <div class="arrow-down"></div>
+                      </div>
                     </div>
                   </div>
                   <div id="qtySliderSell" class="d-flex flex-stretch-column mt-3 mb-2 mx-2">
